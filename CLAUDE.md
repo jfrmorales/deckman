@@ -120,8 +120,12 @@ El repositorio está en **dos remotos y los dos van siempre a la vez**:
 configuradas, así que un `git push` normal llega a ambos; `release.sh` además
 comprueba que el tag ha aterrizado en los dos y falla si no.
 
-Tras publicar, `flatpak/build.sh` reinstala el Flatpak y dice qué versión deja
-instalada y cuál había antes.
+**El Flatpak instalado se deja siempre al día.** No es algo que el usuario
+tenga que pedir ni que haya que ofrecerle: si un cambio llega a `main`, se
+publica y se reinstala, y se dice qué versión queda puesta. Tener el paquete
+instalado por detrás del código ya le hizo perder tiempo una vez. `make release`
+lo hace en la misma orden; comprobar al final con
+`flatpak run io.github.jfrmorales.deckman --version`.
 
 ## No commitear sin permiso
 

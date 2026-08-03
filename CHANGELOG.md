@@ -13,6 +13,8 @@ bloque `<releases>` del metainfo. Los tres los sincroniza `scripts/release.sh`.
      versión nueva al publicar. Secciones: Añadido, Cambiado, Corregido,
      Eliminado. -->
 
+## [0.2.0] — 2026-08-03
+
 ### Añadido
 
 - **Varias Steam Decks**: las que se van usando quedan guardadas y se eligen de
@@ -84,5 +86,6 @@ interno y microSD, desinstalar, la ventana WebView2 en un Windows real,
 `RemoveShortcutLive`, `SetCompatToolLive` y `RelocateShortcut`. Están recogidas
 en `CLAUDE.md`. Por eso 0.1.0 y no 1.0.0.
 
-[No publicado]: https://github.com/jfrmorales/deckman/compare/v0.1.0...HEAD
+[No publicado]: https://github.com/jfrmorales/deckman/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/jfrmorales/deckman/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/jfrmorales/deckman/releases/tag/v0.1.0

@@ -1,0 +1,51 @@
+# Manifiesto Flatpak de deckman.
+#
+# El binario NO se compila aqui: lo compila ../build.sh dentro de un contenedor
+# (peticion del usuario: nada de Go en el sistema). Por eso el "sdk" es la
+# propia Platform: este manifiesto solo copia ficheros, no necesita compilador,
+# y asi no se descarga el SDK entero de freedesktop.
+#
+# Se construye con flatpak/build.sh.
+app-id: io.github.jfrmorales.deckman
+runtime: org.freedesktop.Platform
+runtime-version: '25.08'
+sdk: org.freedesktop.Platform
+command: deckman
+
+finish-args:
+  # SSH con la Deck, APIs (tienda de Steam, ProtonDB, SteamGridDB) y el propio
+  # servidor local de la interfaz.
+  - --share=network
+  # El explorador de ficheros integrado necesita leer los juegos y ROMs del
+  # disco. Solo lectura: deckman nunca escribe en el PC fuera de su
+  # configuracion (que va al directorio del sandbox).
+  - --filesystem=home:ro
+  - --filesystem=/run/media:ro
+  - --filesystem=/media:ro
+  - --filesystem=/mnt:ro
+  # Si guardas los juegos en otro sitio (un disco montado fuera del home, por
+  # ejemplo /var/almacen), no toques este fichero: dale acceso a tu maquina con
+  #   flatpak override --user --filesystem=/tu/ruta:ro io.github.jfrmorales.deckman
+  # Para abrir la interfaz como ventana de aplicacion hay que lanzar el
+  # navegador Chromium del HOST via flatpak-spawn, y eso exige este permiso.
+  # Es una puerta consciente en el sandbox: deckman es una herramienta local de
+  # confianza, no codigo ajeno; sin el permiso caeria a abrir una pestana.
+  - --talk-name=org.freedesktop.Flatpak
+
+modules:
+  - name: deckman
+    buildsystem: simple
+    build-commands:
+      - install -Dm755 deckman /app/bin/deckman
+      - install -Dm644 io.github.jfrmorales.deckman.desktop /app/share/applications/io.github.jfrmorales.deckman.desktop
+      - install -Dm644 io.github.jfrmorales.deckman.metainfo.xml /app/share/metainfo/io.github.jfrmorales.deckman.metainfo.xml
+      - install -Dm644 icon.svg /app/share/icons/hicolor/scalable/apps/io.github.jfrmorales.deckman.svg
+    sources:
+      - type: file
+        path: ../dist/deckman
+      - type: file
+        path: io.github.jfrmorales.deckman.desktop
+      - type: file
+        path: io.github.jfrmorales.deckman.metainfo.xml
+      - type: file
+        path: ../internal/server/web/icon.svg

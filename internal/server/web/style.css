@@ -1,0 +1,528 @@
+:root {
+  --bg: #12151c;
+  --bg2: #1a1f29;
+  --bg3: #232936;
+  --line: #2e3746;
+  --fg: #e4e8f0;
+  --dim: #8b95a8;
+  --accent: #4d9de0;
+  --accent2: #2f7dc0;
+  --ok: #4caf7d;
+  --warn: #e0a34d;
+  --danger: #e05a5a;
+  --sd: #a86fd4;
+  /* Los datos de máquina (IPs, rutas, tamaños) van en monospace: la app va de
+     SSH y así las columnas de cifras quedan alineadas de verdad. */
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+button {
+  background: var(--bg3);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 7px 13px;
+  cursor: pointer;
+  font: inherit;
+}
+button:hover:not(:disabled) { background: #2c3444; border-color: #3d4759; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+button.primary { background: var(--accent2); border-color: var(--accent); }
+button.primary:hover:not(:disabled) { background: var(--accent); }
+button.danger { background: #8f3838; border-color: var(--danger); }
+button.danger:hover:not(:disabled) { background: var(--danger); }
+button.big { padding: 10px 20px; font-size: 15px; }
+
+input, select {
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 7px 10px;
+  font: inherit;
+}
+input:focus, select:focus { outline: none; border-color: var(--accent); }
+input[readonly] { color: var(--dim); }
+
+code {
+  background: var(--bg3);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 12.5px;
+}
+
+.hidden { display: none !important; }
+.spacer { flex: 1; }
+.opt, .hint { color: var(--dim); }
+.hint { font-size: 13px; }
+em.opt { font-style: normal; font-size: 12px; margin-left: 6px; }
+
+/* ---- barra superior ---- */
+.topbar {
+  display: flex; align-items: center; gap: 20px;
+  padding: 12px 20px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+.brand { display: flex; align-items: center; gap: 9px; font-weight: 600; font-size: 16px; }
+.logo { width: 24px; height: 24px; border-radius: 6px; }
+.version { color: var(--dim); font-weight: 400; font-size: 12px; }
+.goodbye { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 80vh; gap: 6px; font-size: 18px; }
+.conn { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+.banner {
+  padding: 10px 20px;
+  background: #2a3140;
+  border-bottom: 1px solid var(--line);
+  font-size: 13.5px;
+}
+.banner.err { background: #3a2020; color: #eaa; }
+.banner.ok { background: #1d3a2c; color: #9fe0bd; }
+
+/* ---- pestañas ---- */
+.tabs { display: flex; gap: 2px; padding: 0 20px; background: var(--bg2); border-bottom: 1px solid var(--line); }
+.tab {
+  background: none; border: none; border-bottom: 2px solid transparent;
+  border-radius: 0; padding: 11px 18px; color: var(--dim);
+}
+.tab:hover { background: none; color: var(--fg); }
+.tab.active { color: var(--fg); border-bottom-color: var(--accent); }
+
+main { padding: 20px; max-width: 1180px; margin: 0 auto; }
+.panel { display: none; }
+.panel.active { display: block; }
+
+/* ---- almacenamiento ---- */
+.storage { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 18px; }
+.disk {
+  flex: 1; min-width: 260px;
+  background: var(--bg2); border: 1px solid var(--line);
+  border-radius: 9px; padding: 13px 15px;
+}
+.disk h3 { margin: 0 0 3px; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+.badge { font-size: 11px; padding: 1px 7px; border-radius: 10px; background: var(--bg3); color: var(--dim); }
+.badge.sd { background: #3a2d4a; color: #c9a3e8; }
+.disk .nums { font-size: 12.5px; color: var(--dim); margin-bottom: 8px; }
+.bar { height: 7px; background: var(--bg3); border-radius: 4px; overflow: hidden; }
+.bar > div { height: 100%; background: var(--accent); border-radius: 4px; }
+.bar.full > div { background: var(--danger); }
+.bar.sd > div { background: var(--sd); }
+
+/* ---- barra de herramientas ---- */
+.toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.toolbar #filter { flex: 0 1 260px; }
+.check { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--dim); cursor: pointer; }
+.check.big { font-size: 14px; color: var(--fg); margin: 9px 0; }
+.warn { color: var(--warn); font-size: 13px; }
+
+/* ---- tabla ---- */
+/* overflow:clip y no hidden: hidden crea un contenedor de scroll y la cabecera
+   sticky deja de pegarse al viewport. clip recorta igual las esquinas. */
+.table-wrap { background: var(--bg2); border: 1px solid var(--line); border-radius: 9px; overflow: clip; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 9px 13px; border-bottom: 1px solid var(--line); }
+th { font-size: 12px; text-transform: uppercase; letter-spacing: .5px; color: var(--dim); font-weight: 600; }
+th.sortable { cursor: pointer; user-select: none; }
+th.sortable:hover { color: var(--fg); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* Las cifras nunca deben partirse: una fila de tres lineas por "522.3 MB"
+   hace la tabla ilegible en cuanto hay unos cuantos juegos. */
+td.num .loc { white-space: nowrap; }
+td.locc { max-width: 260px; }
+td.locc .loc { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+tbody tr:hover { background: #1f2531; }
+tbody tr:last-child td { border-bottom: none; }
+.gname { display: flex; align-items: center; gap: 9px; }
+.kind { font-size: 10.5px; padding: 1px 6px; border-radius: 9px; background: var(--bg3); color: var(--dim); white-space: nowrap; }
+.kind.ns { background: #3a3020; color: #d9b98a; }
+.loc { font-size: 12.5px; color: var(--dim); }
+.acts { display: flex; gap: 6px; justify-content: flex-end; }
+.acts button { padding: 4px 9px; font-size: 12.5px; }
+.empty { padding: 26px; text-align: center; color: var(--dim); }
+select.compat { padding: 3px 6px; font-size: 12.5px; max-width: 160px; }
+
+/* ---- portada de cada juego ----
+   Es la puerta a la galería de carátulas: se ve de un vistazo qué arte tiene
+   puesto cada juego y con un clic se cambia, que es justo lo que se quiere
+   hacer cuando una portada no convence. */
+.covh, td.covercell { width: 46px; padding-right: 0; }
+.cover {
+  display: block; position: relative; overflow: hidden;
+  width: 46px; aspect-ratio: 2 / 3; padding: 0;
+  border: 1px solid var(--line); border-radius: 5px;
+  background: var(--bg3); cursor: pointer;
+}
+.cover:hover:not(:disabled) { border-color: var(--accent); background: var(--bg3); }
+/* La imagen entra ya cargada: si no hay portada se queda la inicial debajo. */
+.cover img { display: none; width: 100%; height: 100%; object-fit: cover; }
+.cover.has img { display: block; }
+.cover.has .ph { display: none; }
+.ph {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 17px; font-weight: 600; color: var(--dim);
+}
+/* El rótulo "Arte" solo al pasar por encima: el resto del tiempo estorbaría a
+   la propia portada, que es lo que se quiere mirar. */
+.cover .cta {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  background: rgba(10, 12, 16, .8); color: var(--fg);
+  font-size: 10px; line-height: 15px; text-align: center;
+  opacity: 0; transition: opacity .15s ease;
+}
+.cover:hover .cta, .cover:focus-visible .cta { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .cover .cta { transition: none; } }
+
+/* ---- tarjetas de formulario ---- */
+.card { background: var(--bg2); border: 1px solid var(--line); border-radius: 9px; padding: 20px; max-width: 720px; }
+.card h2 { margin: 0 0 6px; font-size: 17px; }
+.field { margin: 15px 0; }
+.field label { display: block; font-size: 13px; color: var(--dim); margin-bottom: 5px; }
+.field input, .field select { width: 100%; }
+.row { display: flex; gap: 8px; }
+.row input { flex: 1; }
+
+/* ---- progreso ---- */
+.progress {
+  position: fixed; inset: 0; background: rgba(10,12,16,.82);
+  display: flex; align-items: center; justify-content: center; z-index: 50;
+}
+.pbox { background: var(--bg2); border: 1px solid var(--line); border-radius: 11px; padding: 24px; width: min(560px, 92vw); }
+.ptitle { font-size: 16px; font-weight: 600; margin-bottom: 3px; }
+.pphase { font-size: 13px; color: var(--dim); margin-bottom: 13px; }
+.pbar { height: 9px; background: var(--bg3); border-radius: 5px; overflow: hidden; }
+.pfill { height: 100%; width: 0; background: var(--accent); border-radius: 5px; transition: width .25s; }
+.pfill.err { background: var(--danger); }
+.pfill.ok { background: var(--ok); }
+.pmeta { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--dim); margin-top: 8px; }
+.pfile { font-size: 12px; color: var(--dim); margin-top: 5px; word-break: break-all; min-height: 18px; }
+.prow { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+
+/* ---- modales ---- */
+.modal {
+  position: fixed; inset: 0; background: rgba(10,12,16,.82);
+  display: flex; align-items: center; justify-content: center; z-index: 60;
+}
+.mbox { background: var(--bg2); border: 1px solid var(--line); border-radius: 11px; width: min(680px, 94vw); max-height: 84vh; display: flex; flex-direction: column; }
+.mbox.narrow { width: min(460px, 94vw); }
+.mhead { display: flex; align-items: center; gap: 10px; padding: 13px 16px; border-bottom: 1px solid var(--line); }
+.brpath { flex: 1; font-size: 13px; color: var(--dim); word-break: break-all; }
+.mbody { padding: 16px; overflow-y: auto; }
+.brlist { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; }
+.brlist li { padding: 8px 16px; cursor: pointer; display: flex; gap: 9px; align-items: center; font-size: 13.5px; }
+.brlist li:hover { background: var(--bg3); }
+.brlist li .sz { margin-left: auto; color: var(--dim); font-size: 12px; }
+.mfoot { display: flex; align-items: center; gap: 10px; padding: 13px 16px; border-top: 1px solid var(--line); }
+
+@media (max-width: 720px) {
+  .topbar { gap: 10px; }
+  /* Con la ventana estrecha la tabla no cabe y .table-wrap recorta lo que
+     sobra, así que sobran las columnas accesorias. La ruta completa del juego
+     no-Steam se va con ellas: la etiqueta de la unidad ya dice lo importante y
+     el resto está en el title. */
+  /* La ruta va con el selector completo: `.locpath` a secas pierde contra el
+     `td.locc .loc { display: block }` de arriba, que tiene más especificidad y
+     gana esté donde esté la media query. */
+  .protonh, td.protonc, .extrash, td.extrasc, td.locc .locpath { display: none; }
+}
+
+/* ---- panel de autodetección ---- */
+.detect {
+  background: var(--bg); border: 1px solid var(--line);
+  border-radius: 8px; padding: 13px 15px; margin: 15px 0;
+}
+.dhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; }
+.dhead span { font-size: 13px; font-weight: 600; color: var(--dim); text-transform: uppercase; letter-spacing: .5px; }
+button.mini { padding: 3px 9px; font-size: 12px; }
+.dlist { list-style: none; margin: 0; padding: 0; }
+.dlist li {
+  display: flex; flex-direction: column; gap: 1px;
+  padding: 6px 0 6px 20px; position: relative; font-size: 13.5px;
+  border-top: 1px solid var(--line);
+}
+.dlist li:first-child { border-top: none; }
+.dlist li::before { position: absolute; left: 0; top: 6px; font-size: 12px; }
+.dlist li.ok::before   { content: "✓"; color: var(--ok); }
+.dlist li.warn::before { content: "!"; color: var(--warn); }
+.dlist li.bad::before  { content: "✕"; color: var(--danger); }
+.dlist li.info::before { content: "›"; color: var(--accent); }
+.dmain { word-break: break-word; }
+.dsub { font-size: 12px; color: var(--dim); word-break: break-word; }
+.dalt { margin-top: 11px; padding-top: 11px; border-top: 1px solid var(--line); }
+.dalt label { display: block; font-size: 12.5px; color: var(--dim); margin-bottom: 5px; }
+.dalt select { width: 100%; }
+
+.card.settings { margin-top: 16px; }
+.card.settings summary { cursor: pointer; font-weight: 600; }
+.card.settings > *:not(summary) { margin-top: 12px; }
+
+/* ---- galería de carátulas ---- */
+.mbox.wide { width: min(1000px, 96vw); }
+.artbar {
+  display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap;
+  padding: 12px 16px; border-bottom: 1px solid var(--line);
+}
+.arttabs { display: flex; gap: 4px; flex-wrap: wrap; flex: 1; }
+.arttab { padding: 5px 11px; font-size: 13px; border-radius: 20px; position: relative; }
+.arttab.active { background: var(--accent2); border-color: var(--accent); }
+/* Un punto verde marca los tipos que ya tienen imagen puesta. */
+.arttab.has::after {
+  content: ""; position: absolute; top: 4px; right: 5px;
+  width: 6px; height: 6px; border-radius: 50%; background: var(--ok);
+}
+/* Sobre el azul de la pestaña activa el verde se pierde: ahí va en blanco. */
+.arttab.active.has::after { background: #fff; }
+.artgame { display: flex; flex-direction: column; gap: 4px; min-width: 220px; }
+.artgame label { font-size: 12px; color: var(--dim); }
+
+.artbody { padding: 16px; overflow-y: auto; flex: 1; min-height: 260px; }
+.artgrid {
+  display: grid; gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+}
+.artitem { margin: 0; cursor: pointer; border-radius: 8px; overflow: hidden; border: 2px solid transparent; background: var(--bg3); }
+.artitem:hover { border-color: var(--accent); }
+.artitem.chosen { border-color: var(--ok); }
+.artitem.working { opacity: .5; }
+.artitem img, .artitem video {
+  display: block; width: 100%; aspect-ratio: var(--aspect, 2/3);
+  object-fit: contain; background: #0d0f14;
+}
+.tag.anim { background: #3a2d4a; color: #c9a3e8; }
+.artitem figcaption {
+  padding: 5px 7px; font-size: 11.5px; color: var(--dim);
+  display: flex; gap: 5px; align-items: center; flex-wrap: wrap;
+}
+.tag { background: var(--bg2); border-radius: 8px; padding: 0 6px; font-size: 10.5px; }
+
+/* ---- vista previa del arte ---- */
+.mbox.preview { width: min(900px, 94vw); }
+.prevbody {
+  padding: 18px; overflow: auto; flex: 1;
+  display: flex; align-items: center; justify-content: center;
+  background: #0d0f14; min-height: 260px;
+}
+.prevbody img, .prevbody video {
+  max-width: 100%; max-height: 62vh; display: block;
+  border-radius: 6px;
+  /* Tablero para que se vea la transparencia de logos e iconos. */
+  background-image:
+    linear-gradient(45deg, #1a1f29 25%, transparent 25%, transparent 75%, #1a1f29 75%),
+    linear-gradient(45deg, #1a1f29 25%, transparent 25%, transparent 75%, #1a1f29 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 10px 10px;
+}
+
+/* Aviso de si los cambios de arte se aplican al instante. */
+.hint.live { font-size: 12px; opacity: .85; }
+
+/* ---- explorador de ficheros ---- */
+.mbox.browser { width: min(860px, 95vw); height: min(640px, 88vh); }
+
+.brbar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px; border-bottom: 1px solid var(--line);
+}
+.brbar > button { padding: 5px 10px; }
+.crumbs {
+  flex: 1; display: flex; align-items: center; gap: 2px;
+  overflow-x: auto; white-space: nowrap; scrollbar-width: thin;
+}
+.crumb {
+  background: none; border: none; border-radius: 5px;
+  padding: 3px 7px; font-size: 13px; color: var(--accent);
+}
+.crumb:hover { background: var(--bg3); }
+.crumb.cur { color: var(--fg); font-weight: 600; }
+.csep { color: var(--dim); font-size: 12px; }
+.pathinput { flex: 1; font-size: 13px; font-family: ui-monospace, monospace; }
+.brfilter { width: 150px; font-size: 13px; }
+
+.brmain { display: flex; flex: 1; min-height: 0; }
+.brplaces {
+  width: 190px; flex-shrink: 0; overflow-y: auto;
+  border-right: 1px solid var(--line); padding: 8px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.place {
+  display: flex; align-items: center; gap: 8px; text-align: left;
+  background: none; border: none; border-radius: 6px;
+  padding: 6px 9px; font-size: 13px; width: 100%;
+}
+.place:hover { background: var(--bg3); }
+.place .pname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.brlist { flex: 1; overflow-y: auto; margin: 0; padding: 6px; list-style: none; outline: none; }
+.brrow {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 10px; border-radius: 6px; cursor: pointer; font-size: 13.5px;
+  user-select: none;
+}
+.brrow:hover { background: var(--bg3); }
+.brrow.sel { background: var(--accent2); }
+/* Los ficheros que no se pueden elegir se ven, pero apagados: así sabes que la
+   carpeta tiene contenido en vez de parecer vacía. */
+.brrow.dim { opacity: .45; cursor: default; }
+.brrow.dim:hover { background: none; }
+.brrow.exe .nm { color: var(--ok); }
+.brrow .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.brrow .sz { color: var(--dim); font-size: 12px; font-variant-numeric: tabular-nums; }
+.brrow .enter {
+  color: var(--dim); font-size: 17px; padding: 0 6px; border-radius: 4px; line-height: 1;
+}
+.brrow .enter:hover { background: var(--accent2); color: var(--fg); }
+.brlist .empty { padding: 30px; text-align: center; color: var(--dim); }
+.hint.sel { color: var(--fg); }
+
+@media (max-width: 640px) { .brplaces { display: none; } }
+
+/* Las migas se desplazan cuando la ruta es larga: un degradado a la izquierda
+   avisa de que hay más camino por detrás. */
+.crumbs { position: relative; mask-image: linear-gradient(to right, transparent 0, #000 24px); }
+
+/* ==========================================================================
+   Pulido de presentación. Todo lo de aquí abajo llega DESPUÉS a propósito:
+   son ajustes sobre reglas de arriba (foco, hover, cabecera de tabla) y
+   dependen del orden, no de subir la especificidad con selectores retorcidos.
+   ========================================================================== */
+
+/* ---- datos de máquina en monospace ---- */
+.mono, code, .pathinput,
+.loc, td.num, .brrow .sz, .brlist li .sz {
+  font-family: var(--mono);
+}
+/* El monospace es ópticamente más grande: se compensa un pelo. */
+.loc { font-size: 12.5px; }
+td.num { font-size: 13px; letter-spacing: -.2px; }
+
+/* ---- foco visible en todo lo que se puede enfocar ---- */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+summary:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+input:focus, select:focus { border-color: var(--accent); }
+
+/* ---- hover coherente ---- */
+button { transition: background .15s ease, border-color .15s ease; }
+tbody tr { transition: background .15s ease; }
+tbody tr:hover { background: var(--bg3); }
+button.ghost { background: none; border-color: transparent; color: var(--dim); }
+button.ghost:hover:not(:disabled) { background: var(--bg3); border-color: var(--line); color: var(--fg); }
+button.block { display: block; width: 100%; }
+
+/* ---- chip de conexión ---- */
+.chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--bg); border: 1px solid var(--line);
+  border-radius: 20px; padding: 4px 12px; font-size: 13px;
+  max-width: 42vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.led { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); flex: none; }
+.led.on { background: var(--ok); box-shadow: 0 0 7px rgba(76, 175, 125, .75); }
+.led.busy { background: var(--accent); animation: led-pulse 1.3s ease-in-out infinite; }
+@keyframes led-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(77, 157, 224, .55); opacity: 1; }
+  50%      { box-shadow: 0 0 0 5px rgba(77, 157, 224, 0); opacity: .55; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .led.busy { animation: none; }
+  button, tbody tr, .conncard { transition: none; }
+}
+
+/* ---- pestañas ---- */
+/* button:hover gana en especificidad a .tab:hover, así que el fondo de las
+   pestañas se pintaba igual; en vez de pelearse con él, se define aquí. */
+.tabs .tab:hover:not(:disabled) { background: var(--bg3); color: var(--fg); }
+.tab:disabled { opacity: .4; cursor: not-allowed; color: var(--dim); }
+
+/* Las acciones de cada fila en una línea: "→ USD00" partido en dos hacía la
+   fila el doble de alta. */
+.acts button { white-space: nowrap; }
+
+/* ---- pantalla de conexión ---- */
+.connect-view { display: none; }
+/* Centrada en lo que queda de ventana bajo la barra y las pestañas (~118px):
+   alineada arriba se quedaba flotando con media pantalla vacía debajo. */
+body.showconn .connect-view {
+  display: flex; align-items: center; justify-content: center;
+  min-height: calc(100vh - 158px); padding: 20px 0 32px;
+}
+body.showconn .panel.active { display: none; }
+
+.conncard {
+  max-width: 520px; margin: 0 auto;
+  background: var(--bg2); border: 1px solid var(--line);
+  border-radius: 14px; padding: 28px 28px 24px;
+  animation: card-in .15s ease-out;
+}
+@keyframes card-in { from { opacity: 0; transform: translateY(6px); } }
+
+/* El resplandor va solo detrás del icono de esta pantalla; el resto de la
+   interfaz sigue siendo plana a propósito. */
+.conncard-icon { position: relative; display: flex; justify-content: center; margin-bottom: 16px; }
+.conncard-icon::before {
+  content: ""; position: absolute; top: 50%; left: 50%;
+  width: 170px; height: 170px; transform: translate(-50%, -50%);
+  border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, rgba(77, 157, 224, .30), rgba(77, 157, 224, 0) 68%);
+}
+.conncard-icon img { position: relative; width: 56px; height: 56px; border-radius: 14px; }
+
+.conncard h1 { margin: 0; font-size: 21px; text-align: center; }
+.conncard-sub { margin: 7px 0 22px; text-align: center; color: var(--dim); font-size: 13.5px; }
+.conncard .field { margin: 14px 0; }
+.conncard .field label { font-size: 12.5px; }
+.conncard #btnConnect { margin-top: 20px; }
+
+.adv { margin-top: 14px; }
+.adv > summary, .help > summary {
+  cursor: pointer; color: var(--dim); font-size: 13px;
+  padding: 4px 2px; border-radius: 5px; list-style-position: inside;
+}
+.adv > summary:hover, .help > summary:hover { color: var(--fg); }
+.advgrid { display: flex; gap: 12px; }
+.advgrid .field { flex: 1; margin: 8px 0 2px; }
+
+.connerr { margin: 12px 0 0; color: #f08a8a; font-size: 13px; text-align: center; }
+
+.help { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
+.help > summary { color: var(--accent); }
+.steps { margin: 12px 0 2px; padding-left: 22px; color: var(--dim); font-size: 13px; }
+.steps li { margin-bottom: 10px; }
+.steps li::marker { color: var(--accent); font-weight: 600; }
+.steps strong { color: var(--fg); font-weight: 600; }
+/* La orden en bloque, no en línea: incrustada en la frase el relleno del
+   <code> dejaba un hueco raro antes del punto final. */
+.cmd {
+  display: block; margin: 7px 0 0; padding: 6px 10px;
+  background: var(--bg); border: 1px solid var(--line); border-radius: 6px;
+  font-family: var(--mono); font-size: 12px; color: var(--fg);
+  user-select: all; overflow-x: auto; white-space: nowrap;
+}
+
+/* ---- más aire y jerarquía ---- */
+.card { padding: 24px; }
+.toolbar { margin-bottom: 14px; }
+.storage { margin-bottom: 20px; }
+
+/* Cabecera de tabla pegajosa: con veinte juegos se pierde de vista a la
+   segunda pantalla y ya no se sabe qué columna es cuál. */
+thead th {
+  position: sticky; top: 0; z-index: 2;
+  background: var(--bg3); color: var(--dim);
+  border-bottom: 1px solid var(--line);
+}
+.empty { padding: 34px 26px; line-height: 1.7; }

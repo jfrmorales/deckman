@@ -1,0 +1,8 @@
+/dist/
+/testdata/
+/flatpak/.flatpak-builder/
+/flatpak/build-dir/
+
+# Datos de la Deck de cada cual: IP, contrasena, clave de SteamGridDB.
+# El repositorio es publico; el ejemplo (deck.local.env.ejemplo) si se versiona.
+/deck.local.env

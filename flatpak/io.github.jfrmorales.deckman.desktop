@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=deckman
+GenericName=Gestor de Steam Deck
+Comment=Gestiona los juegos de tu Steam Deck desde el PC
+Exec=deckman
+Icon=io.github.jfrmorales.deckman
+Terminal=false
+Categories=Game;Utility;
+Keywords=steam;deck;juegos;proton;emudeck;roms;
+StartupNotify=false

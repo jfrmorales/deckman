@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.jfrmorales.deckman</id>
+  <name>deckman</name>
+  <summary>Gestiona los juegos de tu Steam Deck desde el PC</summary>
+  <developer id="io.github.jfrmorales">
+    <name>jfrmorales</name>
+  </developer>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <description>
+    <p>
+      Gestiona los juegos de tu Steam Deck desde el ordenador: ver qué hay
+      instalado, enviar juegos de Windows y ROMs, cambiar carátulas, mover
+      juegos entre el SSD interno y la microSD, y liberar espacio.
+    </p>
+    <p>
+      Al abrirlo arranca un servidor local y muestra la interfaz en el
+      navegador. En la Deck no hay que instalar nada: solo activar SSH.
+    </p>
+  </description>
+  <launchable type="desktop-id">io.github.jfrmorales.deckman.desktop</launchable>
+  <categories>
+    <category>Game</category>
+    <category>Utility</category>
+  </categories>
+  <content_rating type="oars-1.1"/>
+  <url type="homepage">https://github.com/jfrmorales/deckman</url>
+
+  <!-- De aqui sale la version que muestra `flatpak list`. Sin este bloque la
+       columna sale vacia y no hay forma de saber que hay instalado. Lo
+       mantiene scripts/release.sh, que inserta la version nueva justo debajo
+       de <releases> para que la mas reciente quede la primera. -->
+  <releases>
+    <release version="0.1.0" date="2026-08-03">
+      <description>
+        <p>Primera version con registro de cambios.</p>
+      </description>
+      <url type="details">https://github.com/jfrmorales/deckman/blob/main/CHANGELOG.md</url>
+    </release>
+  </releases>
+</component>

@@ -1,0 +1,45 @@
+# Comprueba cada push y cada pull request: formato, vet y pruebas.
+#
+# Aqui NO se usa ./test.sh: ese script existe para no instalar Go en el PC de
+# nadie y por eso monta un contenedor. En el runner de Actions ya hay contenedor
+# de sobra, asi que se llama a Go directamente. Si cambias las comprobaciones,
+# cambialas en los dos sitios.
+#
+# Las pruebas de integracion no corren aqui: necesitan una Steam Deck de verdad
+# con SSH. Se saltan solas al no haber DECKMAN_TEST_HOST.
+name: pruebas
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  pruebas:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+
+      - name: formato
+        run: |
+          sin_formatear="$(gofmt -l ./cmd ./internal)"
+          if [ -n "$sin_formatear" ]; then
+            echo "estos ficheros no pasan por gofmt:"
+            echo "$sin_formatear"
+            exit 1
+          fi
+
+      - name: vet
+        run: go vet ./...
+
+      - name: pruebas
+        run: go test ./... -timeout 15m
+
+      - name: compilar linux y windows
+        run: |
+          CGO_ENABLED=0 GOOS=linux   GOARCH=amd64 go build -o /dev/null ./cmd/deckman
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o /dev/null ./cmd/deckman

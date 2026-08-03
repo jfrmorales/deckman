@@ -13,6 +13,16 @@ bloque `<releases>` del metainfo. Los tres los sincroniza `scripts/release.sh`.
      versión nueva al publicar. Secciones: Añadido, Cambiado, Corregido,
      Eliminado. -->
 
+### Corregido
+
+- **La ventana ya tiene su icono en Wayland.** Salía un círculo naranja con una
+  W en la barra de título y en la de tareas. En Wayland la ventana no lleva
+  icono propio: se lo manda el navegador al escritorio por
+  `xdg-toplevel-icon`, sacándolo del favicon — y el nuestro era solo SVG, que
+  no le sirve como origen para el icono de ventana. Ahora se declaran también
+  PNG de 32, 48, 128 y 256 px. El favicon de la pestaña lo sigue tomando del
+  SVG, así que no se pierde nitidez.
+
 ## [0.2.0] — 2026-08-03
 
 ### Añadido

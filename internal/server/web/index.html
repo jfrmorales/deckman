@@ -4,6 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>deckman — gestor de la Steam Deck</title>
+<!-- El icono va tambien en PNG, y no por gusto: en Wayland la ventana no
+     tiene icono propio, el navegador se lo manda al escritorio por
+     xdg-toplevel-icon sacandolo del favicon, y con un favicon solo SVG los
+     Chromium no lo rasterizan y ponen un sustituto generico. Comprobado en
+     KDE Plasma 6 con Brave: con SVG a secas salia un circulo con una W. -->
+<link rel="icon" href="icon-256.png" sizes="256x256" type="image/png">
+<link rel="icon" href="icon-128.png" sizes="128x128" type="image/png">
+<link rel="icon" href="icon-48.png" sizes="48x48" type="image/png">
+<link rel="icon" href="icon-32.png" sizes="32x32" type="image/png">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="style.css">
 </head>

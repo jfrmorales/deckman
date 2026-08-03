@@ -13,6 +13,12 @@ bloque `<releases>` del metainfo. Los tres los sincroniza `scripts/release.sh`.
      versión nueva al publicar. Secciones: Añadido, Cambiado, Corregido,
      Eliminado. -->
 
+### Cambiado
+
+- Las comprobaciones automáticas pasan de GitHub Actions a **Forgejo Actions**,
+  en un runner propio. El CI deja de depender de un servicio de terceros; el
+  repositorio de GitHub sigue siendo la cara pública, pero ya no ejecuta nada.
+
 ## [0.2.1] — 2026-08-03
 
 ### Corregido

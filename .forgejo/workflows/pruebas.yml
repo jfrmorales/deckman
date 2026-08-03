@@ -1,0 +1,51 @@
+# Comprueba cada push y cada pull request: formato, vet, pruebas y que compila
+# para Linux y Windows.
+#
+# Corre en el Forgejo propio y no en GitHub a proposito: el CI no tiene por que
+# depender de un servicio de terceros. El repositorio de GitHub sigue siendo la
+# cara publica, pero sin Actions.
+#
+# El job va dentro de la imagen oficial de Go, no en la del label `docker`
+# (homelab-ci, basada en node y sin Go): el runner no puede levantar
+# contenedores dentro del job (docker_host: "-"), asi que el contenedor del job
+# TIENE que ser ya el que trae las herramientas. Por eso aqui no se usa
+# ./test.sh, que monta un contenedor: eso es para el PC de cada cual, donde el
+# objetivo es no instalar Go. Si cambias las comprobaciones, cambialas en los
+# dos sitios.
+#
+# Las pruebas de integracion no corren aqui: necesitan una Steam Deck de verdad
+# con SSH. Se saltan solas al no haber DECKMAN_TEST_HOST.
+name: pruebas
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  pruebas:
+    runs-on: docker
+    container:
+      image: docker.io/library/golang:1.26.5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: formato
+        run: |
+          sin_formatear="$(gofmt -l ./cmd ./internal)"
+          if [ -n "$sin_formatear" ]; then
+            echo "estos ficheros no pasan por gofmt:"
+            echo "$sin_formatear"
+            exit 1
+          fi
+
+      - name: vet
+        run: go vet ./...
+
+      - name: pruebas
+        run: go test ./... -timeout 15m
+
+      - name: compilar linux y windows
+        run: |
+          CGO_ENABLED=0 GOOS=linux   GOARCH=amd64 go build -o /dev/null ./cmd/deckman
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o /dev/null ./cmd/deckman

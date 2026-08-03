@@ -59,11 +59,19 @@ ls -lh "$SALIDA"
 # fallar: los binarios ya estan compilados y son lo que importa.
 
 paso "sacando las notas de CHANGELOG.md"
+# Se recortan solo los blancos del principio y del final, no todos: las lineas
+# en blanco separan las secciones y sin ellas Markdown pega los parrafos.
 NOTAS="$(awk -v ver="$VERSION" '
 	$0 ~ ("^## \\[" ver "\\]") { dentro = 1; next }
 	dentro && /^## \[/ { exit }
-	dentro { print }
-' CHANGELOG.md | sed '/^[[:space:]]*$/{ /./!d }')"
+	dentro {
+		if (NF == 0) { pendientes++; next }   # se guardan por si vienen mas lineas
+		while (pendientes > 0 && n > 0) { linea[++n] = ""; pendientes-- }
+		pendientes = 0
+		linea[++n] = $0
+	}
+	END { for (i = 1; i <= n; i++) print linea[i] }
+' CHANGELOG.md)"
 
 if [ -z "$(printf '%s' "$NOTAS" | tr -d '[:space:]')" ]; then
 	echo "   aviso: $VERSION no aparece en CHANGELOG.md; publico sin notas" >&2

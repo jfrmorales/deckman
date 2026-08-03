@@ -1,5 +1,5 @@
 # Comprueba cada push y cada pull request: formato, vet, pruebas y que compila
-# para Linux y Windows.
+# para Windows.
 #
 # Corre en el Forgejo propio y no en GitHub a proposito: el CI no tiene por que
 # depender de un servicio de terceros. El repositorio de GitHub sigue siendo la
@@ -13,6 +13,11 @@
 # objetivo es no instalar Go. Si cambias las comprobaciones, cambialas en los
 # dos sitios.
 #
+# Los volumenes deckman-ci-* son las caches de Go (modulos y build): sin ellas
+# cada push descargaba las dependencias y recompilaba la stdlib entera, dos
+# veces (linux y windows). El runner solo admite volumenes con ese prefijo
+# (valid_volumes en su config, homelab/sops/forgejo/runner-config.yml.sops).
+#
 # Las pruebas de integracion no corren aqui: necesitan una Steam Deck de verdad
 # con SSH. Se saltan solas al no haber DECKMAN_TEST_HOST.
 name: pruebas
@@ -22,11 +27,26 @@ on:
     branches: [main]
   pull_request:
 
+# Dos pushes seguidos dejaban dos jobs corriendo y el primero ya no le
+# importaba a nadie.
+concurrency:
+  group: pruebas-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   pruebas:
     runs-on: docker
+    # El -timeout de Go solo cubre las pruebas; esto cubre el resto del job.
+    timeout-minutes: 30
     container:
       image: docker.io/library/golang:1.26.5
+      options: >-
+        -v deckman-ci-gomod:/go/pkg/mod
+        -v deckman-ci-gocache:/root/.cache/go-build
+    env:
+      # El clon del CI es un git init artificial: sin esto, cada go build/test
+      # pierde tiempo sellando metadatos de VCS que no significan nada.
+      GOFLAGS: -buildvcs=false
     steps:
       # Se clona a mano en vez de con actions/checkout a proposito: esa accion
       # esta escrita en JavaScript y necesita `node` DENTRO del contenedor del
@@ -50,6 +70,19 @@ jobs:
           git checkout -q FETCH_HEAD
           echo "en $(git rev-parse --short HEAD)"
 
+      # La version de Go vive en go.mod y la imagen se fija aqui y en
+      # scripts/contenedor.sh: si se separan, el CI compila con un toolchain
+      # distinto al de todos los demas sin que nada lo diga.
+      - name: version de go
+        run: |
+          quiere="$(sed -n 's/^go //p' go.mod)"
+          tiene="$(go version | sed 's/.*go\([0-9][0-9.]*\).*/\1/')"
+          if [ "$tiene" != "$quiere" ]; then
+            echo "la imagen del job trae go $tiene pero go.mod pide $quiere."
+            echo "Actualiza la imagen aqui, en publicar.yml y en scripts/contenedor.sh."
+            exit 1
+          fi
+
       - name: formato
         run: |
           sin_formatear="$(gofmt -l ./cmd ./internal)"
@@ -59,13 +92,15 @@ jobs:
             exit 1
           fi
 
-      - name: vet
-        run: go vet ./...
+      # -vet=all dentro de go test: el mismo analisis que un `go vet ./...`
+      # suelto, pero compartiendo la compilacion en vez de pagarla dos veces.
+      - name: vet y pruebas
+        run: go test -vet=all ./... -timeout 15m
 
-      - name: pruebas
-        run: go test ./... -timeout 15m
-
-      - name: compilar linux y windows
-        run: |
-          CGO_ENABLED=0 GOOS=linux   GOARCH=amd64 go build -o /dev/null ./cmd/deckman
-          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o /dev/null ./cmd/deckman
+      # Solo Windows: el build de Linux ya lo hace go test al enlazar las
+      # pruebas. El cruce a Windows es lo unico que no valida nadie mas (la
+      # rama window_windows.go con go-webview2), y se compila con la receta
+      # real de release: antes iba sin flags y un fallo de enlazado por
+      # -H windowsgui no se habria visto hasta publicar.
+      - name: compilar windows
+        run: scripts/compilar.sh windows /dev/null v0.0.0-ci

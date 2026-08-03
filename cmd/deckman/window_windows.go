@@ -36,14 +36,18 @@ func runWindow(url string, quit <-chan struct{}, stop <-chan os.Signal) bool {
 	defer w.Destroy()
 
 	// El boton Salir de la interfaz (o un Ctrl+C si hay consola) tambien debe
-	// cerrar la ventana, no solo al reves.
-	go func() {
-		select {
-		case <-quit:
-		case <-stop:
-		}
-		w.Dispatch(w.Terminate)
-	}()
+	// cerrar la ventana, no solo al reves. Con los dos canales a nil (reabrir)
+	// no hay nada que esperar: sin este if, el select en blanco dejaba una
+	// gorutina bloqueada para siempre.
+	if quit != nil || stop != nil {
+		go func() {
+			select {
+			case <-quit:
+			case <-stop:
+			}
+			w.Dispatch(w.Terminate)
+		}()
+	}
 
 	w.Navigate(url)
 	w.Run()

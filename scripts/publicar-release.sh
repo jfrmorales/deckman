@@ -39,15 +39,13 @@ mkdir -p "$SALIDA"
 # ademas queda garantizado que el binario dice exactamente lo que dice el tag.
 
 paso "compilando $TAG"
-LDFLAGS="-s -w -X main.version=$TAG"
 LIN="deckman-$VERSION-linux-amd64"
 WIN="deckman-$VERSION-windows-amd64.exe"
 
-CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-	go build -trimpath -ldflags "$LDFLAGS" -o "$SALIDA/$LIN" ./cmd/deckman
-# -H windowsgui: sin ventana de consola al hacer doble clic, igual que build.sh.
-CGO_ENABLED=0 GOOS=windows GOARCH=amd64 \
-	go build -trimpath -ldflags "$LDFLAGS -H windowsgui" -o "$SALIDA/$WIN" ./cmd/deckman
+# La receta (flags incluidos) vive en scripts/compilar.sh, compartida con
+# build.sh y pruebas.yml: asi lo que se publica es lo mismo que se prueba.
+scripts/compilar.sh linux "$SALIDA/$LIN" "$TAG"
+scripts/compilar.sh windows "$SALIDA/$WIN" "$TAG"
 
 ( cd "$SALIDA" && sha256sum "$LIN" "$WIN" > SHA256SUMS )
 ls -lh "$SALIDA"

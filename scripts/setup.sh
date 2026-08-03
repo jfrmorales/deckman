@@ -18,12 +18,10 @@ echo
 
 # --- 1. lo unico que hace falta tener instalado -----------------------------
 
-if command -v podman >/dev/null 2>&1; then
-	ok "podman encontrado"
-elif command -v docker >/dev/null 2>&1; then
-	ok "docker encontrado"
-elif command -v distrobox-host-exec >/dev/null 2>&1 && distrobox-host-exec podman --version >/dev/null 2>&1; then
-	ok "podman encontrado (en el host, via distrobox)"
+# shellcheck source=contenedor.sh
+. scripts/contenedor.sh
+if detectar_runtime 2>/dev/null; then
+	ok "runtime de contenedores encontrado: $RUNTIME"
 else
 	err "hace falta podman o docker. Es el unico requisito: Go se usa dentro
         del contenedor y no se instala en el sistema."

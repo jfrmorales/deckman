@@ -99,6 +99,12 @@ func (c *Client) artworkFiles(ctx context.Context, appID uint32) (map[string][]s
 	if err != nil {
 		return nil, err
 	}
+	return c.artworkFilesIn(dir, appID)
+}
+
+// artworkFilesIn es artworkFiles con la carpeta ya resuelta: quien la tiene
+// (removeArtwork) no vuelve a preguntarla.
+func (c *Client) artworkFilesIn(dir string, appID uint32) (map[string][]string, error) {
 	entries, err := c.sftp.ReadDir(dir)
 	if err != nil {
 		return map[string][]string{}, nil // que no exista la carpeta es normal
@@ -167,11 +173,11 @@ func (c *Client) RemoveArtworkKind(ctx context.Context, appID uint32, kind strin
 }
 
 func (c *Client) removeArtwork(ctx context.Context, appID uint32, kinds []string) error {
-	files, err := c.artworkFiles(ctx, appID)
+	dir, err := c.GridDir(ctx)
 	if err != nil {
 		return err
 	}
-	dir, err := c.GridDir(ctx)
+	files, err := c.artworkFilesIn(dir, appID)
 	if err != nil {
 		return err
 	}

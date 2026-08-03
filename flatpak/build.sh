@@ -32,11 +32,17 @@ if ! flatpak info --user org.flatpak.Builder >/dev/null 2>&1 \
 fi
 
 echo ">> compilando el binario"
-../build.sh
+# Solo Linux: el Flatpak no empaqueta el .exe y el cruce a Windows se pagaba
+# entero (stdlib incluida) en cada `make flatpak` y `make release` para nada.
+DECKMAN_OBJETIVOS=linux ../build.sh
 
 echo ">> construyendo e instalando el Flatpak (usuario)"
+# --install-deps-from: en una maquina limpia el runtime de Freedesktop no esta
+# y flatpak-builder abortaba a mitad con "runtime not installed". Instalado ya,
+# es un no-op.
 flatpak run org.flatpak.Builder \
 	--user --install --force-clean \
+	--install-deps-from=flathub \
 	--state-dir=.flatpak-builder \
 	build-dir "$APPID.yml"
 

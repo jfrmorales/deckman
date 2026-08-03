@@ -94,7 +94,10 @@ var nonGameAppIDs = map[string]bool{
 func mergeTools(lists ...[]CompatTool) []CompatTool {
 	seen := map[string]bool{}
 	var out []CompatTool
-	for _, list := range lists {
+	for _, l := range lists {
+		// Copia antes de ordenar: una funcion llamada "merge" que reordena los
+		// argumentos del llamante es una sorpresa esperando su momento.
+		list := append([]CompatTool(nil), l...)
 		sort.Slice(list, func(i, j int) bool { return list[i].DisplayName < list[j].DisplayName })
 		for _, t := range list {
 			if t.Name == "" || seen[t.Name] {
@@ -107,8 +110,24 @@ func mergeTools(lists ...[]CompatTool) []CompatTool {
 	return out
 }
 
-// SteamRoot localiza la raiz de Steam en la Deck.
+// SteamRoot localiza la raiz de Steam en la Deck. El resultado se memoiza:
+// instalar las cuatro caratulas de un juego lo preguntaba doce veces, y cada
+// consulta son uno o dos Stat por SFTP. La cache se vacia en cada Scan, asi
+// que un cambio raro (reinstalar SteamOS con la sesion abierta) se recoge en
+// el siguiente escaneo.
 func (c *Client) SteamRoot() string {
+	if c.cache == nil {
+		return c.findSteamRoot()
+	}
+	c.cache.mu.Lock()
+	defer c.cache.mu.Unlock()
+	if c.cache.steamRoot == "" {
+		c.cache.steamRoot = c.findSteamRoot()
+	}
+	return c.cache.steamRoot
+}
+
+func (c *Client) findSteamRoot() string {
 	for _, p := range []string{
 		path.Join(c.Home, ".local/share/Steam"),
 		path.Join(c.Home, ".steam/steam"),
@@ -122,18 +141,37 @@ func (c *Client) SteamRoot() string {
 
 // UserID devuelve el id de usuario de Steam (la carpeta de userdata). Si hay
 // varias cuentas nos quedamos con la modificada mas recientemente.
+//
+// Memoizado igual que SteamRoot, y con el mismo vaciado en Scan: cada consulta
+// abria una sesion SSH entera para un ls. Si el usuario cambia de cuenta de
+// Steam con deckman abierto, el siguiente escaneo lo recoge.
 func (c *Client) UserID(ctx context.Context, steamRoot string) (string, error) {
+	if c.cache != nil {
+		c.cache.mu.Lock()
+		uid := c.cache.userID
+		c.cache.mu.Unlock()
+		if uid != "" {
+			return uid, nil
+		}
+	}
 	out, err := c.Run(ctx, fmt.Sprintf(
 		`ls -1t %s 2>/dev/null | grep -E '^[0-9]+$' | head -1`,
 		ShellQuote(path.Join(steamRoot, "userdata"))))
 	if err != nil || out == "" {
 		return "", fmt.Errorf("no se encontro ninguna cuenta de Steam en userdata")
 	}
-	return strings.TrimSpace(out), nil
+	uid := strings.TrimSpace(out)
+	if c.cache != nil {
+		c.cache.mu.Lock()
+		c.cache.userID = uid
+		c.cache.mu.Unlock()
+	}
+	return uid, nil
 }
 
 // Scan recorre la Deck y devuelve el inventario completo.
 func (c *Client) Scan(ctx context.Context) (*Inventory, error) {
+	c.invalidateCache()
 	inv := &Inventory{SteamRoot: c.SteamRoot()}
 	inv.SteamRunning = c.SteamRunning(ctx)
 	inv.GamesDir = path.Join(c.Home, "Games")
@@ -236,17 +274,34 @@ func (c *Client) libraries(ctx context.Context, steamRoot string) ([]Library, er
 		libs = append(libs, lib)
 	}
 
-	// Espacio libre real de cada punto de montaje.
-	for i := range libs {
-		out, err := c.Run(ctx, fmt.Sprintf("df -B1 --output=size,used,avail %s | tail -1", ShellQuote(libs[i].Path)))
-		if err != nil {
-			continue
+	// Espacio libre real de cada punto de montaje, todo en una sesion SSH.
+	// Cada linea lleva su ruta delante en vez de fiarse del orden: si una
+	// unidad se ha ido (SD expulsada), su df falla y desalinearia el resto.
+	if len(libs) > 0 {
+		var parts []string
+		for i := range libs {
+			q := ShellQuote(libs[i].Path)
+			parts = append(parts, fmt.Sprintf(`echo "==="%s; df -B1 --output=size,used,avail %s 2>/dev/null | tail -1`, q, q))
 		}
-		f := strings.Fields(out)
-		if len(f) >= 3 {
-			libs[i].Total, _ = strconv.ParseUint(f[0], 10, 64)
-			libs[i].Used, _ = strconv.ParseUint(f[1], 10, 64)
-			libs[i].Free, _ = strconv.ParseUint(f[2], 10, 64)
+		out, err := c.Run(ctx, strings.Join(parts, "; ")+"; true")
+		if err == nil {
+			porRuta := map[string][]string{}
+			for _, block := range strings.Split(out, "===") {
+				ruta, resto, ok := strings.Cut(block, "\n")
+				if !ok {
+					continue
+				}
+				if f := strings.Fields(resto); len(f) >= 3 {
+					porRuta[strings.TrimSpace(ruta)] = f
+				}
+			}
+			for i := range libs {
+				if f, ok := porRuta[libs[i].Path]; ok {
+					libs[i].Total, _ = strconv.ParseUint(f[0], 10, 64)
+					libs[i].Used, _ = strconv.ParseUint(f[1], 10, 64)
+					libs[i].Free, _ = strconv.ParseUint(f[2], 10, 64)
+				}
+			}
 		}
 	}
 	return libs, nil
@@ -329,21 +384,36 @@ func gameRootFor(libs []Library, startDir string) string {
 
 func (c *Client) steamGames(ctx context.Context, lib Library) ([]Game, error) {
 	dir := path.Join(lib.Path, "steamapps")
-	entries, err := c.sftp.ReadDir(dir)
+	// La biblioteca tiene que existir de verdad: con la orden agrupada de abajo
+	// un directorio ilegible devolveria "cero juegos" en vez de un error, y el
+	// llamante no sabria distinguir una SD expulsada de una SD vacia.
+	if _, err := c.sftp.Stat(dir); err != nil {
+		return nil, err
+	}
+
+	// Todos los .acf en UNA orden remota, con el mismo separador que usa
+	// customCompatTools. Antes era un open/read/close SFTP por juego: con cien
+	// juegos y wifi, varios cientos de idas y vueltas encadenadas que eran el
+	// grueso del tiempo de escaneo.
+	out, err := c.Run(ctx, fmt.Sprintf(
+		`for f in %s/appmanifest_*.acf; do [ -f "$f" ] && { echo "===$f"; cat "$f"; }; done 2>/dev/null; true`,
+		ShellQuote(dir)))
 	if err != nil {
 		return nil, err
 	}
+
 	var games []Game
-	for _, e := range entries {
-		name := e.Name()
-		if !strings.HasPrefix(name, "appmanifest_") || !strings.HasSuffix(name, ".acf") {
+	for _, block := range strings.Split(out, "===") {
+		block = strings.TrimSpace(block)
+		if block == "" {
 			continue
 		}
-		data, err := c.ReadFile(path.Join(dir, name))
-		if err != nil {
+		nl := strings.Index(block, "\n")
+		if nl < 0 {
 			continue
 		}
-		root, err := ParseVDF(data)
+		body := block[nl+1:]
+		root, err := ParseVDF([]byte(body))
 		if err != nil {
 			continue
 		}
@@ -376,6 +446,12 @@ func (c *Client) steamGames(ctx context.Context, lib Library) ([]Game, error) {
 }
 
 func (c *Client) nonSteamGames(ctx context.Context, steamRoot, userID string) ([]Game, error) {
+	// Las operaciones SFTP no miran el contexto: al menos no empezar una nueva
+	// con el plazo ya vencido, que es como un escaneo se pasaba del timeout
+	// prometido por el handler.
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	p := path.Join(steamRoot, "userdata", userID, "config", "shortcuts.vdf")
 	data, err := c.ReadFile(p)
 	if err != nil {
@@ -658,6 +734,9 @@ func (c *Client) romSystems(ctx context.Context) (string, []string) {
 	}
 
 	for _, dir := range candidates {
+		if ctx.Err() != nil {
+			return "", nil
+		}
 		if !c.Exists(dir) {
 			continue
 		}

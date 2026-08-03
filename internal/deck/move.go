@@ -18,12 +18,20 @@ import (
 // Los juegos de Steam y los no-Steam se mueven de forma distinta (unos tienen
 // manifiesto y biblioteca, los otros un acceso directo con rutas escritas
 // dentro), asi que aqui solo se localizan el juego y el destino.
-func (c *Client) MoveGame(ctx context.Context, appID, targetLibPath string, onProgress ProgressFunc) error {
+//
+// inv puede venir de una foto reciente del servidor (evita repetir el Scan
+// completo, con su du -sb de todos los compatdata) o ser nil para escanear
+// aqui. De la foto solo salen rutas y tamanos: todo lo que decide si es seguro
+// tocar algo (SteamRunning, CEFAvailable, Exists) se comprueba fresco abajo.
+func (c *Client) MoveGame(ctx context.Context, inv *Inventory, appID, targetLibPath string, onProgress ProgressFunc) error {
 	report := throttle(onProgress)
 
-	inv, err := c.Scan(ctx)
-	if err != nil {
-		return err
+	if inv == nil {
+		var err error
+		inv, err = c.Scan(ctx)
+		if err != nil {
+			return err
+		}
 	}
 
 	var game *Game
@@ -52,7 +60,7 @@ func (c *Client) MoveGame(ctx context.Context, appID, targetLibPath string, onPr
 	}
 
 	if game.Kind == "nonsteam" {
-		return c.moveNonSteamGame(ctx, inv, game, target, report)
+		return c.moveNonSteamGame(ctx, game, target, report)
 	}
 	return c.moveSteamGame(ctx, game, target, report)
 }
@@ -209,7 +217,7 @@ func (c *Client) copyVerified(ctx context.Context, src, dstDir, label string, ba
 // ~/.local/share/Steam/steamapps/compatdata aunque la microSD tambien es
 // biblioteca), y llevarselos a la tarjeta dejaria las partidas guardadas donde
 // Steam no las busca.
-func (c *Client) moveNonSteamGame(ctx context.Context, inv *Inventory, game *Game, target *Library, report ProgressFunc) error {
+func (c *Client) moveNonSteamGame(ctx context.Context, game *Game, target *Library, report ProgressFunc) error {
 	// Se mueve la carpeta del JUEGO, no la del ejecutable: en Riddick el acceso
 	// directo apunta a System/Win32_x86, y llevarse solo eso dejaria 11 GB
 	// tirados y el juego roto. GameRoot solo esta cuando el juego cuelga de un
@@ -261,7 +269,11 @@ func (c *Client) moveNonSteamGame(ctx context.Context, inv *Inventory, game *Gam
 		return fmt.Errorf("id de acceso directo invalido: %s", game.AppID)
 	}
 	appID := uint32(appID64)
-	enCaliente := inv.SteamRunning
+	// pgrep fresco, no el del inventario: la foto puede venir de una cache del
+	// servidor, y de si Steam corre AHORA depende por que via se reescribe el
+	// acceso directo. Equivocarse aqui es editar shortcuts.vdf con Steam
+	// abierto, que ya borro seis juegos una vez.
+	enCaliente := c.SteamRunning(ctx)
 	if enCaliente && !c.CEFAvailable(ctx) {
 		return fmt.Errorf(
 			"Steam esta abierto pero no responde: cierralo en la Deck y vuelve a intentarlo, " +
@@ -350,10 +362,17 @@ type DeleteTargets struct {
 }
 
 // Delete borra las partes indicadas de un juego y devuelve cuanto se ha liberado.
-func (c *Client) Delete(ctx context.Context, appID string, t DeleteTargets) (uint64, error) {
-	inv, err := c.Scan(ctx)
-	if err != nil {
-		return 0, err
+//
+// inv admite una foto reciente del servidor, igual que en MoveGame: de ella
+// solo salen rutas y tamanos, y los chequeos peligrosos (SteamRunning,
+// CEFAvailable, safeToDelete) se hacen frescos aqui debajo.
+func (c *Client) Delete(ctx context.Context, inv *Inventory, appID string, t DeleteTargets) (uint64, error) {
+	if inv == nil {
+		var err error
+		inv, err = c.Scan(ctx)
+		if err != nil {
+			return 0, err
+		}
 	}
 	var game *Game
 	for i := range inv.Games {
@@ -365,7 +384,11 @@ func (c *Client) Delete(ctx context.Context, appID string, t DeleteTargets) (uin
 	if game == nil {
 		return 0, fmt.Errorf("no se encontro el juego con id %s", appID)
 	}
-	if t.Game && game.Kind == "steam" && c.SteamRunning(ctx) {
+	// Un solo pgrep para toda la operacion, y fresco a proposito (nunca el del
+	// inventario, que puede venir de una foto): de esto depende que no se toque
+	// shortcuts.vdf con Steam abierto.
+	steamCorriendo := c.SteamRunning(ctx)
+	if t.Game && game.Kind == "steam" && steamCorriendo {
 		return 0, fmt.Errorf("Steam esta abierto: cierralo antes de desinstalar, o volvera a escribir el manifiesto")
 	}
 
@@ -385,7 +408,7 @@ func (c *Client) Delete(ctx context.Context, appID string, t DeleteTargets) (uin
 			return 0, fmt.Errorf("id de acceso directo invalido: %s", appID)
 		}
 		shortcutID = uint32(id)
-		if c.SteamRunning(ctx) {
+		if steamCorriendo {
 			if !c.CEFAvailable(ctx) {
 				return 0, fmt.Errorf(
 					"Steam esta abierto pero no responde: cierralo en la Deck y vuelve a intentarlo, " +

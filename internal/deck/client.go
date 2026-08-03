@@ -30,9 +30,41 @@ type Client struct {
 	// y compartido: ver newCEFClient en cef.go.
 	cefHTTP *http.Client
 
+	// cache memoiza lo que no cambia entre operaciones (raiz de Steam, cuenta).
+	// Es un puntero y no campos sueltos a proposito: el Client se copia
+	// (WithHome) y un cerrojo copiado por valor es justo lo que caza vet.
+	cache *remoteCache
+
 	Host string
 	User string
 	Home string // home remoto resuelto, p. ej. /home/deck
+}
+
+// remoteCache guarda respuestas de la Deck que son estables durante una
+// sesion. Se vacia en cada Scan (ver invalidateCache), que es el momento en
+// que deckman vuelve a mirar el estado del aparato con ojos nuevos.
+type remoteCache struct {
+	mu        sync.Mutex
+	steamRoot string
+	userID    string
+
+	// La pestana del depurador de Steam con la API buena (SharedJSContext).
+	// Redescubrirla son dos viajes (listar pestanas y elegir); instalar un
+	// juego con caratulas encadena media docena de ordenes en caliente y
+	// pagaba el descubrimiento entero en cada una. Ver cefEval.
+	cef   cefTarget
+	cefAt time.Time
+}
+
+func (c *Client) invalidateCache() {
+	if c.cache == nil {
+		return
+	}
+	c.cache.mu.Lock()
+	c.cache.steamRoot = ""
+	c.cache.userID = ""
+	c.cache.cef = cefTarget{}
+	c.cache.mu.Unlock()
 }
 
 // WithHome devuelve una vista del mismo cliente con otro directorio personal.
@@ -41,6 +73,9 @@ type Client struct {
 func (c *Client) WithHome(home string) *Client {
 	clone := *c
 	clone.Home = home
+	// Cache propia y vacia: la raiz de Steam y la cuenta dependen del home, y
+	// heredar las del cliente real seria responder por el arbol equivocado.
+	clone.cache = &remoteCache{}
 	return &clone
 }
 
@@ -108,15 +143,33 @@ func Connect(ctx context.Context, c Credentials) (*Client, error) {
 		conn.Close()
 		return nil, fmt.Errorf("fallo de autenticacion contra %s: %w", addr, err)
 	}
-	client := &Client{ssh: ssh.NewClient(sc, chans, reqs), Host: c.Host, User: c.User}
+	client := &Client{ssh: ssh.NewClient(sc, chans, reqs), Host: c.Host, User: c.User, cache: &remoteCache{}}
 	client.cefHTTP = newCEFClient(client.ssh)
 
-	// MaxPacket alto: mueve ficheros grandes bastante mas rapido que el defecto.
-	client.sftp, err = sftp.NewClient(client.ssh, sftp.MaxPacket(1<<15), sftp.UseConcurrentWrites(true))
+	// Sin MaxPacket: se pedia 1<<15, que ES el valor por defecto de pkg/sftp
+	// (y ademas el maximo que MaxPacket admite), o sea, un no-op con un
+	// comentario que prometia velocidad. Paquetes mayores exigirian
+	// MaxPacketUnchecked y medirlo contra la Deck antes de fiarse.
+	client.sftp, err = sftp.NewClient(client.ssh, sftp.UseConcurrentWrites(true))
 	if err != nil {
 		client.ssh.Close()
 		return nil, fmt.Errorf("no se pudo abrir SFTP: %w", err)
 	}
+
+	// Keepalive: deckman se queda abierto y una conexion parada un rato la
+	// tira el router o sshd sin que nadie lo note hasta la siguiente operacion,
+	// a veces a mitad de algo. El sondeo la mantiene viva; si falla es que la
+	// conexion ya murio y la gorutina se retira sola (por eso no hace falta
+	// canal de parada: tras Close, el siguiente sondeo falla y termina).
+	go func() {
+		t := time.NewTicker(30 * time.Second)
+		defer t.Stop()
+		for range t.C {
+			if _, _, err := client.ssh.SendRequest("keepalive@openssh.com", true, nil); err != nil {
+				return
+			}
+		}
+	}()
 
 	home, err := client.Run(ctx, "printf %s \"$HOME\"")
 	if err != nil || home == "" {
@@ -263,13 +316,26 @@ func scanLines(r io.Reader, onLine func(string)) {
 }
 
 // ReadFile trae un fichero remoto entero a memoria.
+//
+// io.Copy y no io.ReadAll a proposito: ReadAll encadena Reads de un paquete,
+// pagando un viaje de ida y vuelta por cada 32 KB. Con io.Copy entra
+// File.WriteTo, que pkg/sftp reparte en lecturas concurrentes; es la misma
+// trampa documentada para la subida (HALLAZGOS-STEAM.md §9), en el otro
+// sentido. Se nota en las portadas (varios MB) y en cada VDF por wifi.
 func (c *Client) ReadFile(p string) ([]byte, error) {
 	f, err := c.sftp.Open(p)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
-	return io.ReadAll(f)
+	var buf bytes.Buffer
+	if fi, err := f.Stat(); err == nil && fi.Size() > 0 {
+		buf.Grow(int(fi.Size()))
+	}
+	if _, err := io.Copy(&buf, f); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 // WriteFileAtomic escribe un fichero remoto de forma segura: primero deja una

@@ -115,6 +115,26 @@ func (c *Client) UploadTree(ctx context.Context, localPath, remoteDir string, on
 		}
 	}
 
+	// Tamanos de lo que ya hay en el destino, con un ReadDir por directorio en
+	// vez de un Stat por fichero: en una retransmision (que es cuando el "ya
+	// estaba, me lo salto" trabaja) el Stat de cada fichero ERA la operacion, y
+	// con veinte mil ficheros pequenos eso son veinte mil idas y vueltas.
+	existentes := make(map[string]uint64, len(files))
+	for _, d := range dirList {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		entries, err := c.sftp.ReadDir(d)
+		if err != nil {
+			continue // recien creado o ilegible: se subira todo, que es lo seguro
+		}
+		for _, e := range entries {
+			if e.Mode().IsRegular() {
+				existentes[path.Join(d, e.Name())] = uint64(e.Size())
+			}
+		}
+	}
+
 	var (
 		bytesDone atomic.Uint64
 		filesDone atomic.Int64
@@ -140,10 +160,15 @@ func (c *Client) UploadTree(ctx context.Context, localPath, remoteDir string, on
 				default:
 				}
 				dst := path.Join(remoteDir, f.rel)
-				copied, err := c.uploadOne(ctx, f, dst)
-				if err != nil {
-					errOnce.Do(func() { firstErr = fmt.Errorf("%s: %w", f.rel, err); cancel() })
-					return
+				copied := false
+				// El mapa es de solo lectura desde que se construyo: sin cerrojo.
+				if sz, ok := existentes[dst]; !ok || sz != f.size {
+					var err error
+					copied, err = c.uploadOne(ctx, f, dst)
+					if err != nil {
+						errOnce.Do(func() { firstErr = fmt.Errorf("%s: %w", f.rel, err); cancel() })
+						return
+					}
 				}
 				if !copied {
 					skipped.Add(1)
@@ -164,10 +189,16 @@ func (c *Client) UploadTree(ctx context.Context, localPath, remoteDir string, on
 			}
 		}()
 	}
+	// Al cancelar se deja de alimentar del todo: sin el break, el bucle seguia
+	// recorriendo los ficheros restantes entrando y saliendo del select. Break
+	// etiquetado y no return: el close(jobs) y el wg.Wait() tienen que ocurrir
+	// igualmente o las hebras quedarian colgadas.
+alimentar:
 	for _, f := range files {
 		select {
 		case jobs <- f:
 		case <-ctx.Done():
+			break alimentar
 		}
 	}
 	close(jobs)
@@ -187,11 +218,9 @@ func (c *Client) UploadTree(ctx context.Context, localPath, remoteDir string, on
 	return nil
 }
 
-// uploadOne sube un fichero. Devuelve false si ya estaba y se ha saltado.
+// uploadOne sube un fichero. El "ya estaba con este tamano, me lo salto" lo
+// decide el llamante con el indice de ReadDir; aqui ya solo se copia.
 func (c *Client) uploadOne(ctx context.Context, f localFile, dst string) (bool, error) {
-	if st, err := c.sftp.Stat(dst); err == nil && uint64(st.Size()) == f.size {
-		return false, nil
-	}
 	in, err := os.Open(f.abs)
 	if err != nil {
 		return false, err

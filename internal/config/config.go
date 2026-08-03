@@ -60,6 +60,17 @@ type Config struct {
 	LegacyUser string `json:"user,omitempty"`
 }
 
+// Snapshot devuelve una copia independiente para serializar fuera del cerrojo.
+//
+// Copiar con `cfg := *c` a secas comparte el array de respaldo de Decks, y
+// UpsertDeck escribe en sitio (c.Decks[i] = d): un /api/state codificando la
+// copia mientras otro handler conectaba era una carrera de datos de verdad.
+func (c *Config) Snapshot() Config {
+	cp := *c
+	cp.Decks = append([]Deck(nil), c.Decks...)
+	return cp
+}
+
 // ActiveDeck devuelve la Deck en uso. Si no hay ninguna guardada devuelve una
 // vacia con los valores por defecto, que es justo lo que la interfaz necesita
 // para pintar el formulario de conexion la primera vez.

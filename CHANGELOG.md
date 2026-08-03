@@ -13,6 +13,50 @@ bloque `<releases>` del metainfo. Los tres los sincroniza `scripts/release.sh`.
      versión nueva al publicar. Secciones: Añadido, Cambiado, Corregido,
      Eliminado. -->
 
+### Cambiado
+
+- **Escanear la biblioteca es mucho más rápido**: los manifiestos de los juegos
+  se leen todos en una sola orden remota (antes, un viaje SFTP por juego), el
+  `df` de las unidades va en una sola sesión SSH y los ficheros remotos se bajan
+  por la ruta concurrente de SFTP en vez de a trozos de 32 KB. En bibliotecas
+  grandes por wifi la diferencia son segundos.
+- **Mover o borrar un juego arranca al instante**: reutilizan el inventario que
+  la interfaz acaba de cargar (válido un minuto) en vez de repetir el escaneo
+  completo, que incluía medir todos los `compatdata` y `shadercache` de la
+  Deck. Las comprobaciones de seguridad (Steam abierto, depurador accesible,
+  qué se puede borrar) se siguen haciendo frescas en el momento.
+- **Menos viajes por SSH en general**: la raíz de Steam, la cuenta de usuario y
+  la pestaña del depurador de Steam se memoizan durante la sesión (instalar las
+  cuatro carátulas de un juego abría ~12 sesiones SSH; ahora las justas), las
+  retransmisiones de juegos comprueban lo ya copiado con un listado por carpeta
+  en vez de una consulta por fichero, y las cuatro búsquedas de carátulas en
+  SteamGridDB van en paralelo.
+- **La conexión con la Deck se mantiene viva** con un keepalive periódico: antes
+  una sesión parada un rato la cortaba el router sin aviso y el fallo aparecía a
+  mitad de la siguiente operación.
+- **Compilar y publicar es más rápido y robusto**: `build.sh` ya no ejecuta
+  `go mod tidy` (no exige red ni ensucia el árbol), usa un solo contenedor con
+  las dos compilaciones en paralelo, y `make flatpak` ya no compila el binario
+  de Windows que no empaqueta. La receta de compilación vive en un único sitio
+  (`scripts/compilar.sh`) compartido por el build local, el CI y la release; el
+  CI usa cachés persistentes de Go (antes recompilaba la stdlib entera en cada
+  push) y comprueba antes de publicar un tag.
+
+### Corregido
+
+- `make build` tras `make clean` fallaba: `go build` no crea `dist/`.
+- Publicar podía dejar el `SHA256SUMS` de la release sin la línea del
+  `.flatpak` si `release.sh` ganaba la carrera al CI: ahora espera al fichero,
+  no a la release, y avisa si no llega.
+- Dos carreras de datos en el servidor web (la lista de Decks compartida entre
+  handlers y los contadores de progreso leídos sin su cerrojo) y una goroutine
+  que quedaba colgada al reabrir la ventana en Windows.
+- `fetch-testdata.sh` corrompía `testdata/shortcuts.vdf` si la Deck tenía más
+  de una cuenta de Steam (concatenaba los VDF); ahora elige la cuenta y se
+  niega si hay varias.
+- La opción `MaxPacket` de SFTP pedía el valor por defecto creyendo que
+  aceleraba: eliminada junto a su comentario engañoso.
+
 ## [0.2.3] — 2026-08-03
 
 ### Añadido

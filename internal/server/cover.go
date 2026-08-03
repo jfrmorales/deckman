@@ -35,6 +35,11 @@ type coverStore struct {
 	blobs map[string]coverBlob
 	order []string // orden de llegada: se sueltan las mas viejas primero
 	bytes int
+
+	// buildMu serializa la construccion del indice a demanda: si llegan varias
+	// portadas antes del primer inventario, solo la primera peticion paga el
+	// CoverIndex (decenas de globs remotos) y las demas lo encuentran hecho.
+	buildMu sync.Mutex
 }
 
 func newCoverStore() *coverStore {
@@ -84,7 +89,10 @@ func (s *coverStore) put(appID string, b coverBlob) {
 	s.blobs[appID] = b
 	for s.bytes > maxCoverCache && len(s.order) > 0 {
 		viejo := s.order[0]
-		s.order = s.order[1:]
+		// Desplazar en vez de reslicear: order[1:] arrastra el array de respaldo
+		// entero, que ya no encogeria nunca.
+		copy(s.order, s.order[1:])
+		s.order = s.order[:len(s.order)-1]
 		if old, ok := s.blobs[viejo]; ok {
 			s.bytes -= len(old.data)
 			delete(s.blobs, viejo)
@@ -126,11 +134,17 @@ func (s *Server) handleCover(w http.ResponseWriter, r *http.Request) {
 
 	p, ok := s.covers.path(appID)
 	if !ok {
-		// Sin inventario cargado todavia no hay indice: se construye a demanda.
-		if index, err := c.CoverIndex(r.Context()); err == nil {
-			s.covers.setIndex(index)
-			p, ok = s.covers.path(appID)
+		// Sin inventario cargado todavia no hay indice: se construye a demanda,
+		// de uno en uno. La interfaz pide varias portadas a la vez y sin el
+		// cerrojo cada una lanzaba su propio CoverIndex contra la Deck.
+		s.covers.buildMu.Lock()
+		if p, ok = s.covers.path(appID); !ok {
+			if index, err := c.CoverIndex(r.Context()); err == nil {
+				s.covers.setIndex(index)
+				p, ok = s.covers.path(appID)
+			}
 		}
+		s.covers.buildMu.Unlock()
 	}
 	if !ok {
 		writeErr(w, fmt.Errorf("ese juego no tiene portada"), http.StatusNotFound)

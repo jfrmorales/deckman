@@ -151,16 +151,60 @@ func (c *Client) sharedJSContext(ctx context.Context) (cefTarget, error) {
 
 var cefMsgID atomic.Int64
 
+// cefTargetTTL: cuanto se recuerda la pestana. Corto a proposito: Steam cambia
+// la URL al reiniciarse, y aunque el dial fallido de abajo lo cubre, mejor que
+// la ventana de confusion sea pequena.
+const cefTargetTTL = 30 * time.Second
+
+func (c *Client) cachedCEFTarget() (cefTarget, bool) {
+	if c.cache == nil {
+		return cefTarget{}, false
+	}
+	c.cache.mu.Lock()
+	defer c.cache.mu.Unlock()
+	if c.cache.cef.WSDebug == "" || time.Since(c.cache.cefAt) > cefTargetTTL {
+		return cefTarget{}, false
+	}
+	return c.cache.cef, true
+}
+
+func (c *Client) storeCEFTarget(t cefTarget) {
+	if c.cache == nil {
+		return
+	}
+	c.cache.mu.Lock()
+	c.cache.cef, c.cache.cefAt = t, time.Now()
+	c.cache.mu.Unlock()
+}
+
 // cefEval ejecuta JavaScript dentro de Steam y espera al resultado.
 func (c *Client) cefEval(ctx context.Context, expr string) (json.RawMessage, error) {
-	target, err := c.sharedJSContext(ctx)
-	if err != nil {
-		return nil, err
+	target, cached := c.cachedCEFTarget()
+	if !cached {
+		var err error
+		target, err = c.sharedJSContext(ctx)
+		if err != nil {
+			return nil, err
+		}
+		c.storeCEFTarget(target)
 	}
 
 	conn, _, err := websocket.Dial(ctx, target.WSDebug, &websocket.DialOptions{
 		HTTPClient: c.cefHTTPClient(),
 	})
+	if err != nil && cached {
+		// La pestana recordada puede haber muerto (Steam reiniciado hace un
+		// momento): se redescubre UNA vez y se reintenta, que era lo que hacia
+		// siempre el codigo sin cache.
+		target, err = c.sharedJSContext(ctx)
+		if err != nil {
+			return nil, err
+		}
+		c.storeCEFTarget(target)
+		conn, _, err = websocket.Dial(ctx, target.WSDebug, &websocket.DialOptions{
+			HTTPClient: c.cefHTTPClient(),
+		})
+	}
 	if err != nil {
 		return nil, fmt.Errorf("no se pudo abrir el canal con Steam: %w", err)
 	}
@@ -224,10 +268,18 @@ func (c *Client) cefEval(ctx context.Context, expr string) (json.RawMessage, err
 }
 
 // CEFAvailable indica si se puede hablar con Steam en caliente.
+//
+// Pregunta SIEMPRE de verdad, sin cache: es la puerta que decide si se puede
+// escribir shortcuts.vdf o hay que pedirselo a Steam, y ahi no valen fotos
+// viejas. De propina, si responde, deja la pestana memoizada para que las
+// ordenes que vienen justo detras no vuelvan a descubrirla.
 func (c *Client) CEFAvailable(ctx context.Context) bool {
 	checkCtx, cancel := context.WithTimeout(ctx, 8*time.Second)
 	defer cancel()
-	_, err := c.sharedJSContext(checkCtx)
+	t, err := c.sharedJSContext(checkCtx)
+	if err == nil {
+		c.storeCEFTarget(t)
+	}
 	return err == nil
 }
 

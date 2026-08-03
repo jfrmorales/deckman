@@ -15,14 +15,10 @@ if [ -f deck.local.env ] && [ -z "${DECKMAN_SIN_DECK:-}" ]; then
 	. ./deck.local.env
 fi
 
-if command -v podman >/dev/null 2>&1; then RUNTIME="podman"
-elif command -v docker >/dev/null 2>&1; then RUNTIME="docker"
-elif command -v distrobox-host-exec >/dev/null 2>&1; then RUNTIME="distrobox-host-exec podman"
-else echo "error: hace falta podman o docker" >&2; exit 1
-fi
-
-$RUNTIME volume create deckman-gomod >/dev/null 2>&1 || true
-$RUNTIME volume create deckman-gocache >/dev/null 2>&1 || true
+# shellcheck source=scripts/contenedor.sh
+. scripts/contenedor.sh
+detectar_runtime
+preparar_volumenes
 
 HOST="${1:-${DECKMAN_TEST_HOST:-}}"
 PASS="${2:-${DECKMAN_TEST_PASS:-}}"
@@ -39,11 +35,14 @@ if [ -n "${DECKMAN_TEST_GRIDKEY:-}" ]; then
 	echo ">> incluyendo pruebas contra SteamGridDB"
 fi
 
+# -vet=all dentro de `go test`: corre el mismo analisis que un `go vet ./...`
+# suelto pero compartiendo la compilacion, en vez de pagarla dos veces.
 $RUNTIME run --rm \
 	-v "$PWD:/src:Z" \
 	-v deckman-gomod:/go/pkg/mod \
 	-v deckman-gocache:/root/.cache/go-build \
 	-w /src -e CGO_ENABLED=0 -e GOFLAGS=-buildvcs=false "${ENVS[@]}" \
-	docker.io/library/golang:1.26.5 \
-	sh -c 'test -z "$(gofmt -l ./cmd ./internal)" || { echo "sin formatear:"; gofmt -l ./cmd ./internal; exit 1; }
-	       go vet ./... && go test ./... -timeout 15m "$@"' -- "${@:3}"
+	"$GO_IMAGE" \
+	sh -c 'sin="$(gofmt -l ./cmd ./internal)"
+	       if [ -n "$sin" ]; then echo "sin formatear:"; echo "$sin"; exit 1; fi
+	       go test -vet=all ./... -timeout 15m "$@"' -- "${@:3}"

@@ -9,6 +9,7 @@ import (
 	"path"
 	"sort"
 	"strings"
+	"sync"
 )
 
 // Artwork es una imagen de portada elegida para instalar.
@@ -272,8 +273,11 @@ func (c *Client) first(ctx context.Context, endpoint string, gameID int, query, 
 
 // FetchArtwork reune las cuatro imagenes que usa la biblioteca de Steam.
 // Las que no existan simplemente no vienen; nunca es un error.
+//
+// Las cuatro consultas son independientes y van a la vez: en serie, con la
+// latencia tipica hasta SteamGridDB, eran ~600 ms solo de metadatos antes de
+// empezar a descargar nada. El http.Client comparte su pool de conexiones.
 func (c *Client) FetchArtwork(ctx context.Context, gameID int) []Artwork {
-	var out []Artwork
 	// Los tamanos son los que espera Steam. "static" descarta los animados,
 	// que la Deck no muestra en la vista de biblioteca.
 	specs := []struct{ endpoint, query, kind string }{
@@ -282,8 +286,21 @@ func (c *Client) FetchArtwork(ctx context.Context, gameID int) []Artwork {
 		{"heroes", "types=static", "hero"},
 		{"logos", "types=static", "logo"},
 	}
-	for _, s := range specs {
-		if a := c.first(ctx, s.endpoint, gameID, s.query, s.kind); a != nil {
+	results := make([]*Artwork, len(specs))
+	var wg sync.WaitGroup
+	for i, s := range specs {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			results[i] = c.first(ctx, s.endpoint, gameID, s.query, s.kind)
+		}()
+	}
+	wg.Wait()
+
+	// El orden de specs se conserva: la interfaz y los mensajes lo esperan.
+	var out []Artwork
+	for _, a := range results {
+		if a != nil {
 			out = append(out, *a)
 		}
 	}

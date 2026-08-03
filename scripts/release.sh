@@ -272,6 +272,9 @@ if command -v flatpak >/dev/null 2>&1; then
 	# con una ruta relativa el bundle acababa en flatpak/dist/ mientras aqui se
 	# buscaba en dist/.
 	BUNDLE="$PWD/dist/deckman-$VERSION.flatpak"
+	# Fuera bundles de versiones anteriores: nadie los limpiaba y un `ls dist/`
+	# acababa enseñando .flatpak viejos como si fueran el actual.
+	rm -f "$PWD"/dist/deckman-*.flatpak
 	if ! DECKMAN_BUNDLE="$BUNDLE" flatpak/build.sh; then
 		echo "aviso: la version esta publicada, pero el Flatpak no se pudo" >&2
 		echo "       reinstalar. Reintenta con:  make flatpak" >&2
@@ -301,11 +304,22 @@ if [ -n "$BUNDLE" ] && [ ! -f "$BUNDLE" ]; then
 fi
 if [ -n "$BUNDLE" ]; then
 	if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
-		paso "esperando a que el CI cree la release para subir el bundle"
+		paso "esperando a que el CI cree la release y suba SHA256SUMS"
+		# Se espera al fichero SHA256SUMS, no solo a la release: el CI la crea
+		# primero y sube los ficheros despues, y colarse en ese hueco dejaba el
+		# SHA256SUMS publicado sin la linea del bundle, sin que nada avisara.
+		# El sondeo empieza rapido y se va espaciando: lo normal es que el CI
+		# tarde menos de un minuto.
 		encontrada=0
-		for _ in $(seq 1 40); do   # ~5 minutos
-			if gh release view "$TAG" >/dev/null 2>&1; then encontrada=1; break; fi
-			sleep 8
+		espera=2
+		for _ in $(seq 1 14); do   # ~5 minutos en total
+			if gh release view "$TAG" --json assets --jq '.assets[].name' 2>/dev/null \
+				| grep -qx SHA256SUMS; then
+				encontrada=1
+				break
+			fi
+			sleep "$espera"
+			[ "$espera" -lt 30 ] && espera=$((espera * 2))
 		done
 		if [ "$encontrada" -eq 1 ] && gh release upload "$TAG" "$BUNDLE" --clobber >/dev/null 2>&1; then
 			echo "   subido $(basename "$BUNDLE")"
@@ -318,11 +332,16 @@ if [ -n "$BUNDLE" ]; then
 				gh release upload "$TAG" "$tmp/SHA256SUMS" --clobber >/dev/null 2>&1 \
 					&& echo "   SHA256SUMS actualizado con el bundle" \
 					|| echo "aviso: no se pudo actualizar SHA256SUMS" >&2
+			else
+				echo "aviso: no se pudo bajar SHA256SUMS; se queda sin la linea del bundle." >&2
+				echo "       Anadela a mano: sha256sum $(basename "$BUNDLE") >> SHA256SUMS" >&2
 			fi
 			rm -rf "$tmp"
 		else
-			echo "aviso: no se pudo subir el bundle. Cuando la release exista:" >&2
+			echo "aviso: no se pudo subir el bundle (¿el CI aun no ha terminado?)." >&2
+			echo "       Cuando la release y su SHA256SUMS existan:" >&2
 			echo "       gh release upload $TAG $BUNDLE --clobber" >&2
+			echo "       y anade su linea al SHA256SUMS de la release." >&2
 		fi
 	else
 		echo

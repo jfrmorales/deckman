@@ -1,56 +1,63 @@
 #!/usr/bin/env bash
 # Compila deckman para Linux y Windows dentro de un contenedor.
 # No requiere Go instalado en el sistema: solo podman (o docker).
+#
+# DECKMAN_OBJETIVOS elige que se compila ("linux", "windows" o ambos, que es
+# el defecto). Lo usa flatpak/build.sh, que solo necesita el binario de Linux
+# y pagaba el cruce a Windows para nada en cada `make flatpak` y `make release`.
 set -euo pipefail
-
 cd "$(dirname "$0")"
 SRC="$PWD"
-GO_IMAGE="docker.io/library/golang:1.26.5"
 VERSION="$(git describe --tags --always --dirty 2>/dev/null || echo dev)"
+OBJETIVOS="${DECKMAN_OBJETIVOS:-linux windows}"
 
-# Dentro de distrobox, podman vive en el host.
-if command -v podman >/dev/null 2>&1; then
-	RUNTIME="podman"
-elif command -v docker >/dev/null 2>&1; then
-	RUNTIME="docker"
-elif command -v distrobox-host-exec >/dev/null 2>&1; then
-	RUNTIME="distrobox-host-exec podman"
-else
-	echo "error: hace falta podman o docker para compilar" >&2
-	exit 1
-fi
+# shellcheck source=scripts/contenedor.sh
+. scripts/contenedor.sh
+detectar_runtime
+preparar_volumenes
 
-# Cache de modulos y de build persistente, para que recompilar sea rapido.
-$RUNTIME volume create deckman-gomod >/dev/null 2>&1 || true
-$RUNTIME volume create deckman-gocache >/dev/null 2>&1 || true
+SALIDAS=()
+for os in $OBJETIVOS; do
+	case "$os" in
+		linux) SALIDAS+=(dist/deckman) ;;
+		windows) SALIDAS+=(dist/deckman.exe) ;;
+		*) echo "error: objetivo desconocido '$os' (vale: linux windows)" >&2; exit 1 ;;
+	esac
+done
 
-run_in_container() {
-	$RUNTIME run --rm \
-		-v "$SRC:/src:Z" \
-		-v deckman-gomod:/go/pkg/mod \
-		-v deckman-gocache:/root/.cache/go-build \
-		-w /src \
-		-e CGO_ENABLED=0 \
-		-e GOFLAGS=-buildvcs=false \
-		"$GO_IMAGE" "$@"
-}
+echo ">> compilando: $OBJETIVOS"
 
-echo ">> resolviendo dependencias"
-run_in_container go mod tidy
-
-LDFLAGS="-s -w -X main.version=$VERSION"
-
-echo ">> compilando linux/amd64"
-run_in_container env GOOS=linux GOARCH=amd64 \
-	go build -trimpath -ldflags "$LDFLAGS" -o dist/deckman ./cmd/deckman
-
-# -H windowsgui: sin ventana de consola al hacer doble clic. La contrapartida
-# es que los flags tipo -version no imprimen nada ni desde cmd.exe; la vida
-# del proceso la gobiernan la ventana y el boton Salir de la interfaz.
-echo ">> compilando windows/amd64"
-run_in_container env GOOS=windows GOARCH=amd64 \
-	go build -trimpath -ldflags "$LDFLAGS -H windowsgui" -o dist/deckman.exe ./cmd/deckman
+# Un solo `run` para todo: arrancar el contenedor (montajes, reetiquetado
+# SELinux) cuesta mas que compilar en caliente, y antes se pagaba tres veces.
+# Dentro, los objetivos van en paralelo; los codigos de salida se recogen uno
+# a uno porque un `wait` a secas devuelve 0 aunque un hijo haya fallado.
+#
+# Aqui ya no hay `go mod tidy`: exigia red aunque la cache tuviera todo y
+# podia reescribir go.mod/go.sum, dejando el arbol sucio justo antes de que
+# release.sh se negara a publicar por "cambios sin commitear". Lo que falte
+# lo descarga `go build`; la coherencia del go.mod la vigila el CI.
+$RUNTIME run --rm \
+	-v "$SRC:/src:Z" \
+	-v deckman-gomod:/go/pkg/mod \
+	-v deckman-gocache:/root/.cache/go-build \
+	-w /src \
+	-e GOFLAGS=-buildvcs=false \
+	-e VERSION="$VERSION" \
+	-e OBJETIVOS="$OBJETIVOS" \
+	"$GO_IMAGE" sh -c '
+		pids=""
+		for os in $OBJETIVOS; do
+			case "$os" in
+				linux) salida=dist/deckman ;;
+				windows) salida=dist/deckman.exe ;;
+			esac
+			scripts/compilar.sh "$os" "$salida" "$VERSION" & pids="$pids $!"
+		done
+		rc=0
+		for p in $pids; do wait "$p" || rc=1; done
+		exit "$rc"
+	'
 
 echo
 echo "Listo:"
-ls -lh dist/deckman dist/deckman.exe
+ls -lh "${SALIDAS[@]}"

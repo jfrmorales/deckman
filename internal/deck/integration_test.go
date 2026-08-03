@@ -296,7 +296,7 @@ func TestIntegrationMoveRefusesWithSteamRunning(t *testing.T) {
 	if !c.SteamRunning(ctx) {
 		t.Skip("Steam no esta arrancado en la Deck; no se puede comprobar la negativa")
 	}
-	err := c.MoveGame(ctx, "252950", "/run/media/deck/USD00", nil)
+	err := c.MoveGame(ctx, nil, "252950", "/run/media/deck/USD00", nil)
 	if err == nil {
 		t.Fatal("MoveGame deberia haberse negado con Steam abierto")
 	}

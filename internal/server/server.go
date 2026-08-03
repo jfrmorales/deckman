@@ -50,7 +50,21 @@ type Server struct {
 
 	// Portadas de la biblioteca, con su cache. Ver cover.go.
 	covers *coverStore
+
+	// Ultima foto de la Deck, para que mover o borrar un juego no repita el
+	// Scan completo (con su du -sb sobre todos los compatdata y shadercache)
+	// que la interfaz acaba de pagar para pintar la biblioteca. Ver inventory.
+	invMu     sync.Mutex
+	inv       *deck.Inventory
+	invAt     time.Time
+	invClient *deck.Client
 }
+
+// inventarioTTL es cuanto vale la foto. Un minuto cubre el gesto tipico
+// (cargar la biblioteca y operar sobre un juego) sin arriesgar mucho: lo unico
+// que se decide con datos de la foto son rutas y tamanos, y las comprobaciones
+// de seguridad (SteamRunning, CEFAvailable, safeToDelete) van siempre frescas.
+const inventarioTTL = time.Minute
 
 type job struct {
 	ID     string        `json:"id"`
@@ -208,7 +222,7 @@ func (s *Server) conn() (*deck.Client, error) {
 func (s *Server) handleState(w http.ResponseWriter, r *http.Request) {
 	s.mu.RLock()
 	connected := s.client != nil
-	cfg := *s.cfg
+	cfg := s.cfg.Snapshot()
 	s.mu.RUnlock()
 
 	s.jobMu.Lock()
@@ -323,7 +337,7 @@ func (s *Server) handleConnect(w http.ResponseWriter, r *http.Request) {
 	}
 	s.client = client
 	s.cfg.UpsertDeck(config.Deck{Host: req.Host, Port: req.Port, User: req.User, Name: req.Name})
-	cfg := *s.cfg
+	cfg := s.cfg.Snapshot()
 	s.mu.Unlock()
 	cfg.Save()
 
@@ -440,7 +454,7 @@ func (s *Server) handleForgetDeck(w http.ResponseWriter, r *http.Request) {
 		os.Remove(s.cfg.KeyPath + ".pub")
 		s.cfg.KeyPath = ""
 	}
-	cfg := *s.cfg
+	cfg := s.cfg.Snapshot()
 	s.mu.Unlock()
 	cfg.Save()
 
@@ -487,10 +501,50 @@ func (s *Server) handleInventory(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, err, http.StatusBadGateway)
 		return
 	}
+	s.storeInventory(c, inv)
 	// Las portadas se resuelven aqui y no dentro de Scan: es una consulta mas a
 	// la Deck que solo le hace falta a la biblioteca, no a mover ni a borrar.
 	s.covers.setIndex(c.AnnotateCovers(ctx, inv))
 	writeJSON(w, inv)
+}
+
+// storeInventory guarda una copia de la foto para mover/borrar. Copia y no el
+// puntero: AnnotateCovers sigue escribiendo HasCover sobre el original
+// mientras un trabajo podria estar leyendo la foto guardada.
+func (s *Server) storeInventory(c *deck.Client, inv *deck.Inventory) {
+	copia := *inv
+	copia.Games = append([]deck.Game(nil), inv.Games...)
+	copia.Libraries = append([]deck.Library(nil), inv.Libraries...)
+	s.invMu.Lock()
+	s.inv, s.invAt, s.invClient = &copia, time.Now(), c
+	s.invMu.Unlock()
+}
+
+func (s *Server) dropInventory() {
+	s.invMu.Lock()
+	s.inv, s.invClient = nil, nil
+	s.invMu.Unlock()
+}
+
+// inventory devuelve la foto reciente de esta misma conexion, o escanea. Los
+// datos que salen de aqui solo se usan para localizar rutas y tamanos; toda
+// decision peligrosa (escribir shortcuts.vdf, borrar) se comprueba fresca en
+// deck.MoveGame/Delete.
+func (s *Server) inventory(ctx context.Context, c *deck.Client) (*deck.Inventory, error) {
+	s.invMu.Lock()
+	if s.inv != nil && s.invClient == c && time.Since(s.invAt) < inventarioTTL {
+		inv := s.inv
+		s.invMu.Unlock()
+		return inv, nil
+	}
+	s.invMu.Unlock()
+
+	inv, err := c.Scan(ctx)
+	if err != nil {
+		return nil, err
+	}
+	s.storeInventory(c, inv)
+	return inv, nil
 }
 
 // --- explorador local ---
@@ -694,7 +748,7 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	if req.GridKey != nil {
 		s.cfg.GridKey = strings.TrimSpace(*req.GridKey)
 	}
-	cfg := *s.cfg
+	cfg := s.cfg.Snapshot()
 	s.mu.Unlock()
 	if err := cfg.Save(); err != nil {
 		writeErr(w, err, http.StatusInternalServerError)
@@ -1109,6 +1163,15 @@ func (t *progressTracker) Report(p deck.Progress) {
 	t.report(p)
 }
 
+// snapshot devuelve el ultimo parte con su cerrojo puesto. Los llamantes de
+// hoy leen cuando las gorutinas de la subida ya han terminado, pero last tiene
+// dueno declarado (t.mu) y leerlo sin el es invitar a la proxima carrera.
+func (t *progressTracker) snapshot() deck.Progress {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.last
+}
+
 // Finish emite el parte final reutilizando los contadores acumulados.
 func (t *progressTracker) Finish(msg string) {
 	t.mu.Lock()
@@ -1235,7 +1298,7 @@ func (s *Server) handleSendGame(w http.ResponseWriter, r *http.Request) {
 
 	s.mu.Lock()
 	s.cfg.LastLocal = filepath.Dir(req.LocalPath)
-	cfg := *s.cfg
+	cfg := s.cfg.Snapshot()
 	s.mu.Unlock()
 	cfg.Save()
 
@@ -1266,7 +1329,7 @@ func (s *Server) handleSendGame(w http.ResponseWriter, r *http.Request) {
 			return nil
 		}
 
-		reg := tr.last
+		reg := tr.snapshot()
 		reg.Phase, reg.Done, reg.File = "registrando en Steam", false, ""
 		reg.Message = "escribiendo shortcuts.vdf"
 		tr.Report(reg)
@@ -1291,7 +1354,7 @@ func (s *Server) handleSendGame(w http.ResponseWriter, r *http.Request) {
 			msg += " Ya aparece en la biblioteca, sin reiniciar."
 		}
 		if req.Artwork {
-			reg := tr.last
+			reg := tr.snapshot()
 			reg.Phase, reg.Done, reg.File = "descargando caratulas", false, ""
 			reg.Message = "consultando SteamGridDB"
 			tr.Report(reg)
@@ -1332,7 +1395,7 @@ func (s *Server) handleSendROM(w http.ResponseWriter, r *http.Request) {
 
 	s.mu.Lock()
 	s.cfg.LastLocal = filepath.Dir(req.LocalPath)
-	cfg := *s.cfg
+	cfg := s.cfg.Snapshot()
 	s.mu.Unlock()
 	cfg.Save()
 
@@ -1361,7 +1424,13 @@ func (s *Server) handleMove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	j, err := s.startJob("move", "Moviendo juego", func(ctx context.Context, report deck.ProgressFunc) error {
-		return c.MoveGame(ctx, req.AppID, req.Target, report)
+		inv, err := s.inventory(ctx, c)
+		if err != nil {
+			return err
+		}
+		// Tras mover, la foto guardada miente (rutas y espacio libre): fuera.
+		defer s.dropInventory()
+		return c.MoveGame(ctx, inv, req.AppID, req.Target, report)
 	})
 	if err != nil {
 		writeErr(w, err, http.StatusConflict)
@@ -1387,7 +1456,14 @@ func (s *Server) handleDelete(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Minute)
 	defer cancel()
 
-	freed, err := c.Delete(ctx, req.AppID, req.Targets)
+	inv, err := s.inventory(ctx, c)
+	if err != nil {
+		writeErr(w, err, http.StatusBadGateway)
+		return
+	}
+	// Tras borrar, la foto guardada miente (juego y tamanos): fuera.
+	defer s.dropInventory()
+	freed, err := c.Delete(ctx, inv, req.AppID, req.Targets)
 	if err != nil {
 		writeErr(w, err, http.StatusBadGateway)
 		return

@@ -23,8 +23,15 @@ on:
 jobs:
   publicar:
     runs-on: docker
+    timeout-minutes: 30
     container:
       image: docker.io/library/golang:1.26.5
+      # Las mismas caches que pruebas.yml: ver alli el porque.
+      options: >-
+        -v deckman-ci-gomod:/go/pkg/mod
+        -v deckman-ci-gocache:/root/.cache/go-build
+    env:
+      GOFLAGS: -buildvcs=false
     steps:
       # A mano y no con actions/checkout: esa accion necesita `node` dentro del
       # contenedor del job y la imagen de Go no lo trae. Ver pruebas.yml.
@@ -40,6 +47,13 @@ jobs:
           git remote add origin "$proto://x-access-token:$TOKEN@$host/$GITHUB_REPOSITORY"
           git fetch -q --depth 1 origin "$GITHUB_SHA"
           git checkout -q FETCH_HEAD
+
+      # Publicar sin comprobar era posible: la red de seguridad (release.sh)
+      # corre en el PC, y un tag empujado a mano o con --no-verify llegaba
+      # aqui sin que nadie hubiera pasado ni un vet. Con las caches puestas,
+      # esto cuesta poco.
+      - name: comprobar
+        run: go test -vet=all ./... -timeout 15m
 
       - name: compilar y publicar en GitHub
         env:

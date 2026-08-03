@@ -30,13 +30,24 @@ Hace falta **podman o docker**, y nada más: el proyecto no instala Go en el
 sistema, todo va en contenedor.
 
 ```sh
-./build.sh    # binarios de Linux y Windows en dist/
-./test.sh     # pruebas locales
+make setup    # una vez: comprueba requisitos y deja el clon listo
+make          # dice todo lo que se puede hacer
+make check    # gofmt + vet + pruebas locales (lo mismo que el CI)
+make build    # binarios de Linux y Windows en dist/
 ```
 
+`make` a secas lista las órdenes con lo que hace cada una; no hay que
+aprenderse ningún orden. Por debajo siguen estando los scripts de siempre
+(`build.sh`, `test.sh`, `scripts/release.sh`, `flatpak/build.sh`), que se pueden
+usar sueltos si hace falta.
+
+`make setup` también instala un gancho de **pre-push** que corre `make check`
+antes de empujar, para no tener que arreglar el CI en un segundo commit. Si
+alguna vez estorba: `git push --no-verify`.
+
 Para las pruebas de integración necesitas una Steam Deck con SSH activado.
-Copia `deck.local.env.ejemplo` a `deck.local.env`, rellena la IP y la
-contraseña, y `./test.sh` ya las incluye. Ese fichero no se versiona.
+Rellena la IP y la contraseña en `deck.local.env` (lo crea `make setup`) y
+corre `make deck`. Ese fichero no se versiona.
 
 Las de integración **no tocan la configuración real** de tu Deck: montan un
 árbol de Steam de mentira en `~/deckman-selftest` y lo borran al terminar. Las
@@ -60,7 +71,19 @@ probado» que un «debería funcionar».
 
 Anota lo que cambias en **[CHANGELOG.md](CHANGELOG.md)**, bajo `## [No
 publicado]`, en la sección que toque (Añadido, Cambiado, Corregido, Eliminado).
-Las versiones las publica quien mantiene el proyecto con `scripts/release.sh`.
+No es un trámite: `make release` se niega a publicar si esa sección está vacía.
+
+Publicar es cosa de quien mantiene el proyecto, y es una sola orden:
+
+```sh
+make release V=0.2.0
+```
+
+Comprueba, mueve el changelog, actualiza el metainfo del Flatpak, etiqueta,
+empuja a todos los remotos verificando que llega a cada uno, y reinstala el
+Flatpak. **Si algo falla antes de publicar, lo deshace todo** y te deja como
+estabas. Si el fallo ocurre cuando ya ha salido a algún remoto, no reescribe
+historia publicada: te dice el estado de cada uno y qué comando falta.
 
 ## Licencia
 

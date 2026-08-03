@@ -256,25 +256,22 @@ la web.
 Hace falta podman o docker. **No se instala Go en el sistema**:
 
 ```sh
-./build.sh
+make setup    # una vez: comprueba requisitos y deja el clon listo
+make build    # los dos binarios en dist/
 ```
 
-Salen los dos binarios en `dist/`.
+`make` a secas lista todo lo que se puede hacer.
 
 ### Pruebas
 
 ```sh
-./test.sh                            # locales
-./test.sh 192.168.1.50 <contraseña>  # + integración contra una Deck
-
-# + SteamGridDB
-DECKMAN_TEST_GRIDKEY=tu-clave ./test.sh 192.168.1.50 <contraseña>
+make check    # locales
+make deck     # + integración contra tu Steam Deck
 ```
 
-Para no repetir la IP y la contraseña en cada llamada, copia
-`deck.local.env.ejemplo` a `deck.local.env` y rellénalo: `./test.sh` a secas ya
-incluye las de integración. Ese fichero no se versiona — este repositorio es
-público.
+La IP y la contraseña van en `deck.local.env` (lo crea `make setup` a partir
+del ejemplo), junto con la clave de SteamGridDB si quieres probar las carátulas.
+Ese fichero **no se versiona** — este repositorio es público.
 
 Las de integración **no tocan la configuración real**: montan un árbol de Steam
 de mentira en `~/deckman-selftest` de la Deck y lo borran al terminar. Las
@@ -293,16 +290,23 @@ Sin ellas, esas pruebas se saltan solas.
 ### Versiones
 
 Los cambios se anotan en **[CHANGELOG.md](CHANGELOG.md)** bajo *No publicado*, y
-se publican con:
+se publican con una sola orden:
 
 ```sh
-scripts/release.sh 0.2.0
+make release V=0.2.0
 ```
 
-Eso mueve lo pendiente a la versión nueva, actualiza el metainfo del Flatpak,
-crea el tag `v0.2.0` y lo empuja a los dos remotos comprobando que llega a
-ambos. La versión sale de un único sitio, el tag, y se puede consultar en
-cualquier momento:
+Comprueba, mueve lo pendiente a la versión nueva, actualiza el metainfo del
+Flatpak, crea el tag `v0.2.0`, lo empuja a todos los remotos verificando que
+llega a cada uno, y reinstala el Flatpak — para que no vuelva a quedarse
+desfasado respecto al código.
+
+Es reversible mientras se pueda: si algo falla **antes** de publicar, deshace
+el commit y el tag y te deja como estabas. Si ya había salido a algún remoto no
+reescribe historia publicada; te dice el estado de cada uno y qué falta.
+
+La versión sale de un único sitio, el tag, y se puede consultar en cualquier
+momento:
 
 ```sh
 deckman --version                                  # binario suelto

@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
-# Publica una version: scripts/release.sh 0.2.0
+# Publica una version de principio a fin.  Se llama con: make release V=0.2.0
 #
-# La version vive en tres sitios y aqui es donde se sincronizan, porque a mano
-# se desincronizan siempre:
+# La version vive en tres sitios y a mano se desincronizan siempre:
 #
 #   - el tag de git       -> lo que acaba dentro del binario (deckman --version),
 #                            que build.sh saca con `git describe --tags`
@@ -10,18 +9,22 @@
 #   - el metainfo Flatpak -> lo que muestra `flatpak list` (sin <releases> la
 #                            columna sale vacia)
 #
-# Deja el trabajo hecho pero NO publica sin avisar: al final pide confirmacion
-# antes de empujar, y comprueba que el tag ha llegado a los dos remotos.
+# Todo lo que pasa antes de empujar es reversible: si falla algo, se deshacen
+# el commit y el tag y el repositorio queda como estaba. A partir del push ya
+# no se puede deshacer sin reescribir historia publicada, asi que ahi se
+# comprueba y se informa en vez de tocar nada.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 CHANGELOG="CHANGELOG.md"
 METAINFO="flatpak/io.github.jfrmorales.deckman.metainfo.xml"
+REPO="https://github.com/jfrmorales/deckman"
 
 err() { echo "error: $*" >&2; exit 1; }
+paso() { echo; echo ">> $*"; }
 
 VERSION="${1:-}"
-[ -n "$VERSION" ] || err "uso: $0 <X.Y.Z>   (p. ej. $0 0.2.0)"
+[ -n "$VERSION" ] || err "uso: $0 <X.Y.Z>   (o: make release V=0.2.0)"
 VERSION="${VERSION#v}"
 [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] \
 	|| err "la version tiene que ser X.Y.Z, no '$VERSION'"
@@ -43,12 +46,8 @@ git rev-parse -q --verify "refs/tags/$TAG" >/dev/null \
 grep -q '^## \[No publicado\]' "$CHANGELOG" \
 	|| err "no encuentro la seccion '## [No publicado]' en $CHANGELOG"
 
-# Version anterior: la primera cabecera de version del changelog. Sirve para el
-# enlace de comparacion del final del fichero.
 ANTERIOR="$(grep -m1 -oP '^## \[\K[0-9]+\.[0-9]+\.[0-9]+' "$CHANGELOG" || true)"
 
-# ¿Hay algo que publicar? Lo que haya bajo "No publicado" sin contar el
-# comentario de plantilla ni las lineas en blanco.
 PENDIENTE="$(awk '
 	/^## \[No publicado\]/ { dentro=1; next }
 	dentro && /^## \[/     { exit }
@@ -62,20 +61,101 @@ if [ -z "$PENDIENTE" ]; then
 Escribe primero que cambia en esta version: para eso esta el registro."
 fi
 
-echo ">> publicando $TAG ($FECHA)"
+echo "Publicando $TAG ($FECHA). Cambios:"
 echo "$PENDIENTE" | sed 's/^/   /'
-echo
+
+# --- red de seguridad -------------------------------------------------------
+#
+# Desde aqui se toca el repositorio. ANTES es el punto exacto al que volver.
+
+ANTES="$(git rev-parse HEAD)"
+NUEVO=""
+PUBLICADO=0
+
+# Todas las URL a las que se empuja, de todos los remotos. Un mismo remoto
+# puede tener varias (asi es como origin llega a GitHub y a Forgejo a la vez).
+pushurls() {
+	local r
+	for r in $(git remote); do
+		git remote get-url --push --all "$r" 2>/dev/null || true
+	done | sort -u
+}
+
+deshacer() {
+	local codigo=$?
+	trap - ERR EXIT INT TERM
+	# El trap tambien esta en EXIT, que salta al terminar bien: ahi no hay nada
+	# que deshacer. Hace falta EXIT porque los errores propios salen con `exit`
+	# (cancelar en la confirmacion, por ejemplo) y eso NO dispara ERR: sin esto,
+	# decir que no dejaba un commit y un tag de version huerfanos.
+	[ "$codigo" -eq 0 ] && return 0
+
+	# Deshacer en local no sirve de nada si esto ya salio a algun remoto: se
+	# quedaria el remoto por delante y el clon aparentemente limpio, que es
+	# peor que el fallo original porque no se ve. Se comprueba de verdad.
+	local parcial=0 url remoto
+	if [ -n "$NUEVO" ]; then
+		for url in $(pushurls); do
+			remoto="$(git ls-remote "$url" refs/heads/main 2>/dev/null | cut -f1)"
+			[ "$remoto" = "$NUEVO" ] && parcial=1
+		done
+	fi
+
+	if [ "$PUBLICADO" -eq 1 ] || [ "$parcial" -eq 1 ]; then
+		echo >&2
+		echo "ATENCION: la version $TAG ya ha salido a algun remoto, asi que NO" >&2
+		echo "deshago nada: reescribir historia publicada seria peor." >&2
+		echo >&2
+		echo "Estado de cada remoto:" >&2
+		for url in $(pushurls); do
+			remoto="$(git ls-remote "$url" refs/heads/main 2>/dev/null | cut -c1-7)"
+			echo "   ${remoto:-inalcanzable}  $url" >&2
+		done
+		echo >&2
+		echo "Termina de publicar a mano cuando puedas:" >&2
+		echo "   git push <remoto> main && git push <remoto> $TAG" >&2
+		exit "$codigo"
+	fi
+
+	echo >&2
+	echo ">> algo ha fallado; dejando el repositorio como estaba" >&2
+	git tag -d "$TAG" >/dev/null 2>&1 || true
+	git reset --hard "$ANTES" >/dev/null 2>&1 || true
+	echo "   vuelto a $(git rev-parse --short HEAD), sin tag $TAG" >&2
+	exit "$codigo"
+}
+trap deshacer EXIT ERR INT TERM
+
+# Antes de tocar nada, comprobar que se puede hablar con todos los remotos.
+# La causa habitual de que el push falle a mitad es que uno no esta accesible
+# (VPN caida, servidor propio apagado), y eso se sabe ya: mejor no llegar a
+# crear el commit que tener que decidir despues como se deshace.
+paso "comprobando que los remotos responden"
+for url in $(pushurls); do
+	if git ls-remote "$url" >/dev/null 2>&1; then
+		echo "   ok     $url"
+	else
+		err "no se puede hablar con $url
+Publicar dejaria los remotos desparejos. Arregla el acceso y repite."
+	fi
+done
+
+# --- las pruebas, antes de versionar nada -----------------------------------
+#
+# Sin Deck a proposito: publicar no puede depender de tener el aparato
+# encendido. Las de integracion se corren aparte con `make deck`.
+
+paso "comprobando (gofmt, vet y pruebas locales)"
+DECKMAN_SIN_DECK=1 ./test.sh
 
 # --- CHANGELOG --------------------------------------------------------------
-# Mueve lo pendiente a una seccion nueva y deja "No publicado" vacia, con su
-# comentario de plantilla intacto.
 
+paso "actualizando $CHANGELOG"
 awk -v ver="$VERSION" -v fecha="$FECHA" '
 	function volcar() {
 		print "## [" ver "] — " fecha
 		print ""
 		for (i = 1; i <= n; i++) print cuerpo[i]
-		volcado = 1
 	}
 	/^## \[No publicado\]/ && !dentro { print; print ""; dentro = 1; next }
 	dentro && /^## \[/ { volcar(); dentro = 0; print; next }
@@ -90,9 +170,6 @@ awk -v ver="$VERSION" -v fecha="$FECHA" '
 	END { if (dentro) volcar() }
 ' "$CHANGELOG" > "$CHANGELOG.tmp"
 
-# Enlaces del final: "No publicado" pasa a comparar contra el tag nuevo, y se
-# anade la linea de esta version.
-REPO="https://github.com/jfrmorales/deckman"
 if [ -n "$ANTERIOR" ]; then
 	NUEVO_ENLACE="[$VERSION]: $REPO/compare/v$ANTERIOR...$TAG"
 else
@@ -109,9 +186,8 @@ awk -v nuevo="$NUEVO_ENLACE" -v repo="$REPO" -v tag="$TAG" '
 rm -f "$CHANGELOG.tmp"
 
 # --- metainfo ---------------------------------------------------------------
-# La entrada nueva va justo debajo de <releases> para que la mas reciente quede
-# la primera, que es como AppStream espera encontrarlas.
 
+paso "actualizando $METAINFO"
 awk -v ver="$VERSION" -v fecha="$FECHA" -v repo="$REPO" '
 	{ print }
 	/^  <releases>/ && !hecho {
@@ -126,53 +202,79 @@ awk -v ver="$VERSION" -v fecha="$FECHA" -v repo="$REPO" '
 ' "$METAINFO" > "$METAINFO.tmp" && mv "$METAINFO.tmp" "$METAINFO"
 
 grep -q "version=\"$VERSION\"" "$METAINFO" \
-	|| err "no se pudo insertar la version en $METAINFO; revisalo a mano"
+	|| err "no se pudo insertar la version en $METAINFO"
 
 # --- commit y tag -----------------------------------------------------------
 
+paso "commit y tag"
 git add "$CHANGELOG" "$METAINFO"
 git commit -q -m "Version $VERSION"
+NUEVO="$(git rev-parse HEAD)"
 git tag -a "$TAG" -m "deckman $VERSION"
-echo ">> commit y tag $TAG creados en local"
+echo "   $TAG creado en local"
 
-# --- publicar en los dos remotos --------------------------------------------
+# --- confirmar --------------------------------------------------------------
 
 REMOTOS=()
 for r in $(git remote); do REMOTOS+=("$r"); done
 [ ${#REMOTOS[@]} -gt 0 ] || err "no hay remotos configurados"
 
 echo
-echo "Se va a empujar main y $TAG a: ${REMOTOS[*]}"
-read -r -p "¿Seguimos? [s/N] " ok
-if [[ ! "$ok" =~ ^[sSyY]$ ]]; then
-	echo "Cancelado. El commit y el tag siguen en local:"
-	echo "  git tag -d $TAG && git reset --hard HEAD~1   # para deshacer"
-	exit 1
+echo "Todo listo. Falta empujar main y $TAG a: ${REMOTOS[*]}"
+echo "(a partir de aqui ya no se puede deshacer solo)"
+if [ -z "${DECKMAN_RELEASE_SI:-}" ]; then
+	read -r -p "¿Publico? [s/N] " ok
+	[[ "$ok" =~ ^[sSyY]$ ]] || err "cancelado a peticion tuya"
 fi
 
+# --- publicar ---------------------------------------------------------------
+
+paso "empujando"
 for r in "${REMOTOS[@]}"; do
-	echo ">> empujando a $r"
 	git push "$r" main
 	git push "$r" "$TAG"
 done
+PUBLICADO=1
 
-# Comprobar de verdad que el tag esta en los dos, no fiarse del codigo de
-# salida: con varias pushurl en un mismo remoto, un fallo parcial pasa
-# desapercibido.
-echo
+# Comprobar de verdad que ha llegado, no fiarse del codigo de salida: con
+# varias pushurl en un mismo remoto, un fallo parcial pasa desapercibido.
+paso "comprobando que esta en todos los remotos"
 FALLO=0
 for r in "${REMOTOS[@]}"; do
 	for url in $(git remote get-url --push --all "$r"); do
 		if git ls-remote --tags "$url" "refs/tags/$TAG" 2>/dev/null | grep -q "$TAG"; then
-			echo "   ok   $TAG en $url"
+			echo "   ok     $url"
 		else
-			echo "   FALTA $TAG en $url" >&2
+			echo "   FALTA  $url" >&2
 			FALLO=1
 		fi
 	done
 done
-[ "$FALLO" -eq 0 ] || err "algun remoto se ha quedado atras; empuja a mano antes de seguir"
+if [ "$FALLO" -ne 0 ]; then
+	trap - ERR EXIT INT TERM
+	echo >&2
+	echo "Algun remoto se ha quedado atras. Como el tag ya esta publicado en" >&2
+	echo "otro, no lo deshago: empuja el que falte a mano y comprueba." >&2
+	exit 1
+fi
+
+# --- Flatpak ----------------------------------------------------------------
+#
+# Reinstalar aqui es el motivo de que esto sea una sola orden: tener el Flatpak
+# desfasado respecto al codigo era justo el problema que habia. Ya publicado,
+# un fallo aqui no invalida la version: se avisa y se sigue.
+
+trap - EXIT ERR INT TERM
+if command -v flatpak >/dev/null 2>&1; then
+	paso "reinstalando el Flatpak"
+	if ! flatpak/build.sh; then
+		echo "aviso: la version esta publicada, pero el Flatpak no se pudo" >&2
+		echo "       reinstalar. Reintenta con:  make flatpak" >&2
+	fi
+else
+	echo
+	echo "(sin flatpak en este sistema; me salto la reinstalacion)"
+fi
 
 echo
-echo "Publicada $TAG. Para que el Flatpak instalado lleve esta version:"
-echo "  flatpak/build.sh"
+echo "Publicada $TAG."

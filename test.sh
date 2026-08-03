@@ -7,7 +7,10 @@ cd "$(dirname "$0")"
 # La IP y la contrasena de la Deck de cada cual no se versionan: este repo es
 # publico. Si existe deck.local.env (ver deck.local.env.ejemplo) se leen de ahi
 # y basta con ./test.sh a secas; los argumentos mandan sobre el fichero.
-if [ -f deck.local.env ]; then
+#
+# DECKMAN_SIN_DECK lo pone `make check` para quedarse solo en las pruebas
+# locales. Sin eso, publicar una version exigiria tener la Deck encendida.
+if [ -f deck.local.env ] && [ -z "${DECKMAN_SIN_DECK:-}" ]; then
 	# shellcheck source=/dev/null
 	. ./deck.local.env
 fi

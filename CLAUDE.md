@@ -14,11 +14,21 @@ accesos directos o Proton, están todas ahí.
 **No instales Go en el sistema.** Petición explícita del usuario: el entorno se
 mantiene limpio y todo va por podman/docker.
 
+Entrada única: **`make`** a secas lista todo. La lógica sigue en los scripts
+(`build.sh`, `test.sh`, `scripts/release.sh`, `flatpak/build.sh`); el Makefile
+solo les pone nombre y orden, así que no dupliques nada ahí.
+
 ```sh
-./build.sh          # linux + windows en dist/
-./test.sh           # pruebas locales, y las de la Deck si hay deck.local.env
-flatpak/build.sh    # empaqueta e instala el Flatpak (usuario)
+make setup            # deja el clon listo (requisitos, deck.local.env, remotos, gancho)
+make check            # gofmt + vet + pruebas locales, SIN la Deck
+make deck             # + las de integración contra la Deck
+make build            # linux + windows en dist/
+make flatpak          # empaqueta e instala el Flatpak (usuario)
+make release V=0.2.0  # publica de principio a fin
 ```
+
+`make check` pone `DECKMAN_SIN_DECK=1` para que `test.sh` ignore
+`deck.local.env`: publicar no puede depender de tener la Deck encendida.
 
 El Flatpak usa `org.flatpak.Builder` (otro Flatpak, nada en el sistema) y
 empaqueta el binario que sale de `./build.sh`; el manifiesto y sus porqués
@@ -89,10 +99,21 @@ localiza con `distrobox-host-exec ss -ltnp | grep 8777`.
 Cada cambio se anota en **`CHANGELOG.md`**, bajo `## [No publicado]`. No es
 opcional: `scripts/release.sh` se niega a publicar si esa sección está vacía.
 
-Publicar es `scripts/release.sh X.Y.Z`. Es el único sitio donde se toca la
+Publicar es `make release V=X.Y.Z`. Es el único sitio donde se toca la
 versión: sincroniza el changelog, el `<releases>` del metainfo del Flatpak (de
 ahí sale lo que muestra `flatpak list`) y el tag de git (de ahí sale lo que
 lleva el binario, vía `git describe` en `build.sh`). A mano se desincronizan.
+
+Todo lo anterior al push es reversible y hay un trap que lo deshace. Dos
+trampas que ya costaron un fallo y por eso están cubiertas:
+
+- El trap tiene que estar en **`EXIT`** además de en `ERR`. Los errores propios
+  salen con `exit`, y eso no dispara `ERR`: sin `EXIT`, cancelar en la
+  confirmación dejaba un commit y un tag de versión huérfanos.
+- Con varias *pushurl* en un mismo remoto, el push puede llegar a uno y fallar
+  en otro. Deshacer en local entonces deja el remoto **por delante** sin que se
+  note. Por eso hay un preflight (`git ls-remote` a cada URL antes de tocar
+  nada) y, si aun así pasa, se detecta y **no** se deshace.
 
 El repositorio está en **dos remotos y los dos van siempre a la vez**:
 `origin` (GitHub, público) y `forgejo`. `origin` tiene las dos URL de push

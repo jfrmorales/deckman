@@ -268,7 +268,10 @@ trap - EXIT ERR INT TERM
 BUNDLE=""
 if command -v flatpak >/dev/null 2>&1; then
 	paso "reinstalando el Flatpak"
-	BUNDLE="dist/deckman-$VERSION.flatpak"
+	# Absoluta a proposito: flatpak/build.sh hace cd a su propio directorio, y
+	# con una ruta relativa el bundle acababa en flatpak/dist/ mientras aqui se
+	# buscaba en dist/.
+	BUNDLE="$PWD/dist/deckman-$VERSION.flatpak"
 	if ! DECKMAN_BUNDLE="$BUNDLE" flatpak/build.sh; then
 		echo "aviso: la version esta publicada, pero el Flatpak no se pudo" >&2
 		echo "       reinstalar. Reintenta con:  make flatpak" >&2
@@ -290,7 +293,13 @@ fi
 # aqui se llega antes. Si no aparece, no se falla —la version ya esta
 # publicada— y se deja dicho el comando para subirlo luego.
 
-if [ -n "$BUNDLE" ] && [ -f "$BUNDLE" ]; then
+if [ -n "$BUNDLE" ] && [ ! -f "$BUNDLE" ]; then
+	# Saltarselo en silencio era peor que el fallo: la version salia publicada
+	# sin Flatpak y sin que nada lo dijera.
+	echo "aviso: no encuentro el bundle en $BUNDLE; la release se queda sin .flatpak" >&2
+	BUNDLE=""
+fi
+if [ -n "$BUNDLE" ]; then
 	if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
 		paso "esperando a que el CI cree la release para subir el bundle"
 		encontrada=0

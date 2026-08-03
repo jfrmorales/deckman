@@ -31,6 +31,14 @@ bloque `<releases>` del metainfo. Los tres los sincroniza `scripts/release.sh`.
 - La configuración guarda ahora una lista de Decks. La de una sola Deck se
   migra sola al arrancar, conservando la clave SSH y la de SteamGridDB.
 
+### Corregido
+
+- Al retirar la clave SSH de una Deck ya no queda un
+  `authorized_keys.deckman.bak` con la clave recién revocada dentro, y encima
+  legible por cualquiera. La copia de seguridad se borra en cuanto se confirma
+  que el fichero bueno quedó bien; para los ficheros de Steam se conserva, que
+  ahí sí es una red de seguridad.
+
 ## [0.1.0] — 2026-08-03
 
 Primera versión con registro. Recoge el estado del proyecto tal y como estaba

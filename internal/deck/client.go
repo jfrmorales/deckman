@@ -439,6 +439,19 @@ func (c *Client) RemovePublicKey(ctx context.Context, pubKey string) (int, error
 	if err := c.sftp.Chmod(authPath, 0o600); err != nil {
 		return quitadas, err
 	}
+
+	// La copia que deja WriteFileAtomic contiene exactamente lo que nos han
+	// pedido destruir: la version con nuestra clave todavia dentro, y ademas
+	// legible por cualquiera dentro de ~/.ssh. En los ficheros de Steam esa
+	// copia es una red de seguridad que interesa conservar; aqui seria dejar la
+	// revocacion a medias y hacer dudar a quien luego audite el fichero.
+	//
+	// Se borra solo despues de releer y confirmar que el authorized_keys bueno
+	// ha quedado sin nuestra clave: mientras no este comprobado, la copia es lo
+	// unico que protege al usuario de quedarse fuera de su Deck.
+	if comprobado, err := c.ReadFile(authPath); err == nil && !bytes.Contains(comprobado, material) {
+		c.sftp.Remove(authPath + ".deckman.bak")
+	}
 	return quitadas, nil
 }
 

@@ -62,15 +62,16 @@ El usuario espera comprobación real, no "debería funcionar":
   **desinstalar**, la **ventana WebView2 en un Windows real** (compila, pero
   aquí no hay Windows donde abrirla), las vías en caliente de la revisión
   2026-08-03 (`RemoveShortcutLive`, `SetCompatToolLive`) y `RelocateShortcut`
-  (mover un no-Steam con Steam **cerrado**: solo cubierto por pruebas unitarias),
-  y **`RemovePublicKey` contra una Deck encendida**: al olvidar una Deck, el
-  filtrado de `authorized_keys` está cubierto por pruebas unitarias y la vía de
-  «Deck inalcanzable» se probó entera con la interfaz, pero falta ver la
-  revocación de verdad (quitar la clave de una Deck viva y volver a ponerla).
+  (mover un no-Steam con Steam **cerrado**: solo cubierto por pruebas unitarias).
 
   Sí probado contra la Deck el 2026-08-03: **mover un juego no-Steam** con Steam
   abierto (`SetShortcutPathLive`), ida y vuelta, con los 9 accesos directos
-  intactos.
+  intactos. Y **olvidar una Deck** (`RemovePublicKey`): instalada una segunda
+  clave con el **mismo comentario** que la real y distinto material, se retiró
+  solo la de prueba y `authorized_keys` quedó idéntico byte a byte al original.
+  La forma de probarlo sin arriesgar la configuración del usuario es lanzar el
+  binario con `XDG_CONFIG_HOME` apuntando a un directorio desechable: se genera
+  su propia clave y no toca la de verdad.
 
 Cuidado al lanzar el binario en segundo plano: a veces el proceso acaba en el
 host, fuera del contenedor de distrobox, y `pkill` desde dentro no lo ve. Se

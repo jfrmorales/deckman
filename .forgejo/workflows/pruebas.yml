@@ -28,7 +28,27 @@ jobs:
     container:
       image: docker.io/library/golang:1.26.5
     steps:
-      - uses: actions/checkout@v4
+      # Se clona a mano en vez de con actions/checkout a proposito: esa accion
+      # esta escrita en JavaScript y necesita `node` DENTRO del contenedor del
+      # job, que aqui es la imagen de Go y no lo trae (falla con "node:
+      # executable file not found"). git si viene en la imagen, asi que sale
+      # mas barato clonar que arrastrar un runtime entero solo para eso.
+      #
+      # Se pide el commit exacto que disparo el job, no la rama: entre el push
+      # y el arranque puede haber entrado otro.
+      - name: clonar
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          proto="${GITHUB_SERVER_URL%%://*}"
+          host="${GITHUB_SERVER_URL#*://}"
+          git config --global --add safe.directory '*'
+          git init -q .
+          git remote add origin "$proto://x-access-token:$TOKEN@$host/$GITHUB_REPOSITORY"
+          git fetch -q --depth 1 origin "$GITHUB_SHA"
+          git checkout -q FETCH_HEAD
+          echo "en $(git rev-parse --short HEAD)"
 
       - name: formato
         run: |

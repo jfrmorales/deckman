@@ -13,6 +13,8 @@ bloque `<releases>` del metainfo. Los tres los sincroniza `scripts/release.sh`.
      versión nueva al publicar. Secciones: Añadido, Cambiado, Corregido,
      Eliminado. -->
 
+## [0.2.3] — 2026-08-03
+
 ### Añadido
 
 - **El Flatpak también se publica**: cada versión lleva ahora un fichero
@@ -121,7 +123,8 @@ interno y microSD, desinstalar, la ventana WebView2 en un Windows real,
 `RemoveShortcutLive`, `SetCompatToolLive` y `RelocateShortcut`. Están recogidas
 en `CLAUDE.md`. Por eso 0.1.0 y no 1.0.0.
 
-[No publicado]: https://github.com/jfrmorales/deckman/compare/v0.2.2...HEAD
+[No publicado]: https://github.com/jfrmorales/deckman/compare/v0.2.3...HEAD
+[0.2.3]: https://github.com/jfrmorales/deckman/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/jfrmorales/deckman/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/jfrmorales/deckman/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/jfrmorales/deckman/compare/v0.1.0...v0.2.0

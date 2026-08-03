@@ -45,6 +45,12 @@ usar sueltos si hace falta.
 antes de empujar, para no tener que arreglar el CI en un segundo commit. Si
 alguna vez estorba: `git push --no-verify`.
 
+**Un aviso sobre los pull requests de GitHub:** las comprobaciones automáticas
+corren en un Forgejo propio, no en GitHub Actions, así que en tu pull request no
+verás la marca verde. No es que no se compruebe: quien mantiene el proyecto pasa
+`make check` sobre el cambio. Antes de enviarlo, córrelo tú también — es
+exactamente lo mismo que corre el CI.
+
 Para las pruebas de integración necesitas una Steam Deck con SSH activado.
 Rellena la IP y la contraseña en `deck.local.env` (lo crea `make setup`) y
 corre `make deck`. Ese fichero no se versiona.

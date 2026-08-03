@@ -115,6 +115,19 @@ trampas que ya costaron un fallo y por eso están cubiertas:
   note. Por eso hay un preflight (`git ls-remote` a cada URL antes de tocar
   nada) y, si aun así pasa, se detecta y **no** se deshace.
 
+Las comprobaciones automáticas corren en **Forgejo Actions**
+(`.forgejo/workflows/pruebas.yml`), no en GitHub: el CI no depende de un
+servicio de terceros. Dos trampas de ese runner, ya pagadas:
+
+- El label `docker` usa la imagen `homelab-ci` (node, **sin Go**) y el runner
+  **no puede levantar contenedores dentro del job**. Por eso el job declara
+  `container: golang:...` y por eso ahí no se usa `./test.sh`, que monta un
+  contenedor: ese script existe para no instalar Go en el PC de nadie, problema
+  que en el CI no se plantea.
+- `actions/checkout` es una acción de **JavaScript** y necesita `node` dentro
+  del contenedor del job. En la imagen de Go no está, y falla con
+  `node: executable file not found`. Se clona a mano con `git`, que sí viene.
+
 El repositorio está en **dos remotos y los dos van siempre a la vez**:
 `origin` (GitHub, público) y `forgejo`. `origin` tiene las dos URL de push
 configuradas, así que un `git push` normal llega a ambos; `release.sh` además

@@ -128,6 +128,12 @@ servicio de terceros. Dos trampas de ese runner, ya pagadas:
   del contenedor del job. En la imagen de Go no está, y falla con
   `node: executable file not found`. Se clona a mano con `git`, que sí viene.
 
+El **`.flatpak` no lo sube el CI**, lo sube `scripts/release.sh` desde este PC:
+el runner no puede construir Flatpaks (necesita espacios de nombres de usuario
+y `bwrap`, y bajarse el runtime entero). Espera a que el CI cree la release,
+sube el bundle y le añade su línea al `SHA256SUMS`, que el CI genera antes de
+que ese fichero exista.
+
 Al llegar un tag, `publicar.yml` sube los binarios a las **Releases de GitHub**
 usando el secreto `GH_RELEASE_TOKEN` de Forgejo (no puede llamarse `GITHUB_*`:
 Forgejo reserva el prefijo). El trabajo lo hace `scripts/publicar-release.sh`,

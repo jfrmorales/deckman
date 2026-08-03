@@ -103,10 +103,21 @@ hace lo mismo y es la única vía cuando la interfaz va en una pestaña.
 ## Flatpak (Linux)
 
 En Linux deckman también se puede instalar como Flatpak, con icono en el menú
-de aplicaciones:
+de aplicaciones. Bájate el `.flatpak` de
+**[la última versión](https://github.com/jfrmorales/deckman/releases/latest)** y:
 
 ```sh
-flatpak/build.sh
+flatpak install deckman-0.2.3.flatpak
+```
+
+Al instalarlo, flatpak avisa de que el origen no está firmado: es lo normal en
+un fichero descargado a mano. Para comprobar que es el bueno está el
+`SHA256SUMS` de la release.
+
+Si prefieres compilarlo tú (hace falta podman o docker):
+
+```sh
+make flatpak
 ```
 
 Ese script compila el binario (con `./build.sh`, en contenedor), construye el

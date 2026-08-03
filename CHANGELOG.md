@@ -13,6 +13,15 @@ bloque `<releases>` del metainfo. Los tres los sincroniza `scripts/release.sh`.
      versión nueva al publicar. Secciones: Añadido, Cambiado, Corregido,
      Eliminado. -->
 
+### Añadido
+
+- **El Flatpak también se publica**: cada versión lleva ahora un fichero
+  `deckman-X.Y.Z.flatpak` en las *Releases*, que se instala con
+  `flatpak install deckman-X.Y.Z.flatpak`. Hasta ahora la única forma de tener
+  el Flatpak era clonar el repositorio y compilarlo. Lo sube la misma máquina
+  que publica, porque el runner del CI no puede construir Flatpaks, y su suma
+  se añade al `SHA256SUMS` de la release.
+
 ## [0.2.2] — 2026-08-03
 
 ### Añadido

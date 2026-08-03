@@ -265,18 +265,62 @@ fi
 # un fallo aqui no invalida la version: se avisa y se sigue.
 
 trap - EXIT ERR INT TERM
+BUNDLE=""
 if command -v flatpak >/dev/null 2>&1; then
 	paso "reinstalando el Flatpak"
-	if ! flatpak/build.sh; then
+	BUNDLE="dist/deckman-$VERSION.flatpak"
+	if ! DECKMAN_BUNDLE="$BUNDLE" flatpak/build.sh; then
 		echo "aviso: la version esta publicada, pero el Flatpak no se pudo" >&2
 		echo "       reinstalar. Reintenta con:  make flatpak" >&2
+		BUNDLE=""
 	fi
 else
 	echo
 	echo "(sin flatpak en este sistema; me salto la reinstalacion)"
 fi
 
+# --- el bundle, a la release ------------------------------------------------
+#
+# Los binarios los sube el CI al ver el tag, pero el .flatpak no puede: el
+# runner no construye Flatpaks (necesita espacios de nombres de usuario y
+# bwrap, y bajarse el runtime entero). Asi que lo sube esta maquina, que es
+# donde acaba de construirse.
+#
+# Hay que esperar a que el CI haya creado la release: se corre en paralelo y
+# aqui se llega antes. Si no aparece, no se falla —la version ya esta
+# publicada— y se deja dicho el comando para subirlo luego.
+
+if [ -n "$BUNDLE" ] && [ -f "$BUNDLE" ]; then
+	if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+		paso "esperando a que el CI cree la release para subir el bundle"
+		encontrada=0
+		for _ in $(seq 1 40); do   # ~5 minutos
+			if gh release view "$TAG" >/dev/null 2>&1; then encontrada=1; break; fi
+			sleep 8
+		done
+		if [ "$encontrada" -eq 1 ] && gh release upload "$TAG" "$BUNDLE" --clobber >/dev/null 2>&1; then
+			echo "   subido $(basename "$BUNDLE")"
+			# El SHA256SUMS lo genera el CI antes de que este bundle exista, asi
+			# que hay que anadirle su linea: si no, el fichero que la gente usa
+			# para comprobar lo que se baja no cubre justo el del Flatpak.
+			tmp="$(mktemp -d)"
+			if gh release download "$TAG" -p SHA256SUMS -D "$tmp" >/dev/null 2>&1; then
+				( cd "$(dirname "$BUNDLE")" && sha256sum "$(basename "$BUNDLE")" ) >> "$tmp/SHA256SUMS"
+				gh release upload "$TAG" "$tmp/SHA256SUMS" --clobber >/dev/null 2>&1 \
+					&& echo "   SHA256SUMS actualizado con el bundle" \
+					|| echo "aviso: no se pudo actualizar SHA256SUMS" >&2
+			fi
+			rm -rf "$tmp"
+		else
+			echo "aviso: no se pudo subir el bundle. Cuando la release exista:" >&2
+			echo "       gh release upload $TAG $BUNDLE --clobber" >&2
+		fi
+	else
+		echo
+		echo "(sin gh autenticado; el bundle se queda en $BUNDLE)"
+	fi
+fi
+
 echo
 echo "Publicada $TAG."
-echo "El CI de Forgejo esta compilando los binarios y subiendolos a las"
-echo "Releases de GitHub:  https://github.com/jfrmorales/deckman/releases/tag/$TAG"
+echo "Releases:  https://github.com/jfrmorales/deckman/releases/tag/$TAG"

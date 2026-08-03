@@ -42,6 +42,27 @@ flatpak run org.flatpak.Builder \
 
 AHORA="$(flatpak info --user "$APPID" 2>/dev/null | grep -oP '^\s+Version:\s+\K.*' || true)"
 
+# Bundle de un solo fichero para publicarlo en las releases, con
+# DECKMAN_BUNDLE=<ruta>. Lo usa scripts/release.sh; en el uso normal no se
+# genera porque solo hace falta al publicar.
+#
+# Se exporta el build-dir que acaba de quedar, en vez de volver a construir:
+# es el mismo arbol que se ha instalado, asi que el fichero que se publica y lo
+# que tiene el que publica son exactamente lo mismo.
+#
+# El bundle no va firmado. Al instalarlo, flatpak avisa de que viene de un
+# origen sin firmar, que es lo esperable en un binario descargado a mano; para
+# comprobarlo esta el SHA256SUMS de la release.
+if [ -n "${DECKMAN_BUNDLE:-}" ]; then
+	echo ">> empaquetando el bundle"
+	repo="$(mktemp -d)"
+	trap 'rm -rf "$repo"' EXIT
+	flatpak build-export "$repo" build-dir master >/dev/null
+	mkdir -p "$(dirname "$DECKMAN_BUNDLE")"
+	flatpak build-bundle "$repo" "$DECKMAN_BUNDLE" "$APPID" master
+	echo "   $DECKMAN_BUNDLE ($(du -h "$DECKMAN_BUNDLE" | cut -f1))"
+fi
+
 echo
 echo "Listo. Arrancar con:  flatpak run $APPID"
 echo "O desde el menú de aplicaciones: deckman"

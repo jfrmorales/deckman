@@ -1,0 +1,47 @@
+# Al llegar un tag vX.Y.Z, compila los binarios y los publica como Release de
+# GitHub, para que se pueda descargar deckman sin compilarlo.
+#
+# El tag lo empuja `make release` desde el PC; de aqui en adelante es cosa del
+# CI. El repositorio de GitHub no ejecuta nada: solo recibe la release por su
+# API, con un token guardado como secreto en Forgejo.
+#
+# Hace falta el secreto GH_RELEASE_TOKEN en este repositorio de Forgejo: un
+# token de GitHub de alcance fino, limitado a jfrmorales/deckman y con permiso
+# de escritura en Contents. No puede llamarse GITHUB_* porque Forgejo reserva
+# ese prefijo. Como montarlo esta en CONTRIBUTING.md.
+#
+# El trabajo de verdad lo hace scripts/publicar-release.sh, y esta aparte para
+# poder ejecutarlo a mano: la logica que solo corre en CI es la que nadie prueba
+# hasta que falla.
+name: publicar
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  publicar:
+    runs-on: docker
+    container:
+      image: docker.io/library/golang:1.26.5
+    steps:
+      # A mano y no con actions/checkout: esa accion necesita `node` dentro del
+      # contenedor del job y la imagen de Go no lo trae. Ver pruebas.yml.
+      - name: clonar
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          proto="${GITHUB_SERVER_URL%%://*}"
+          host="${GITHUB_SERVER_URL#*://}"
+          git config --global --add safe.directory '*'
+          git init -q .
+          git remote add origin "$proto://x-access-token:$TOKEN@$host/$GITHUB_REPOSITORY"
+          git fetch -q --depth 1 origin "$GITHUB_SHA"
+          git checkout -q FETCH_HEAD
+
+      - name: compilar y publicar en GitHub
+        env:
+          GH_TOKEN: ${{ secrets.GH_RELEASE_TOKEN }}
+        run: scripts/publicar-release.sh "$GITHUB_REF_NAME"

@@ -278,3 +278,5 @@ fi
 
 echo
 echo "Publicada $TAG."
+echo "El CI de Forgejo esta compilando los binarios y subiendolos a las"
+echo "Releases de GitHub:  https://github.com/jfrmorales/deckman/releases/tag/$TAG"

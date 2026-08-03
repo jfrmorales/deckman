@@ -91,6 +91,34 @@ Flatpak. **Si algo falla antes de publicar, lo deshace todo** y te deja como
 estabas. Si el fallo ocurre cuando ya ha salido a algún remoto, no reescribe
 historia publicada: te dice el estado de cada uno y qué comando falta.
 
+Al llegar el tag a Forgejo, su CI compila los binarios de Linux y Windows y los
+sube a las **Releases de GitHub** con las notas del changelog y un `SHA256SUMS`
+(`.forgejo/workflows/publicar.yml`).
+
+### El token de las releases (una sola vez)
+
+Para que el CI pueda escribir en GitHub hace falta un secreto en el repositorio
+de Forgejo:
+
+1. En GitHub, **Settings → Developer settings → Personal access tokens →
+   Fine-grained tokens → Generate new token**. Que solo alcance a
+   `jfrmorales/deckman`, y en *Repository permissions* dale **Contents:
+   Read and write**. Nada más.
+2. En Forgejo, en el repositorio: **Settings → Actions → Secrets → Add secret**,
+   con nombre **`GH_RELEASE_TOKEN`** y el token como valor.
+
+No puede llamarse `GITHUB_...`: Forgejo reserva ese prefijo y rechaza el
+secreto. Si el token falta, el job de publicar falla diciéndolo, pero el tag y
+el código ya están publicados: se arregla poniendo el secreto y relanzando el
+job, que reemplaza los ficheros en vez de duplicarlos.
+
+Para probarlo sin publicar una versión de verdad, el script se puede ejecutar
+suelto:
+
+```sh
+GH_TOKEN=... scripts/publicar-release.sh v9.9.9
+```
+
 ## Licencia
 
 deckman está bajo **GPL-3.0-or-later**. Al enviar un parche aceptas que se

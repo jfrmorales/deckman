@@ -128,6 +128,14 @@ servicio de terceros. Dos trampas de ese runner, ya pagadas:
   del contenedor del job. En la imagen de Go no está, y falla con
   `node: executable file not found`. Se clona a mano con `git`, que sí viene.
 
+Al llegar un tag, `publicar.yml` sube los binarios a las **Releases de GitHub**
+usando el secreto `GH_RELEASE_TOKEN` de Forgejo (no puede llamarse `GITHUB_*`:
+Forgejo reserva el prefijo). El trabajo lo hace `scripts/publicar-release.sh`,
+que está aparte del workflow **para poder ejecutarlo a mano**: la lógica que
+solo corre en CI es la que nadie prueba hasta que falla. Se prueba con
+`GH_TOKEN=... scripts/publicar-release.sh v9.9.9` y luego
+`gh release delete v9.9.9 --cleanup-tag`.
+
 El repositorio está en **dos remotos y los dos van siempre a la vez**:
 `origin` (GitHub, público) y `forgejo`. `origin` tiene las dos URL de push
 configuradas, así que un `git push` normal llega a ambos; `release.sh` además

@@ -10,6 +10,15 @@ No hay que instalar nada, ni en el PC ni en la Deck.
 - `deckman.exe` — Windows
 - `deckman` — Linux (binario suelto o **Flatpak**, ver abajo)
 
+**[Descargar la última versión](https://github.com/jfrmorales/deckman/releases/latest)**
+— los binarios de cada versión están en *Releases*, con un `SHA256SUMS` para
+comprobarlos:
+
+```sh
+sha256sum -c SHA256SUMS
+chmod +x deckman-*-linux-amd64
+```
+
 ---
 
 ## Qué hace

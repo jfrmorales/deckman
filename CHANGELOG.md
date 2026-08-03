@@ -13,6 +13,13 @@ bloque `<releases>` del metainfo. Los tres los sincroniza `scripts/release.sh`.
      versión nueva al publicar. Secciones: Añadido, Cambiado, Corregido,
      Eliminado. -->
 
+### Añadido
+
+- **Binarios descargables**: al publicar una versión, el CI compila deckman
+  para Linux y Windows y lo sube a las *Releases* de GitHub, con las notas del
+  changelog y un `SHA256SUMS` para comprobar lo que te bajas. Ya no hace falta
+  compilar para usarlo.
+
 ### Cambiado
 
 - Las comprobaciones automáticas pasan de GitHub Actions a **Forgejo Actions**,

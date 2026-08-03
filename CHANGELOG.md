@@ -32,7 +32,6 @@ bloque `<releases>` del metainfo. Los tres los sincroniza `scripts/release.sh`.
   ejecución.
 - La configuración guarda ahora una lista de Decks. La de una sola Deck se
   migra sola al arrancar, conservando la clave SSH y la de SteamGridDB.
-
 - **Una sola entrada para todo**: `make` lista lo que se puede hacer y
   `make setup` deja un clon recién hecho listo para trabajar (comprueba
   requisitos, crea `deck.local.env`, configura los remotos y pone un gancho de

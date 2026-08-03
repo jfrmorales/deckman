@@ -13,6 +13,12 @@ bloque `<releases>` del metainfo. Los tres los sincroniza `scripts/release.sh`.
      versión nueva al publicar. Secciones: Añadido, Cambiado, Corregido,
      Eliminado. -->
 
+### Cambiado
+
+- Las comprobaciones automáticas usan `actions/checkout@v5` y
+  `actions/setup-go@v6`: las anteriores avisaban de Node.js 20 obsoleto en cada
+  ejecución.
+
 ## [0.1.0] — 2026-08-03
 
 Primera versión con registro. Recoge el estado del proyecto tal y como estaba

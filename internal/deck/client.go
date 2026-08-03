@@ -393,6 +393,87 @@ func (c *Client) InstallPublicKey(ctx context.Context, pubKey string) error {
 	return c.sftp.Chmod(authPath, 0o600)
 }
 
+// RemovePublicKey retira nuestra clave de authorized_keys y dice cuantas
+// lineas quito. Es el inverso de InstallPublicKey: sirve para que olvidar una
+// Deck corte de verdad el acceso, y no solo deje de usarlo.
+//
+// Es idempotente: si la clave no esta, no toca el fichero y devuelve 0.
+//
+// Compara por el material de la clave (el bloque base64), no por la linea
+// entera. El comentario final lo escribimos nosotros con el nombre del PC
+// (deckman@equipo) y cambia si el usuario renombra la maquina; comparando la
+// linea completa, la clave se quedaria puesta para siempre creyendo que ya no
+// esta. Buscar el bloque tambien acierta si alguien le anadio opciones delante
+// (from="...", command="...").
+func (c *Client) RemovePublicKey(ctx context.Context, pubKey string) (int, error) {
+	campos := strings.Fields(strings.TrimSpace(pubKey))
+	if len(campos) < 2 {
+		return 0, fmt.Errorf("clave publica invalida: %q", pubKey)
+	}
+	material := []byte(campos[1])
+
+	authPath := path.Join(c.Home, ".ssh", "authorized_keys")
+
+	// Igual que al instalar: "no existe" es que no hay nada que quitar, pero
+	// "no se pudo leer" no puede tratarse como fichero vacio. Reescribirlo a
+	// ciegas borraria las demas claves y dejaria al usuario fuera de su Deck.
+	if _, err := c.sftp.Stat(authPath); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return 0, nil
+		}
+		return 0, fmt.Errorf("no se pudo comprobar %s en la Deck; no lo toco para no borrar tus otras claves: %w", authPath, err)
+	}
+	existing, err := c.ReadFile(authPath)
+	if err != nil {
+		return 0, fmt.Errorf("no se pudo leer %s en la Deck; no lo toco para no borrar tus otras claves: %w", authPath, err)
+	}
+
+	nuevo, quitadas := stripKeyLines(existing, material)
+	if quitadas == 0 {
+		return 0, nil
+	}
+
+	if err := c.WriteFileAtomic(authPath, nuevo); err != nil {
+		return 0, fmt.Errorf("no se pudo escribir %s: %w", authPath, err)
+	}
+	if err := c.sftp.Chmod(authPath, 0o600); err != nil {
+		return quitadas, err
+	}
+	return quitadas, nil
+}
+
+// stripKeyLines quita de un authorized_keys las lineas que contienen el
+// material de clave dado, y devuelve el contenido nuevo y cuantas quito.
+//
+// Va aparte de RemovePublicKey para poder probarla sin una Deck delante: es la
+// parte que, si se equivoca, deja a alguien fuera de su propia maquina. Las
+// lineas ajenas se conservan tal cual, comentarios y blancos incluidos: este
+// fichero suele tener cosas que no ha puesto deckman.
+func stripKeyLines(existing, material []byte) ([]byte, int) {
+	lineas := bytes.Split(existing, []byte("\n"))
+	quedan := make([][]byte, 0, len(lineas))
+	quitadas := 0
+	for _, l := range lineas {
+		if len(material) > 0 && bytes.Contains(l, material) {
+			quitadas++
+			continue
+		}
+		quedan = append(quedan, l)
+	}
+	if quitadas == 0 {
+		return existing, 0
+	}
+
+	nuevo := bytes.Join(quedan, []byte("\n"))
+	if len(bytes.TrimSpace(nuevo)) == 0 {
+		return nil, quitadas // solo quedaban blancos: mejor fichero vacio
+	}
+	if !bytes.HasSuffix(nuevo, []byte("\n")) {
+		nuevo = append(nuevo, '\n')
+	}
+	return nuevo, quitadas
+}
+
 // ShellQuote entrecomilla un argumento para pasarlo sin sustos por el shell
 // remoto. Los nombres de juego traen espacios, apostrofes y parentesis.
 func ShellQuote(s string) string {

@@ -487,14 +487,49 @@ body.showconn .panel.active { display: none; }
 .conncard .field label { font-size: 12.5px; }
 .conncard #btnConnect { margin-top: 20px; }
 
+/* ---- Decks guardadas ---- */
+.saved { margin-bottom: 20px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+.saved-title { margin: 0 0 10px; font-size: 12.5px; color: var(--dim); }
+.decklist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+
+.deckrow {
+  display: flex; align-items: stretch; gap: 6px;
+  background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+  overflow: hidden;
+}
+/* La activa se marca con una barra lateral: un borde de color en toda la fila
+   compite con el botón Conectar, que es la acción principal de la tarjeta. */
+.deckrow.active { border-left: 3px solid var(--accent); }
+
+.deckpick {
+  flex: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  background: none; border: none; border-radius: 0; padding: 9px 12px; text-align: left;
+}
+.deckpick:hover:not(:disabled) { background: var(--bg3); }
+.deckname { font-size: 14px; }
+.decksub { font-size: 12px; color: var(--dim); }
+
+.deckforget {
+  background: none; border: none; border-left: 1px solid var(--line); border-radius: 0;
+  color: var(--dim); font-size: 12.5px; padding: 0 13px;
+}
+.deckforget:hover:not(:disabled) { background: #8f3838; border-color: var(--danger); color: var(--fg); }
+
+.linkish {
+  background: none; border: none; padding: 8px 2px 0; color: var(--accent);
+  font-size: 13px;
+}
+.linkish:hover:not(:disabled) { background: none; color: var(--fg); text-decoration: underline; }
+
 .adv { margin-top: 14px; }
 .adv > summary, .help > summary {
   cursor: pointer; color: var(--dim); font-size: 13px;
   padding: 4px 2px; border-radius: 5px; list-style-position: inside;
 }
 .adv > summary:hover, .help > summary:hover { color: var(--fg); }
-.advgrid { display: flex; gap: 12px; }
+.advgrid { display: flex; gap: 12px; flex-wrap: wrap; }
 .advgrid .field { flex: 1; margin: 8px 0 2px; }
+.advgrid .field.wide { flex-basis: 100%; }
 
 .connerr { margin: 12px 0 0; color: #f08a8a; font-size: 13px; text-align: center; }
 

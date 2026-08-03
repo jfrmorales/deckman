@@ -13,11 +13,23 @@ bloque `<releases>` del metainfo. Los tres los sincroniza `scripts/release.sh`.
      versión nueva al publicar. Secciones: Añadido, Cambiado, Corregido,
      Eliminado. -->
 
+### Añadido
+
+- **Varias Steam Decks**: las que se van usando quedan guardadas y se eligen de
+  una lista en la pantalla de conexión, con nombre opcional para distinguirlas.
+- **Olvidar una Deck**, que además de quitarla de la lista **le retira la clave
+  SSH** que deckman le instaló. Hasta ahora no había forma de revocar ese
+  acceso desde la aplicación: había que editar `authorized_keys` a mano. Si la
+  Deck no se puede alcanzar para revocarla, se avisa y se explica qué línea
+  borrar, en vez de dar por hecho que se cortó el acceso.
+
 ### Cambiado
 
 - Las comprobaciones automáticas usan `actions/checkout@v5` y
   `actions/setup-go@v6`: las anteriores avisaban de Node.js 20 obsoleto en cada
   ejecución.
+- La configuración guarda ahora una lista de Decks. La de una sola Deck se
+  migra sola al arrancar, conservando la clave SSH y la de SteamGridDB.
 
 ## [0.1.0] — 2026-08-03
 

@@ -47,6 +47,14 @@
       <h1>Conecta con tu Steam Deck</h1>
       <p class="conncard-sub">deckman controla la Deck por SSH. Solo hay que activarlo una vez.</p>
 
+      <!-- Decks guardadas. Solo aparece si hay alguna: con una sola Deck no
+           tiene sentido gastar media pantalla en una lista de un elemento. -->
+      <div id="savedDecks" class="saved hidden">
+        <p class="saved-title">Tus Steam Decks</p>
+        <ul id="deckList" class="decklist"></ul>
+        <button id="btnNewDeck" class="linkish">+ Añadir otra Deck</button>
+      </div>
+
       <div class="field">
         <label for="host">IP de la Deck</label>
         <input id="host" class="mono" placeholder="p. ej. 192.168.1.50" autocomplete="off" spellcheck="false">
@@ -67,6 +75,10 @@
           <div class="field">
             <label for="port">Puerto SSH</label>
             <input id="port" class="mono" value="22" inputmode="numeric" autocomplete="off">
+          </div>
+          <div class="field wide">
+            <label for="deckName">Nombre (opcional)</label>
+            <input id="deckName" placeholder="p. ej. la del salón" autocomplete="off">
           </div>
         </div>
       </details>

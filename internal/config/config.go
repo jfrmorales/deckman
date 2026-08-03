@@ -14,17 +14,140 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+// Deck es una Steam Deck recordada. Se identifica por host y puerto: cambiar
+// el usuario de una Deck ya guardada la actualiza en vez de duplicarla.
+type Deck struct {
+	Name string `json:"name,omitempty"` // etiqueta que pone el usuario; si esta vacia se muestra el host
+	Host string `json:"host"`
+	Port int    `json:"port"`
+	User string `json:"user"`
+}
+
+// Label es como se llama a esta Deck en la interfaz.
+func (d Deck) Label() string {
+	if d.Name != "" {
+		return d.Name
+	}
+	return d.Host
+}
+
+// Same dice si dos entradas son la misma Deck. El usuario no cuenta: si
+// alguien conecta al mismo sitio con otra cuenta, es la misma maquina y lo que
+// quiere es corregir el usuario, no acabar con dos fichas iguales.
+func (d Deck) Same(o Deck) bool {
+	return d.Host == o.Host && d.Port == o.Port
+}
+
 // Config es lo que deckman recuerda entre ejecuciones.
 //
 // A proposito no guardamos la contrasena: en cuanto la conexion funciona
-// instalamos una clave SSH y a partir de ahi se usa esa.
+// instalamos una clave SSH y a partir de ahi se usa esa. La clave es una sola
+// para todas las Decks: identifica a "deckman en este PC", no a una maquina
+// concreta, y asi olvidar una Deck no deja a las demas fuera.
 type Config struct {
-	Host      string `json:"host"`
-	Port      int    `json:"port"`
-	User      string `json:"user"`
+	Decks  []Deck `json:"decks"`
+	Active int    `json:"active"` // indice dentro de Decks; -1 si no hay ninguna
+
 	KeyPath   string `json:"keyPath,omitempty"`
 	LastLocal string `json:"lastLocal,omitempty"` // ultima carpeta usada al enviar
 	GridKey   string `json:"gridKey,omitempty"`   // clave de SteamGridDB (caratulas)
+
+	// De cuando solo se podia guardar una Deck. Solo se leen, para migrar la
+	// configuracion existente a Decks; al primer Save desaparecen del fichero.
+	// No los uses en codigo nuevo: la Deck en uso es ActiveDeck().
+	LegacyHost string `json:"host,omitempty"`
+	LegacyPort int    `json:"port,omitempty"`
+	LegacyUser string `json:"user,omitempty"`
+}
+
+// ActiveDeck devuelve la Deck en uso. Si no hay ninguna guardada devuelve una
+// vacia con los valores por defecto, que es justo lo que la interfaz necesita
+// para pintar el formulario de conexion la primera vez.
+func (c *Config) ActiveDeck() Deck {
+	if c.Active < 0 || c.Active >= len(c.Decks) {
+		return Deck{Port: 22, User: "deck"}
+	}
+	return c.Decks[c.Active]
+}
+
+// UpsertDeck guarda una Deck y la deja como activa. Si ya estaba, la actualiza.
+// Devuelve su indice.
+func (c *Config) UpsertDeck(d Deck) int {
+	if d.Port == 0 {
+		d.Port = 22
+	}
+	if d.User == "" {
+		d.User = "deck"
+	}
+	for i, existing := range c.Decks {
+		if existing.Same(d) {
+			// El nombre lo pone el usuario aparte: conectar no debe borrarlo.
+			if d.Name == "" {
+				d.Name = existing.Name
+			}
+			c.Decks[i] = d
+			c.Active = i
+			return i
+		}
+	}
+	c.Decks = append(c.Decks, d)
+	c.Active = len(c.Decks) - 1
+	return c.Active
+}
+
+// RemoveDeck quita una Deck de la lista. Devuelve la que quito.
+//
+// Mantener Active apuntando a la misma Deck de antes importa: si se cae al
+// indice de al lado, olvidar una Deck deja seleccionada otra distinta y la
+// siguiente conexion va a una maquina que el usuario no ha elegido.
+func (c *Config) RemoveDeck(i int) (Deck, bool) {
+	if i < 0 || i >= len(c.Decks) {
+		return Deck{}, false
+	}
+	quitada := c.Decks[i]
+	activa := c.ActiveDeck()
+	huboActiva := c.Active >= 0 && c.Active < len(c.Decks)
+
+	c.Decks = append(c.Decks[:i], c.Decks[i+1:]...)
+
+	c.Active = -1
+	if huboActiva && !activa.Same(quitada) {
+		for j, d := range c.Decks {
+			if d.Same(activa) {
+				c.Active = j
+				break
+			}
+		}
+	}
+	if c.Active < 0 && len(c.Decks) > 0 {
+		c.Active = 0
+	}
+	return quitada, true
+}
+
+// normalize deja la configuracion utilizable venga de donde venga: migra la
+// forma antigua de una sola Deck, rellena los valores por defecto y se asegura
+// de que Active apunta a algo que existe.
+func (c *Config) normalize() {
+	if len(c.Decks) == 0 && c.LegacyHost != "" {
+		c.Decks = []Deck{{Host: c.LegacyHost, Port: c.LegacyPort, User: c.LegacyUser}}
+		c.Active = 0
+	}
+	c.LegacyHost, c.LegacyPort, c.LegacyUser = "", 0, ""
+
+	for i := range c.Decks {
+		if c.Decks[i].Port == 0 {
+			c.Decks[i].Port = 22
+		}
+		if c.Decks[i].User == "" {
+			c.Decks[i].User = "deck"
+		}
+	}
+	if len(c.Decks) == 0 {
+		c.Active = -1
+	} else if c.Active < 0 || c.Active >= len(c.Decks) {
+		c.Active = 0
+	}
 }
 
 // Dir es la carpeta de configuracion, dependiente del sistema:
@@ -102,7 +225,7 @@ func filePath() (string, error) {
 
 // Load lee la configuracion. Si no hay fichero devuelve los valores por defecto.
 func Load() *Config {
-	c := &Config{Port: 22, User: "deck"}
+	c := &Config{Active: -1}
 	p, err := filePath()
 	if err != nil {
 		return c
@@ -112,12 +235,7 @@ func Load() *Config {
 		return c
 	}
 	json.Unmarshal(data, c)
-	if c.Port == 0 {
-		c.Port = 22
-	}
-	if c.User == "" {
-		c.User = "deck"
-	}
+	c.normalize()
 	return c
 }
 

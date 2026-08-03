@@ -62,7 +62,11 @@ El usuario espera comprobación real, no "debería funcionar":
   **desinstalar**, la **ventana WebView2 en un Windows real** (compila, pero
   aquí no hay Windows donde abrirla), las vías en caliente de la revisión
   2026-08-03 (`RemoveShortcutLive`, `SetCompatToolLive`) y `RelocateShortcut`
-  (mover un no-Steam con Steam **cerrado**: solo cubierto por pruebas unitarias).
+  (mover un no-Steam con Steam **cerrado**: solo cubierto por pruebas unitarias),
+  y **`RemovePublicKey` contra una Deck encendida**: al olvidar una Deck, el
+  filtrado de `authorized_keys` está cubierto por pruebas unitarias y la vía de
+  «Deck inalcanzable» se probó entera con la interfaz, pero falta ver la
+  revocación de verdad (quitar la clave de una Deck viva y volver a ponerla).
 
   Sí probado contra la Deck el 2026-08-03: **mover un juego no-Steam** con Steam
   abierto (`SetShortcutPathLive`), ida y vuelta, con los 9 accesos directos

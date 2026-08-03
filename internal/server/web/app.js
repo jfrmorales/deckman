@@ -78,12 +78,97 @@ function connError(msg) {
   el.classList.toggle('hidden', !msg);
 }
 
+// ---------- Decks guardadas ----------
+
+// renderDecks pinta la lista de Decks recordadas. Se construye con el DOM y no
+// con innerHTML a propósito: el nombre y el usuario los escribe una persona y
+// acabarían interpretados como HTML.
+function renderDecks() {
+  const decks = state.decks || [];
+  $('savedDecks').classList.toggle('hidden', decks.length === 0);
+  const ul = $('deckList');
+  ul.textContent = '';
+
+  decks.forEach((d, i) => {
+    const li = document.createElement('li');
+    li.className = 'deckrow' + (i === state.active ? ' active' : '');
+
+    const usar = document.createElement('button');
+    usar.className = 'deckpick';
+    usar.onclick = () => useDeck(i);
+    usar.title = state.hasKey
+      ? 'Conectar con esta Deck'
+      : 'Rellenar los datos de esta Deck';
+
+    const nom = document.createElement('span');
+    nom.className = 'deckname';
+    nom.textContent = d.name || d.host;
+    const sub = document.createElement('span');
+    sub.className = 'decksub mono';
+    // Con nombre puesto, el host va debajo; sin él ya es el título y repetirlo
+    // no aporta nada.
+    sub.textContent = d.name ? `${d.user}@${d.host}${d.port === 22 ? '' : ':' + d.port}`
+                             : `${d.user}${d.port === 22 ? '' : ' · puerto ' + d.port}`;
+    usar.append(nom, sub);
+
+    const olvidar = document.createElement('button');
+    olvidar.className = 'deckforget';
+    olvidar.textContent = 'Olvidar';
+    olvidar.title = 'Quitarla y retirarle la clave SSH de deckman';
+    olvidar.onclick = () => forgetDeck(i);
+
+    li.append(usar, olvidar);
+    ul.append(li);
+  });
+}
+
+// useDeck rellena el formulario con una Deck guardada. Si ya hay clave SSH
+// instalada conecta directamente, que es el caso normal: para eso se instaló.
+function useDeck(i) {
+  const d = (state.decks || [])[i];
+  if (!d) return;
+  $('host').value = d.host;
+  $('user').value = d.user || 'deck';
+  $('port').value = d.port || 22;
+  $('deckName').value = d.name || '';
+  connError('');
+  if (state.hasKey) connect();
+  else $('password').focus();
+}
+
+// forgetDeck la quita de la lista y le retira la clave SSH. Se avisa de lo que
+// implica de verdad: sin la clave, esa Deck vuelve a pedir contraseña.
+async function forgetDeck(i) {
+  const d = (state.decks || [])[i];
+  if (!d) return;
+  const nombre = d.name ? `${d.name} (${d.host})` : d.host;
+  if (!confirm(
+    `¿Olvidar ${nombre}?\n\n` +
+    'Se retirará de esa Deck la clave SSH que instaló deckman, así que dejará ' +
+    'de tener acceso desde este PC. La próxima vez habrá que volver a conectar ' +
+    'con la contraseña.\n\nNo se toca ningún juego.'
+  )) return;
+
+  try {
+    const r = await api('/api/decks/forget', { index: i });
+    if (r.aviso) banner(r.aviso, 'warn');
+    else if (r.revocada) banner(`${nombre} olvidada y clave SSH retirada.`, 'ok');
+    else banner(`${nombre} olvidada.`, 'ok');
+    inventory = null;
+    await refreshState();
+    applyConnState();
+  } catch (e) {
+    banner('No se pudo olvidar la Deck: ' + e.message, 'err');
+  }
+}
+
 async function refreshState() {
   try {
     state = await api('/api/state');
     $('host').value = state.host || '';
     $('user').value = state.user || 'deck';
     $('port').value = state.port || 22;
+    renderDecks();
     $('appVersion').textContent = state.version || '';
     $('password').placeholder = state.hasKey
       ? 'clave SSH instalada — no hace falta'
@@ -106,6 +191,7 @@ async function connect() {
     const r = await api('/api/connect', {
       host: $('host').value.trim(),
       user: $('user').value.trim() || 'deck',
+      name: $('deckName').value.trim(),
       password: $('password').value,
       // El puerto ya no está fijado a 22: hay Decks con SSH movido de sitio.
       port: parseInt($('port').value, 10) || 22,
@@ -1242,6 +1328,17 @@ async function quit() {
 
 function init() {
   $('btnConnect').onclick = connect;
+  // Añadir otra: el formulario viene relleno con la Deck activa, así que sin
+  // vaciarlo "añadir" acabaría actualizando la que ya estaba.
+  $('btnNewDeck').onclick = () => {
+    $('host').value = '';
+    $('deckName').value = '';
+    $('password').value = '';
+    $('port').value = 22;
+    $('user').value = 'deck';
+    connError('');
+    $('host').focus();
+  };
   $('btnQuit').onclick = quit;
   $('btnChange').onclick = () => { showConnectForm = true; connError(''); applyConnState(); };
   // Enter en cualquier campo de la tarjeta conecta: es un formulario de tres

@@ -51,11 +51,27 @@ cualquier aplicación de escritorio:
   (`http://127.0.0.1:8777`) y deckman se cierra con el botón **Salir**.
 
 La primera pantalla es la de conexión: la IP de la Deck, la contraseña, y en
-**Opciones avanzadas** el usuario y el puerto SSH si no son los de serie
-(`deck` y `22`). La propia pantalla incluye los pasos para activar SSH si es
-la primera vez. Al conectar, deckman instala una clave SSH propia, así que a
-partir de ahí no vuelve a pedir la contraseña. Queda identificada como `deckman@<tu-pc>` en el
-`~/.ssh/authorized_keys` de la Deck, por si algún día quieres quitarla.
+**Opciones avanzadas** el usuario, el puerto SSH si no son los de serie
+(`deck` y `22`) y un nombre para distinguirla. La propia pantalla incluye los
+pasos para activar SSH si es la primera vez.
+
+**No hay ninguna contraseña predefinida.** `deck` es el nombre de usuario
+habitual de SteamOS, no una contraseña. Al conectar, deckman genera una clave
+SSH propia y la deja instalada en la Deck, y por eso a partir de ahí no vuelve
+a pedirte nada. La contraseña **no se guarda en ningún sitio**. La clave queda
+identificada como `deckman@<tu-pc>` en el `~/.ssh/authorized_keys` de la Deck.
+
+### Varias Decks
+
+Las Decks a las que te conectas se van guardando y aparecen en la pantalla de
+conexión: un clic para entrar en cualquiera, y **+ Añadir otra Deck** para dar
+de alta una nueva. Todas comparten la misma clave SSH, que identifica a este PC.
+
+**Olvidar** hace lo que dice: además de quitarla de la lista, **retira de esa
+Deck la clave SSH**, así que este PC deja de tener acceso. Si la Deck está
+apagada no se puede retirar en ese momento, y deckman lo dice en vez de callarlo
+— te indica qué línea borrar a mano. Al olvidar la última Deck se borra también
+la clave de este PC.
 
 ```
 deckman -port 9000      # otro puerto

@@ -140,7 +140,18 @@ Forgejo reserva el prefijo). El trabajo lo hace `scripts/publicar-release.sh`,
 que está aparte del workflow **para poder ejecutarlo a mano**: la lógica que
 solo corre en CI es la que nadie prueba hasta que falla. Se prueba con
 `GH_TOKEN=... scripts/publicar-release.sh v9.9.9` y luego
-`gh release delete v9.9.9 --cleanup-tag`.
+`gh release delete v9.9.9 --cleanup-tag`. Ojo: compila con `go` suelto porque
+está pensado para correr dentro del contenedor del job, así que a mano va
+lanzado igual (`podman run ... $GO_IMAGE sh -c 'scripts/publicar-release.sh …'`).
+
+Ahí hay una tercera trampa ya pagada: **el CI y GitHub compiten**. El tag se
+empuja a los dos remotos y Forgejo arranca el job al recibirlo; GitHub tiene ya
+el ref —se le empuja primero— pero su API tarda unos segundos más en verlo, y
+hasta entonces contesta 422 `Published releases must have a valid tag`. Parece
+un error de datos y es solo latencia: la v0.4.0 se lo comió y hubo que
+publicarla a mano. Se resuelve mandando **`target_commitish`** al crear la
+release: si la API no ve el tag lo crea ella en ese commit, y si lo ve ignora el
+campo. Reintentar era tratar el síntoma.
 
 El repositorio está en **dos remotos y los dos van siempre a la vez**:
 `origin` (GitHub, público) y `forgejo`. `origin` tiene las dos URL de push

@@ -13,6 +13,15 @@ bloque `<releases>` del metainfo. Los tres los sincroniza `scripts/release.sh`.
      versión nueva al publicar. Secciones: Añadido, Cambiado, Corregido,
      Eliminado. -->
 
+### Corregido
+
+- **La carrera con GitHub al publicar se ataja de raíz.** La 0.4.1 la trataba
+  reintentando; ahora no hay nada que reintentar: la release se crea mandando
+  `target_commitish`, así que si la API de GitHub todavía no ve el tag lo crea
+  ella en ese commit, y si lo ve ignora el campo. Comprobado publicando una
+  release con un tag que no existía en ningún sitio, que es exactamente lo que
+  tumbó a la v0.4.0.
+
 ## [0.4.1] — 2026-08-04
 
 ### Corregido

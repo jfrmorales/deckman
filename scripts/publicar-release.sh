@@ -88,41 +88,40 @@ CAB=(-H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+jso
 # es una cerilla esperando a encenderse.
 sacar_id() { python3 -c 'import sys,json; d=json.load(sys.stdin); print(d.get("id","") or "")'; }
 
+# El commit del tag, que se manda como target_commitish. Es lo que quita de en
+# medio una carrera que ya costo una release:
+#
+# El tag se empuja a GitHub y a Forgejo, y Forgejo arranca el CI al recibirlo.
+# GitHub tiene entonces el ref —se le empuja primero—, pero su API tarda unos
+# segundos mas en verlo, y hasta que lo ve contesta 422 «Published releases
+# must have a valid tag». Parece un error de datos y es solo latencia. La
+# v0.4.0 se lo comio (el job corrio 5 s despues del push) y hubo que publicar a
+# mano; la v0.3.0 gano la misma carrera por poco.
+#
+# Con target_commitish la pregunta deja de hacerse: si la API no ve el tag, lo
+# crea ella en ese commit; si lo ve, ignora el campo y usa el suyo. Comprobado
+# contra la API con un tag que no existia en ningun sitio: la release sale y el
+# tag aparece. Asi no hay que reintentar nada, que era tratar el sintoma.
+COMMIT="$(git rev-parse -q --verify "refs/tags/$TAG^{commit}" 2>/dev/null || true)"
+# En el CI el clon es --depth 1 de un SHA suelto y no trae el ref del tag.
+[ -n "$COMMIT" ] || COMMIT="${GITHUB_SHA:-}"
+[ -n "$COMMIT" ] || COMMIT="$(git rev-parse HEAD)"
+
 paso "creando la release en $REPO"
 CUERPO="$(python3 -c '
 import json, sys
-tag = sys.argv[1]
+tag, commit = sys.argv[1], sys.argv[2]
 print(json.dumps({
     "tag_name": tag,
+    "target_commitish": commit,
     "name": tag,
     "body": sys.stdin.read(),
     "draft": False,
     "prerelease": False,
-}))' "$TAG" <<< "$NOTAS")"
+}))' "$TAG" "$COMMIT" <<< "$NOTAS")"
 
-# Reintento con espera creciente por una carrera que ya costo una release: el
-# runner arranca al recibir Forgejo el tag, y para entonces GitHub puede no
-# haberlo registrado aun. La API contesta 422 «Published releases must have a
-# valid tag», que parece un error de datos y es solo cuestion de segundos.
-# Paso v0.4.0: el job corrio 5 s despues del push y se lo comio; v0.3.0 gano la
-# misma carrera por poco. Sin reintento, esto falla una de cada tantas y hay
-# que publicar a mano.
-RESP=""
-ID=""
-espera=3
-for intento in 1 2 3 4 5; do
-	RESP="$(curl -sS -X POST "${CAB[@]}" "$API/releases" -d "$CUERPO")"
-	ID="$(printf '%s' "$RESP" | sacar_id || true)"
-	[ -n "$ID" ] && break
-	case "$RESP" in
-		*"must have a valid tag"*)
-			echo "   GitHub aun no ve el tag $TAG; reintento $intento en ${espera}s"
-			sleep "$espera"
-			espera=$((espera * 2))
-			;;
-		*) break ;;   # otro error: no se gana nada insistiendo
-	esac
-done
+RESP="$(curl -sS -X POST "${CAB[@]}" "$API/releases" -d "$CUERPO")"
+ID="$(printf '%s' "$RESP" | sacar_id || true)"
 
 if [ -z "$ID" ]; then
 	# Lo normal aqui es que la release ya exista (segundo intento del job, o se

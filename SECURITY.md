@@ -49,9 +49,13 @@ usuario tiene tu clave; eso no es un fallo de deckman, es el modelo.
 - `make audit` (y el CI en cada push) pasa **golangci-lint** con gosec y
   **govulncheck**, que avisa de las vulnerabilidades conocidas que el codigo
   realmente alcanza, no solo de las que hay en los modulos que arrastra.
-- Las dependencias se revisan solas: ver `.forgejo/workflows/renovate.yml`.
-- Los binarios de cada version llevan `SHA256SUMS` y firma **cosign** sin
-  claves; como comprobarlos esta en el README.
+- Las dependencias se revisan solas con **Renovate**, que abre pull requests
+  cuando alguna se queda atras y no espera al turno para los avisos de
+  seguridad. Las reglas, en `renovate.json5`.
+- Los binarios de cada version llevan `SHA256SUMS` y su firma **cosign**
+  (`SHA256SUMS.bundle`); como comprobarlos esta en el README. La clave publica
+  va en la propia release y es siempre la misma: si algun dia cambia sin que lo
+  diga el changelog, desconfia.
 
 ## Versiones
 

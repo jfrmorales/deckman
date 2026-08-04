@@ -143,32 +143,49 @@ no tiene por qué vivir donde vive el token que publica — si no, quien se llev
 uno se lleva los dos.
 
 ```sh
-cosign generate-key-pair --output-key-prefix ~/.config/deckman/cosign
-export COSIGN_PASSWORD=...   # la que le pongas al crearla
+scripts/crear-clave-firma.sh
 ```
 
-Deja `cosign.key` y `cosign.pub` ahí. `release.sh` los usa solos; la pública se
-sube con cada release para que quien descarga tenga con qué comprobar sin
-buscarla en ningún otro sitio. Mientras no exista la clave, se publica sin
-firmar y se dice.
+Deja `cosign.key` (0600) y `cosign.pub` en la carpeta de configuración de
+deckman, y a partir de ahí `release.sh` firma solo. **cosign no se instala**:
+va en contenedor, como Go.
+
+La clave se crea **sin contraseña** salvo que exportes `COSIGN_PASSWORD` antes.
+Es una decisión, no un descuido: la alternativa es teclearla en cada
+`make release`, y lo que pasa entonces es que acaba escrita en un script, que
+es justo donde no querías tenerla. Queda en 0600 al lado de la clave SSH de
+deckman, que ya vive así por lo mismo — quien tenga tu usuario en este PC tiene
+las dos.
+
+La pública se sube con cada release para que quien descarga tenga con qué
+comprobar sin buscarla en ningún otro sitio. Mientras no exista la clave, se
+publica sin firmar y el script lo dice.
+
+Al firmar, cosign anota la firma en el **registro público de transparencia** de
+Sigstore. Es lo que le pone fecha, y lo que se publica ahí es el resumen del
+fichero y la clave pública — las dos cosas van ya dentro de la release.
 
 **Nada de esto se versiona.** Si cambias de clave, dilo en el changelog: quien
 guardara la anterior se encontraría una verificación que falla y no sabría si
 es un problema suyo.
 
-### El bot de dependencias (una sola vez)
+### El bot de dependencias
 
-`.forgejo/workflows/renovate.yml` abre pull requests cuando una dependencia se
-queda atrás. Hace falta:
+**Renovate** abre pull requests cuando una dependencia se queda atrás. Las
+reglas de este repositorio están en `renovate.json5` (en `.json5` para poder
+comentarlas), pero **aquí no hay ningún workflow que lo lance**, y eso es
+deliberado.
 
-1. Un usuario `renovate-bot` en el Forgejo, con acceso de escritura a este
-   repositorio.
-2. Su token de acceso en el secreto **`RENOVATE_TOKEN`** del repositorio
-   (Settings → Actions → Secrets).
+Renovate necesita dos cosas a la vez: llegar a Forgejo por su red interna y
+salir a internet para consultar versiones. Un contenedor del runner no tiene
+las dos, así que corre en el host, disparado desde el repositorio de la
+infraestructura, que ya lo hacía para sus propias imágenes. Este repositorio
+solo está apuntado en su lista.
 
-La primera ejecución abre un PR de configuración y una incidencia *Dependency
-Dashboard*; hasta que se acepte ese PR no propone nada más. Las reglas están en
-`renovate.json5` (en `.json5` para poder comentarlas).
+Si contribuyes, esto no te afecta: los PR de dependencias aparecen solos y se
+revisan como cualquier otro. Si mantienes tu propio fork y quieres algo
+parecido, monta Renovate donde tenga esas dos vías; no copies un
+`container: renovate` en el runner, que es lo que no funciona.
 
 ## Licencia
 

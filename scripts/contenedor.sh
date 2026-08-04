@@ -20,6 +20,32 @@ GO_IMAGE="docker.io/library/golang:1.26.5"
 GOLANGCI_VERSION="v2.12.2"
 GOVULNCHECK_VERSION="latest"
 
+# cosign firma el SHA256SUMS de cada release (ver scripts/release.sh). Va en
+# contenedor como todo lo demas: aqui no se instala nada en el sistema, y menos
+# la herramienta que decide de quien viene lo que publicas.
+#
+# Version clavada, y este es de los que mas importa clavar: si un dia el
+# comando cambia de nombre o de opciones, quiero que falle el dia que yo
+# actualice el numero y no en mitad de una publicacion.
+COSIGN_IMAGE="ghcr.io/sigstore/cosign/cosign:v3.1.2"
+
+# Con que usuario correr la imagen de cosign para que los ficheros que deja
+# sean legibles desde fuera. Hace falta solo aqui: la imagen de Go ya corre
+# como root, y la de cosign corre como `nonroot`.
+#
+# Con podman sin privilegios, el root del contenedor es TU usuario en el host y
+# cualquier otro cae en el rango de subuid, que no puede escribir en un
+# directorio tuyo en 0700: de ahi el «permission denied» al generar la clave.
+# Con docker con privilegios es al reves — el root del contenedor es el root de
+# verdad y dejaria ficheros que luego no puedes leer— y ahi hay que pedir el
+# uid propio.
+usuario_contenedor() {
+	case "$RUNTIME" in
+		*podman) USUARIO_OPTS=(--user 0) ;;
+		*)       USUARIO_OPTS=(--user "$(id -u):$(id -g)") ;;
+	esac
+}
+
 # Dentro de distrobox, podman vive en el host.
 detectar_runtime() {
 	if command -v podman >/dev/null 2>&1; then

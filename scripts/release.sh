@@ -20,6 +20,15 @@ CHANGELOG="CHANGELOG.md"
 METAINFO="flatpak/io.github.jfrmorales.deckman.metainfo.xml"
 REPO="https://github.com/jfrmorales/deckman"
 
+# De aqui salen $RUNTIME y $COSIGN_IMAGE, que hacen falta para firmar. Se
+# detecta el runtime al principio y no al llegar a la firma: si no hay podman
+# ni docker, esto ya no iba a poder construir el Flatpak tampoco, y vale mas
+# saberlo antes de empezar a mover tags.
+# shellcheck source=scripts/contenedor.sh
+. scripts/contenedor.sh
+detectar_runtime
+usuario_contenedor
+
 err() { echo "error: $*" >&2; exit 1; }
 paso() { echo; echo ">> $*"; }
 
@@ -315,17 +324,24 @@ if [ -n "$BUNDLE" ] && [ ! -f "$BUNDLE" ]; then
 fi
 if [ -n "$BUNDLE" ]; then
 	if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
-		paso "esperando a que el CI cree la release y suba SHA256SUMS"
-		# Se espera al fichero SHA256SUMS, no solo a la release: el CI la crea
-		# primero y sube los ficheros despues, y colarse en ese hueco dejaba el
-		# SHA256SUMS publicado sin la linea del bundle, sin que nada avisara.
-		# El sondeo empieza rapido y se va espaciando: lo normal es que el CI
-		# tarde menos de un minuto.
+		# Se espera a que el CI haya subido TODO, no solo a que exista la
+		# release: la crea primero y sube los ficheros despues, y colarse en
+		# ese hueco dejaba el SHA256SUMS publicado sin la linea del bundle.
+		#
+		# Y se espera al ULTIMO fichero, que es el .exe. Antes se esperaba al
+		# SHA256SUMS creyendo que era el ultimo, y resulta que es el primero:
+		# publicar-release.sh sube lo que hay en la carpeta y el glob va en
+		# orden alfabetico, donde la S mayuscula va antes que la d minuscula.
+		# No llego a romper nada —el SHA256SUMS se genera antes de subir nada,
+		# asi que ya listaba todo— pero la espera no esperaba a lo que decia,
+		# y eso solo se sostiene mientras nadie toque el orden.
+		ULTIMO="deckman-$VERSION-windows-amd64.exe"
+		paso "esperando a que el CI termine de subir ($ULTIMO)"
 		encontrada=0
 		espera=2
 		for _ in $(seq 1 14); do   # ~5 minutos en total
 			if gh release view "$TAG" --json assets --jq '.assets[].name' 2>/dev/null \
-				| grep -qx SHA256SUMS; then
+				| grep -qxF "$ULTIMO"; then
 				encontrada=1
 				break
 			fi
@@ -380,39 +396,59 @@ fi
 # y no algo que deba imponer un script. En cuanto exista, un fallo al firmar se
 # cuenta a gritos — a estas alturas la version ya esta publicada y no se puede
 # deshacer, asi que lo unico util es decir exactamente que falta por hacer.
+#
+# cosign no se instala: se ejecuta en contenedor, como Go. La clave se copia al
+# directorio temporal (que es 0700) en vez de montar ~/.config/deckman, porque
+# montar esa carpeta con :Z le cambiaria la etiqueta de SELinux — y ahi dentro
+# esta tambien la configuracion que usa el deckman de verdad.
 
 CLAVE_FIRMA="${DECKMAN_COSIGN_KEY:-$HOME/.config/deckman/cosign.key}"
 if [ -n "$TAG" ] && command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
 	if [ ! -f "$CLAVE_FIRMA" ]; then
 		echo
 		echo "(sin firmar: no hay clave en $CLAVE_FIRMA)"
-		echo " Para firmar las proximas versiones:"
-		echo "   cosign generate-key-pair --output-key-prefix ~/.config/deckman/cosign"
-		echo "   export COSIGN_PASSWORD=...   # la que le pongas al crearla"
-	elif ! command -v cosign >/dev/null 2>&1; then
-		echo "aviso: hay clave de firma pero no esta cosign; $TAG se queda SIN FIRMAR." >&2
-		echo "       Instalalo y firma a mano (ver mas abajo)." >&2
+		echo " Para firmar las proximas versiones:  scripts/crear-clave-firma.sh"
 	else
 		paso "firmando SHA256SUMS"
 		tmpf="$(mktemp -d)"
-		if gh release download "$TAG" -p SHA256SUMS -D "$tmpf" >/dev/null 2>&1 &&
-			cosign sign-blob --key "$CLAVE_FIRMA" --yes \
-				--output-signature "$tmpf/SHA256SUMS.sig" "$tmpf/SHA256SUMS" >/dev/null 2>&1; then
+		chmod 700 "$tmpf"
+		firmado=0
+		if gh release download "$TAG" -p SHA256SUMS -D "$tmpf" >/dev/null 2>&1; then
+			cp "$CLAVE_FIRMA" "$tmpf/cosign.key"
+			# COSIGN_PASSWORD vacio si no se ha puesto: sin la variable, cosign
+			# se queda esperando a que alguien teclee la contrasena y `make
+			# release` se cuelga sin decir por que.
+			#
+			# --bundle y no --output-signature: cosign 3 deprecio la firma
+			# suelta y con ella verify-blob se va a buscar el registro de
+			# transparencia y falla. El bundle lleva firma y registro juntos, y
+			# se comprueba con una orden sola. Probado antes de ponerlo aqui,
+			# incluido que un SHA256SUMS retocado NO pasa la verificacion.
+			if $RUNTIME run --rm "${USUARIO_OPTS[@]}" -v "$tmpf:/trabajo:Z" -w /trabajo \
+				-e COSIGN_PASSWORD="${COSIGN_PASSWORD:-}" \
+				"$COSIGN_IMAGE" sign-blob --key cosign.key --yes \
+				--bundle SHA256SUMS.bundle SHA256SUMS >/dev/null 2>&1; then
+				firmado=1
+			fi
+			rm -f "$tmpf/cosign.key"
+		fi
+		if [ "$firmado" -eq 1 ]; then
 			# La publica va con cada release a proposito, aunque sea siempre la
 			# misma: quien se baja los binarios tiene ahi mismo con que
 			# comprobarlos, sin buscarla en ningun otro sitio.
 			cp "${CLAVE_FIRMA%.key}.pub" "$tmpf/cosign.pub" 2>/dev/null || true
-			if gh release upload "$TAG" "$tmpf/SHA256SUMS.sig" --clobber >/dev/null 2>&1; then
+			if gh release upload "$TAG" "$tmpf/SHA256SUMS.bundle" --clobber >/dev/null 2>&1; then
 				[ -f "$tmpf/cosign.pub" ] && gh release upload "$TAG" "$tmpf/cosign.pub" --clobber >/dev/null 2>&1
-				echo "   firmado y subido SHA256SUMS.sig"
+				echo "   firmado y subido SHA256SUMS.bundle"
 			else
 				echo "aviso: no se pudo subir la firma de $TAG." >&2
 			fi
 		else
 			echo "aviso: no se pudo firmar $TAG. Hazlo a mano:" >&2
 			echo "       gh release download $TAG -p SHA256SUMS" >&2
-			echo "       cosign sign-blob --key $CLAVE_FIRMA --output-signature SHA256SUMS.sig SHA256SUMS" >&2
-			echo "       gh release upload $TAG SHA256SUMS.sig --clobber" >&2
+			echo "       $RUNTIME run --rm -v \"\$PWD:/t:Z\" -w /t -e COSIGN_PASSWORD $COSIGN_IMAGE \\" >&2
+			echo "         sign-blob --key $CLAVE_FIRMA --yes --bundle SHA256SUMS.bundle SHA256SUMS" >&2
+			echo "       gh release upload $TAG SHA256SUMS.bundle --clobber" >&2
 		fi
 		rm -rf "$tmpf"
 	fi

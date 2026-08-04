@@ -1,6 +1,17 @@
 // Configuracion de Renovate, que abre pull requests cuando una dependencia se
-// queda atras. Lo ejecuta .forgejo/workflows/renovate.yml; alli esta el porque
-// y como montar el usuario del bot.
+// queda atras.
+//
+// Aqui NO hay workflow que lo lance, y no es un olvido: Renovate corre en el
+// host, fuera del runner, disparado desde el repositorio de la infraestructura
+// (`scripts/renovate-run.sh`, que lleva este repositorio en su lista). Tiene
+// que ser asi porque Renovate necesita a la vez llegar a Forgejo por la red
+// interna y tener salida a internet para consultar las versiones, y un
+// contenedor del runner no tiene las dos cosas. Ese camino ya estaba montado y
+// probado antes de que existiera este fichero; duplicarlo aqui solo habria
+// dado un trabajo que falla cada dia.
+//
+// Lo que si vive aqui es la configuracion, porque Renovate la lee del propio
+// repositorio que revisa.
 //
 // En .json5 y no .json a proposito: Renovate lee los dos, y sin comentarios
 // esto acaba siendo una lista de reglas que nadie sabe por que dice lo que

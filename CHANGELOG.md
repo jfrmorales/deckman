@@ -13,6 +13,42 @@ bloque `<releases>` del metainfo. Los tres los sincroniza `scripts/release.sh`.
      versión nueva al publicar. Secciones: Añadido, Cambiado, Corregido,
      Eliminado. -->
 
+### Añadido
+
+- **Las releases van firmadas de verdad.** La 0.6.0 y la 0.6.1 anunciaban la
+  firma pero salieron sin ella: faltaba la clave, y el script lo dijo cada vez.
+  Ahora existe, la crea `scripts/crear-clave-firma.sh` y **cosign no se instala
+  en el sistema** — va en contenedor, como Go. Se comprueba así, y tiene que
+  decir `Verified OK`:
+
+  ```sh
+  cosign verify-blob --key cosign.pub --bundle SHA256SUMS.bundle SHA256SUMS
+  ```
+
+  El fichero es `SHA256SUMS.bundle` y no `SHA256SUMS.sig` porque cosign 3
+  deprecó la firma suelta: con ella, verificar se va a buscar el registro de
+  transparencia y falla. Se probó antes de publicar nada, incluido que un
+  `SHA256SUMS` retocado **no** pasa la verificación.
+
+### Corregido
+
+- **`make release` esperaba al fichero equivocado.** Antes de subir el
+  `.flatpak` esperaba a ver el `SHA256SUMS` en la release, creyendo que era lo
+  último que sube el CI; es lo primero, porque los ficheros se suben en orden
+  alfabético y la `S` va antes que la `d`. No llegó a romper nada —ese fichero
+  se genera antes de subir ninguno, así que ya listaba todo— pero la espera no
+  esperaba a lo que decía. Ahora espera al binario de Windows, que sí es el
+  último.
+
+### Eliminado
+
+- **El workflow de Renovate de este repositorio**, que no podía funcionar:
+  lanzaba Renovate en un contenedor del runner, y desde ahí no se llega a la
+  vez a Forgejo y a internet. Ya existía un Renovate montado en el host por ese
+  mismo motivo; este repositorio se ha apuntado a esa lista, que era lo que
+  había que hacer desde el principio. La configuración (`renovate.json5`) se
+  queda: Renovate la lee del propio repositorio.
+
 ## [0.6.1] — 2026-08-04
 
 ### Cambiado

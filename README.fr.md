@@ -21,18 +21,23 @@ sha256sum -c SHA256SUMS
 chmod +x deckman-*-linux-amd64
 ```
 
-Depuis la 0.6.0, ce `SHA256SUMS` est **signé**. Le `sha256sum` ci-dessus dit que
+Depuis la 0.6.2, ce `SHA256SUMS` est **signé**. Le `sha256sum` ci-dessus dit que
 le téléchargement n'est pas corrompu ; la signature dit en plus que c'est bien
 moi qui l'ai publié, et pas quelqu'un qui aurait mis la main sur l'accès aux
 *Releases* :
 
 ```sh
-cosign verify-blob --key cosign.pub --signature SHA256SUMS.sig SHA256SUMS
+cosign verify-blob --key cosign.pub --bundle SHA256SUMS.bundle SHA256SUMS
 ```
 
-(`cosign.pub` et `SHA256SUMS.sig` sont dans la même release.) Il y a aussi un
-`deckman-<version>.cdx.json` : l'inventaire de ce que contient le binaire, au
-cas où il faudrait un jour savoir si une alerte de sécurité vous concerne.
+Ça doit afficher `Verified OK`. `cosign.pub` et `SHA256SUMS.bundle` sont dans la
+même release ; la clé publique est toujours la même, donc si vous la gardez la
+première fois, vous verrez si elle change un jour. La signature est aussi
+inscrite dans le journal de transparence public de Sigstore, ce qui l'horodate.
+
+Il y a aussi un `deckman-<version>.cdx.json` : l'inventaire de ce que contient
+le binaire, au cas où il faudrait un jour savoir si une alerte de sécurité vous
+concerne.
 
 L'interface parle **espagnol, anglais et français**. Elle suit votre navigateur
 par défaut, et un sélecteur se trouve dans la barre du haut.

@@ -88,37 +88,49 @@ CAB=(-H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+jso
 # es una cerilla esperando a encenderse.
 sacar_id() { python3 -c 'import sys,json; d=json.load(sys.stdin); print(d.get("id","") or "")'; }
 
-# El commit del tag, que se manda como target_commitish. Es lo que quita de en
-# medio una carrera que ya costo una release:
+# Esperar a que GitHub tenga el tag, y NO crearlo desde aqui.
 #
-# El tag se empuja a GitHub y a Forgejo, y Forgejo arranca el CI al recibirlo.
-# GitHub tiene entonces el ref —se le empuja primero—, pero su API tarda unos
-# segundos mas en verlo, y hasta que lo ve contesta 422 «Published releases
-# must have a valid tag». Parece un error de datos y es solo latencia. La
-# v0.4.0 se lo comio (el job corrio 5 s despues del push) y hubo que publicar a
-# mano; la v0.3.0 gano la misma carrera por poco.
+# Historia, porque el atajo obvio esta minado. El tag se empuja a los dos
+# remotos y Forgejo arranca este job al recibirlo; si Forgejo va primero, este
+# job corre cuando GitHub aun no tiene nada, y crear la release contesta 422
+# «Published releases must have a valid tag». Le paso a la v0.4.0.
 #
-# Con target_commitish la pregunta deja de hacerse: si la API no ve el tag, lo
-# crea ella en ese commit; si lo ve, ignora el campo y usa el suyo. Comprobado
-# contra la API con un tag que no existia en ningun sitio: la release sale y el
-# tag aparece. Asi no hay que reintentar nada, que era tratar el sintoma.
-COMMIT="$(git rev-parse -q --verify "refs/tags/$TAG^{commit}" 2>/dev/null || true)"
-# En el CI el clon es --depth 1 de un SHA suelto y no trae el ref del tag.
-[ -n "$COMMIT" ] || COMMIT="${GITHUB_SHA:-}"
-[ -n "$COMMIT" ] || COMMIT="$(git rev-parse HEAD)"
+# El atajo tentador es mandar `target_commitish`: entonces GitHub crea el tag
+# el mismo. Lo crea **ligero**, y cuando llega el push del tag anotado el ref
+# ya existe con otro objeto y lo rechaza: los dos remotos acaban con tags
+# distintos para la misma version. Paso de verdad en la v0.4.2 y hubo que
+# reparar el ref a mano. Cambiar un fallo ruidoso por dos remotos que no
+# coinciden es peor negocio.
+#
+# Lo correcto es que el tag lo cree SIEMPRE el push, y que aqui solo se espere
+# a verlo. El orden de empuje de release.sh hace que normalmente ya este; esto
+# cubre el resto (un tag empujado a mano solo a Forgejo, replicacion lenta).
+paso "esperando a que GitHub tenga el tag $TAG"
+espera=2
+visto=0
+for intento in 1 2 3 4 5 6 7; do   # ~4 min en total
+	if curl -sSf -o /dev/null "${CAB[@]}" "$API/git/ref/tags/$TAG" 2>/dev/null; then
+		visto=1
+		break
+	fi
+	echo "   todavia no; reintento $intento en ${espera}s"
+	sleep "$espera"
+	[ "$espera" -lt 60 ] && espera=$((espera * 2))
+done
+[ "$visto" -eq 1 ] || err "GitHub no tiene el tag $TAG. Empujalo antes de publicar:
+   git push origin $TAG"
 
 paso "creando la release en $REPO"
 CUERPO="$(python3 -c '
 import json, sys
-tag, commit = sys.argv[1], sys.argv[2]
+tag = sys.argv[1]
 print(json.dumps({
     "tag_name": tag,
-    "target_commitish": commit,
     "name": tag,
     "body": sys.stdin.read(),
     "draft": False,
     "prerelease": False,
-}))' "$TAG" "$COMMIT" <<< "$NOTAS")"
+}))' "$TAG" <<< "$NOTAS")"
 
 RESP="$(curl -sS -X POST "${CAB[@]}" "$API/releases" -d "$CUERPO")"
 ID="$(printf '%s' "$RESP" | sacar_id || true)"

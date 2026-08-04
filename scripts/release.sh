@@ -215,8 +215,19 @@ echo "   $TAG creado en local"
 
 # --- confirmar --------------------------------------------------------------
 
+# El orden de empuje importa, y costo la v0.4.2. `git remote` los devuelve
+# alfabeticamente, o sea forgejo antes que origin. Forgejo es quien dispara el
+# CI al recibir el tag, y ese job publica la release en GitHub: empujando
+# forgejo primero, el CI arrancaba cuando GitHub todavia no tenia el tag y la
+# API respondia «Published releases must have a valid tag».
+#
+# Asi que el que dispara el CI va el ULTIMO. `origin` lleva las dos pushurl
+# (GitHub y Forgejo, en ese orden), asi que empujarlo primero deja el tag en
+# GitHub antes de que Forgejo se entere. Es la carrera entera, resuelta con el
+# orden en vez de con reintentos.
 REMOTOS=()
-for r in $(git remote); do REMOTOS+=("$r"); done
+for r in $(git remote); do [ "$r" = forgejo ] || REMOTOS+=("$r"); done
+for r in $(git remote); do [ "$r" = forgejo ] && REMOTOS+=("$r"); done
 [ ${#REMOTOS[@]} -gt 0 ] || err "no hay remotos configurados"
 
 echo

@@ -13,6 +13,28 @@ bloque `<releases>` del metainfo. Los tres los sincroniza `scripts/release.sh`.
      versión nueva al publicar. Secciones: Añadido, Cambiado, Corregido,
      Eliminado. -->
 
+### Corregido
+
+- **Publicar deja de ser una carrera, ahora sí.** La causa no era la latencia de
+  la API de GitHub, como decían la 0.4.1 y la 0.4.2: era el **orden de empuje**.
+  `git remote` devuelve los remotos alfabéticamente, así que se empujaba a
+  Forgejo antes que a GitHub; Forgejo dispara el CI al recibir el tag y ese
+  trabajo publica la release en GitHub, que todavía no tenía el tag. Ahora el
+  remoto que dispara el CI va el último, con lo que la carrera desaparece en vez
+  de tolerarse.
+- **El apaño de la 0.4.2 podía dejar los dos remotos con tags distintos.**
+  Mandar `target_commitish` hacía que GitHub creara el tag él mismo, y lo creaba
+  *ligero*: al llegar después el push del tag anotado, el ref ya existía con
+  otro objeto y lo rechazaba. Pasó al publicar la propia v0.4.2, cuyo ref hubo
+  que reparar a mano. El tag lo crea siempre el push; el CI solo espera a verlo
+  y, si no llega, lo dice en vez de inventárselo.
+
+### Nota
+
+- La **v0.4.2 se publicó sin su `.flatpak`**: el fallo anterior cortó la
+  publicación justo antes de construirlo. Los binarios de Linux y Windows sí
+  están. Quien use el Flatpak, a esta versión.
+
 ## [0.4.2] — 2026-08-04
 
 ### Corregido

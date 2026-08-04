@@ -144,14 +144,25 @@ solo corre en CI es la que nadie prueba hasta que falla. Se prueba con
 está pensado para correr dentro del contenedor del job, así que a mano va
 lanzado igual (`podman run ... $GO_IMAGE sh -c 'scripts/publicar-release.sh …'`).
 
-Ahí hay una tercera trampa ya pagada: **el CI y GitHub compiten**. El tag se
-empuja a los dos remotos y Forgejo arranca el job al recibirlo; GitHub tiene ya
-el ref —se le empuja primero— pero su API tarda unos segundos más en verlo, y
-hasta entonces contesta 422 `Published releases must have a valid tag`. Parece
-un error de datos y es solo latencia: la v0.4.0 se lo comió y hubo que
-publicarla a mano. Se resuelve mandando **`target_commitish`** al crear la
-release: si la API no ve el tag lo crea ella en ese commit, y si lo ve ignora el
-campo. Reintentar era tratar el síntoma.
+Ahí hay una tercera trampa ya pagada, y **el orden de los remotos es parte de
+la lógica, no un detalle**. `git remote` los devuelve alfabéticamente: `forgejo`
+antes que `origin`. Pero Forgejo es quien dispara el CI al recibir el tag, y ese
+trabajo publica la release **en GitHub**. Empujando a Forgejo primero, el job
+arrancaba cuando GitHub aún no tenía el tag y la API contestaba 422
+`Published releases must have a valid tag`. Se comió la v0.4.0.
+
+Por eso `release.sh` empuja **el que dispara el CI el último**. `origin` lleva
+las dos *pushurl* (GitHub y Forgejo, en ese orden), así que empujarlo primero
+deja el tag en GitHub antes de que Forgejo se entere. Si algún día se añade otro
+remoto que dispare CI, va detrás igual.
+
+Y el atajo que parece obvio está minado: mandar **`target_commitish`** al crear
+la release hace que GitHub cree el tag él mismo — pero lo crea **ligero**, y
+cuando llega el push del tag anotado el ref ya existe con otro objeto y lo
+rechaza, dejando los dos remotos con tags distintos para la misma versión. Pasó
+en la v0.4.2 y hubo que reparar el ref a mano con un push forzado. El tag lo
+crea siempre el push; `publicar-release.sh` solo **espera** a verlo y, si no
+llega, falla diciéndolo.
 
 El repositorio está en **dos remotos y los dos van siempre a la vez**:
 `origin` (GitHub, público) y `forgejo`. `origin` tiene las dos URL de push

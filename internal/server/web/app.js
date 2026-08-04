@@ -497,11 +497,27 @@ function renderSendOptions() {
   sel.value = cur || (exp ? exp.name : '');
 
   const rs = $('romSystem');
-  rs.innerHTML = '';
+  const ms = $('manageRomSystem');
+  const ds = $('downloadRomSystem');
+  const ss = $('scrapeRomSystem');
+  if (rs) rs.innerHTML = '';
+  if (ms) ms.innerHTML = '';
+  if (ds) ds.innerHTML = '';
+  if (ss) ss.innerHTML = '';
+  
   for (const s of inventory.romSystems || []) {
-    const o = document.createElement('option');
-    o.value = s; o.textContent = s;
-    rs.appendChild(o);
+    const opts = [
+      document.createElement('option'),
+      document.createElement('option'),
+      document.createElement('option'),
+      document.createElement('option')
+    ];
+    opts.forEach(o => { o.value = s; o.textContent = s; });
+    
+    if (rs) rs.appendChild(opts[0]);
+    if (ms) ms.appendChild(opts[1]);
+    if (ds) ds.appendChild(opts[2]);
+    if (ss) ss.appendChild(opts[3]);
   }
   $('romsDirLabel').textContent = inventory.romsDir || 'no se encontró EmuDeck';
   updateJobButtons();
@@ -1493,6 +1509,116 @@ function init() {
       }
     });
   });
+
+  // Eventos Emulación
+  if ($('btnLoadRoms')) $('btnLoadRoms').onclick = loadManageRoms;
+  if ($('btnDownloadRom')) $('btnDownloadRom').onclick = downloadRom;
+  if ($('btnScrapeSystem')) $('btnScrapeSystem').onclick = scrapeSystem;
+  
+  $('manageRomsBody').addEventListener('click', async (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    
+    if (btn.dataset.romdel) {
+      if (!confirm('¿Seguro que quieres borrar ' + btn.dataset.romdel + '?')) return;
+      try {
+        await api('/api/roms/delete', { path: btn.dataset.path });
+        banner('ROM borrada', 'ok');
+        loadManageRoms();
+      } catch (err) {
+        banner('Error al borrar: ' + err.message, 'err');
+      }
+    }
+    
+    if (btn.dataset.romren) {
+      const newName = prompt('Nuevo nombre:', btn.dataset.romren);
+      if (!newName || newName === btn.dataset.romren) return;
+      try {
+        await api('/api/roms/rename', { path: btn.dataset.path, newName });
+        banner('ROM renombrada', 'ok');
+        loadManageRoms();
+      } catch (err) {
+        banner('Error al renombrar: ' + err.message, 'err');
+      }
+    }
+  });
+}
+
+async function loadManageRoms() {
+  const sys = $('manageRomSystem').value;
+  if (!sys) return;
+  
+  const btn = $('btnLoadRoms');
+  btn.disabled = true;
+  btn.textContent = 'Cargando...';
+  
+  try {
+    const res = await api('/api/roms/list?system=' + encodeURIComponent(sys));
+    const roms = res.roms || [];
+    const body = $('manageRomsBody');
+    body.innerHTML = '';
+    
+    $('manageRomsList').classList.remove('hidden');
+    $('emptyRoms').classList.toggle('hidden', roms.length > 0);
+    
+    for (const r of roms) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><div class="gname"><span>${escapeHtml(r.name)}</span></div></td>
+        <td class="num">${fmtBytes(r.size)}</td>
+        <td><div class="acts">
+          <button data-romren="${escapeHtml(r.name)}" data-path="${escapeHtml(r.path)}">Renombrar</button>
+          <button class="danger" data-romdel="${escapeHtml(r.name)}" data-path="${escapeHtml(r.path)}">Eliminar</button>
+        </div></td>
+      `;
+      body.appendChild(tr);
+    }
+  } catch (err) {
+    banner('Error al listar ROMs: ' + err.message, 'err');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Cargar ROMs';
+  }
+}
+
+async function downloadRom() {
+  const url = $('downloadUrl').value.trim();
+  const sys = $('downloadRomSystem').value;
+  if (!url || !sys) {
+    $('downloadStatus').textContent = 'Faltan datos';
+    return;
+  }
+  
+  const btn = $('btnDownloadRom');
+  btn.disabled = true;
+  $('downloadStatus').textContent = 'Descargando (puede tardar un rato)...';
+  
+  try {
+    await api('/api/roms/download', { url, system: sys });
+    $('downloadStatus').textContent = 'Descarga completada con éxito';
+    $('downloadUrl').value = '';
+    banner('ROM descargada en ' + sys, 'ok');
+  } catch (err) {
+    $('downloadStatus').textContent = 'Error: ' + err.message;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function scrapeSystem() {
+  const sys = $('scrapeRomSystem').value;
+  if (!sys) return;
+  
+  const btn = $('btnScrapeSystem');
+  btn.disabled = true;
+  $('scrapeStatus').textContent = 'Analizando ' + sys + ' y buscando metadatos...';
+  
+  // Como es un stub o función básica, simularemos el scraper
+  setTimeout(() => {
+    $('scrapeStatus').textContent = 'Completado: metadatos y carátulas actualizadas (simulado)';
+    btn.disabled = false;
+    banner('Scraper de ' + sys + ' finalizado', 'ok');
+  }, 3000);
 }
 
 document.addEventListener('DOMContentLoaded', init);

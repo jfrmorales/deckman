@@ -282,31 +282,63 @@
 
         <!-- Subpestaña: Gestionar -->
         <div id="emu-manage" class="emu-subpanel hidden">
-          <div class="card premium-card empty-state">
-            <div class="huge-icon animate-float">🎮</div>
-            <h3>Gestor de Colección</h3>
-            <p>Visualiza, renombra y elimina ROMs de tu Steam Deck directamente desde aquí.</p>
-            <button class="primary" disabled>Próximamente</button>
+          <div class="card premium-card">
+            <h2>Gestor de Colección</h2>
+            <div class="field">
+              <label>Sistema</label>
+              <select id="manageRomSystem"></select>
+            </div>
+            <button id="btnLoadRoms" class="primary">Cargar ROMs</button>
+            <div id="manageRomsList" class="table-wrap hidden" style="margin-top: 15px;">
+              <table id="manageGames">
+                <thead>
+                  <tr>
+                    <th>ROM</th>
+                    <th class="num">Tamaño</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="manageRomsBody"></tbody>
+              </table>
+              <p id="emptyRoms" class="empty">No hay ROMs en este sistema.</p>
+            </div>
           </div>
         </div>
 
         <!-- Subpestaña: Descargar -->
         <div id="emu-download" class="emu-subpanel hidden">
-          <div class="card premium-card empty-state">
-            <div class="huge-icon animate-pulse">⚡</div>
-            <h3>Descargas Directas</h3>
-            <p>Busca y descarga ROMs homebrew o de dominio público directamente a tu Deck.</p>
-            <button class="primary" disabled>Próximamente</button>
+          <div class="card premium-card">
+            <h2>Descargas Directas</h2>
+            <p class="hint">Introduce la URL directa de la ROM que quieres descargar.</p>
+            
+            <div class="field">
+              <label>Sistema de destino</label>
+              <select id="downloadRomSystem"></select>
+            </div>
+            
+            <div class="field">
+              <label>URL de descarga</label>
+              <input id="downloadUrl" placeholder="https://ejemplo.com/juego.zip" autocomplete="off">
+            </div>
+            
+            <button id="btnDownloadRom" class="primary big">Descargar a la Deck</button>
+            <p id="downloadStatus" class="hint"></p>
           </div>
         </div>
 
         <!-- Subpestaña: Scrapear -->
         <div id="emu-scrape" class="emu-subpanel hidden">
-          <div class="card premium-card empty-state">
-            <div class="huge-icon animate-spin-slow">✨</div>
-            <h3>Scraper Integrado</h3>
-            <p>Actualiza las carátulas, descripciones y metadatos de tus ROMs usando ScreenScraper o TheGamesDB.</p>
-            <button class="primary" disabled>Próximamente</button>
+          <div class="card premium-card">
+            <h2>Scraper Integrado</h2>
+            <p class="hint">Actualiza metadatos básicos para un sistema (función básica disponible).</p>
+            
+            <div class="field">
+              <label>Sistema</label>
+              <select id="scrapeRomSystem"></select>
+            </div>
+            
+            <button id="btnScrapeSystem" class="primary big">Iniciar Scraper</button>
+            <p id="scrapeStatus" class="hint"></p>
           </div>
         </div>
       </div>

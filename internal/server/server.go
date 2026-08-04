@@ -5,6 +5,7 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"github.com/jfrmorales/deckman/internal/i18n"
 	"io/fs"
 	"log"
 	"net"
@@ -17,6 +18,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/jfrmorales/deckman/internal/config"
@@ -172,6 +174,10 @@ func (s *Server) guard(h http.HandlerFunc) http.HandlerFunc {
 			http.Error(w, "peticion no autorizada", http.StatusForbidden)
 			return
 		}
+		// El idioma se fija en cada peticion, no al arrancar: asi cambiarlo en
+		// la interfaz surte efecto en los errores desde la siguiente orden, sin
+		// reiniciar nada.
+		ponerIdioma(s.idiomaEfectivo(r))
 		h(w, r)
 	}
 }
@@ -185,7 +191,7 @@ func (s *Server) guard(h http.HandlerFunc) http.HandlerFunc {
 // dominio, asi que comprobarla corta el ataque de raiz.
 func checkHost(host string) error {
 	if host == "" {
-		return fmt.Errorf("peticion sin cabecera Host")
+		return i18n.Errorf("peticion sin cabecera Host")
 	}
 	name := host
 	if h, _, err := net.SplitHostPort(host); err == nil {
@@ -196,7 +202,7 @@ func checkHost(host string) error {
 	case "127.0.0.1", "localhost", "::1":
 		return nil
 	}
-	return fmt.Errorf("deckman solo atiende peticiones a localhost, no a %q", host)
+	return i18n.Errorf("deckman solo atiende peticiones a localhost, no a %q", host)
 }
 
 // logf deja constancia en la consola de deckman de las cosas que no son
@@ -210,10 +216,36 @@ func writeJSON(w http.ResponseWriter, v any) {
 	json.NewEncoder(w).Encode(v)
 }
 
+// idiomaActual: en que idioma salen los errores por HTTP.
+//
+// Es una variable de paquete y no un campo de Server a proposito. writeErr se
+// llama desde 91 sitios; pasarle el idioma a todos, solo para que lo reenvien
+// aqui, ensuciaria 91 firmas sin aportar nada. Y deckman es un proceso para un
+// usuario delante de una pantalla: «el idioma» es un dato global de verdad, no
+// un atajo. Lo pone guard en cada peticion, asi que va siempre a la par de lo
+// que muestra la interfaz.
+var idiomaActual atomic.Value // string
+
+func ponerIdioma(lang string) {
+	if !i18n.Soportado(lang) {
+		lang = i18n.ES
+	}
+	idiomaActual.Store(lang)
+}
+
+func idioma() string {
+	if v, ok := idiomaActual.Load().(string); ok && v != "" {
+		return v
+	}
+	return i18n.ES
+}
+
+// writeErr traduce el error antes de mandarlo. El castellano sigue siendo el
+// que va al registro (err.Error()); lo que se traduce es lo que ve la persona.
 func writeErr(w http.ResponseWriter, err error, code int) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+	json.NewEncoder(w).Encode(map[string]string{"error": i18n.Traducir(err, idioma())})
 }
 
 func decode(r *http.Request, v any) error {
@@ -225,7 +257,7 @@ func (s *Server) conn() (*deck.Client, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if s.client == nil {
-		return nil, fmt.Errorf("no hay conexion con la Steam Deck")
+		return nil, i18n.Errorf("no hay conexion con la Steam Deck")
 	}
 	return s.client, nil
 }
@@ -264,6 +296,12 @@ func (s *Server) handleState(w http.ResponseWriter, r *http.Request) {
 		"job":        cur,
 		"os":         runtime.GOOS,
 		"hasGridKey": cfg.GridKey != "",
+		// "idioma" es lo elegido a mano ("" = automatico) y "idiomaEfectivo" el
+		// que se va a usar de verdad. La interfaz necesita los dos: uno para
+		// marcar el desplegable y otro para pintarse.
+		"idioma":         cfg.Idioma,
+		"idiomaEfectivo": s.idiomaEfectivo(r),
+		"idiomas":        i18n.Idiomas,
 	})
 }
 
@@ -276,7 +314,7 @@ func (s *Server) handleQuit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if s.Busy() {
-		writeErr(w, fmt.Errorf("hay una operacion en curso; cancelala o espera a que termine"), http.StatusConflict)
+		writeErr(w, i18n.Errorf("hay una operacion en curso; cancelala o espera a que termine"), http.StatusConflict)
 		return
 	}
 	writeJSON(w, map[string]any{"ok": true})
@@ -298,7 +336,7 @@ func (s *Server) handleConnect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.Host == "" {
-		writeErr(w, fmt.Errorf("indica la IP de la Steam Deck"), http.StatusBadRequest)
+		writeErr(w, i18n.Errorf("indica la IP de la Steam Deck"), http.StatusBadRequest)
 		return
 	}
 	if req.Port == 0 {
@@ -371,7 +409,7 @@ func (s *Server) handleForgetDeck(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if s.Busy() {
-		writeErr(w, fmt.Errorf("hay una operacion en curso; espera a que termine antes de olvidar una Deck"), http.StatusConflict)
+		writeErr(w, i18n.Errorf("hay una operacion en curso; espera a que termine antes de olvidar una Deck"), http.StatusConflict)
 		return
 	}
 	var req struct {
@@ -385,7 +423,7 @@ func (s *Server) handleForgetDeck(w http.ResponseWriter, r *http.Request) {
 	s.mu.RLock()
 	if req.Index < 0 || req.Index >= len(s.cfg.Decks) {
 		s.mu.RUnlock()
-		writeErr(w, fmt.Errorf("esa Deck ya no esta en la lista"), http.StatusBadRequest)
+		writeErr(w, i18n.Errorf("esa Deck ya no esta en la lista"), http.StatusBadRequest)
 		return
 	}
 	objetivo := s.cfg.Decks[req.Index]
@@ -447,7 +485,7 @@ func (s *Server) handleForgetDeck(w http.ResponseWriter, r *http.Request) {
 	// La lista ha podido cambiar mientras hablabamos con la Deck.
 	if req.Index >= len(s.cfg.Decks) || !s.cfg.Decks[req.Index].Same(objetivo) {
 		s.mu.Unlock()
-		writeErr(w, fmt.Errorf("esa Deck ya no esta en la lista"), http.StatusConflict)
+		writeErr(w, i18n.Errorf("esa Deck ya no esta en la lista"), http.StatusConflict)
 		return
 	}
 	s.cfg.RemoveDeck(req.Index)
@@ -749,9 +787,28 @@ func listRoots() []browseEntry {
 
 // handleSettings guarda ajustes sueltos. De momento solo la clave de
 // SteamGridDB, que el usuario se saca gratis en su web.
+// idiomaEfectivo decide en que idioma hablarle a quien pregunta: lo que haya
+// elegido, y si no ha elegido, lo que pida su navegador. El castellano es el
+// ultimo recurso porque es el original.
+func (s *Server) idiomaEfectivo(r *http.Request) string {
+	s.mu.RLock()
+	elegido := s.cfg.Idioma
+	s.mu.RUnlock()
+	if i18n.Soportado(elegido) {
+		return elegido
+	}
+	if r != nil {
+		if lang := i18n.Negociar(r.Header.Get("Accept-Language")); lang != "" {
+			return lang
+		}
+	}
+	return i18n.ES
+}
+
 func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		GridKey *string `json:"gridKey"`
+		Idioma  *string `json:"idioma"`
 	}
 	if err := decode(r, &req); err != nil {
 		writeErr(w, err, http.StatusBadRequest)
@@ -761,13 +818,29 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	if req.GridKey != nil {
 		s.cfg.GridKey = strings.TrimSpace(*req.GridKey)
 	}
+	if req.Idioma != nil {
+		// "" es valido y significa «el que diga el navegador»: es la unica
+		// forma de volver a automatico despues de haber elegido uno.
+		lang := strings.TrimSpace(*req.Idioma)
+		if lang != "" && !i18n.Soportado(lang) {
+			s.mu.Unlock()
+			writeErr(w, i18n.Errorf("idioma no soportado: %q", lang), http.StatusBadRequest)
+			return
+		}
+		s.cfg.Idioma = lang
+	}
 	cfg := s.cfg.Snapshot()
 	s.mu.Unlock()
 	if err := cfg.Save(); err != nil {
 		writeErr(w, err, http.StatusInternalServerError)
 		return
 	}
-	writeJSON(w, map[string]any{"ok": true, "hasGridKey": cfg.GridKey != ""})
+	// El cambio vale ya para los errores de esta misma respuesta en adelante.
+	ponerIdioma(s.idiomaEfectivo(r))
+	writeJSON(w, map[string]any{
+		"ok": true, "hasGridKey": cfg.GridKey != "",
+		"idioma": cfg.Idioma, "idiomaEfectivo": idioma(),
+	})
 }
 
 func (s *Server) metaClient() *meta.Client {
@@ -794,7 +867,7 @@ func (s *Server) handleDetect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.LocalPath == "" {
-		writeErr(w, fmt.Errorf("indica la carpeta del juego"), http.StatusBadRequest)
+		writeErr(w, i18n.Errorf("indica la carpeta del juego"), http.StatusBadRequest)
 		return
 	}
 	if fi, err := os.Stat(req.LocalPath); err != nil {
@@ -909,10 +982,10 @@ var artworkHosts = []string{"steamgriddb.com", "cdn2.steamgriddb.com", "cdn.stea
 func allowedArtworkURL(raw string) error {
 	u, err := url.Parse(raw)
 	if err != nil {
-		return fmt.Errorf("url invalida")
+		return i18n.Errorf("url invalida")
 	}
 	if u.Scheme != "https" {
-		return fmt.Errorf("solo se aceptan descargas por https")
+		return i18n.Errorf("solo se aceptan descargas por https")
 	}
 	host := strings.ToLower(u.Hostname())
 	for _, h := range artworkHosts {
@@ -920,7 +993,7 @@ func allowedArtworkURL(raw string) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("origen no permitido: %s", host)
+	return i18n.Errorf("origen no permitido: %s", host)
 }
 
 // handleArtworkGames busca el juego en el catalogo de SteamGridDB.
@@ -935,7 +1008,7 @@ func (s *Server) handleArtworkGames(w http.ResponseWriter, r *http.Request) {
 	}
 	mc := s.metaClient()
 	if !mc.HasGridKey() {
-		writeErr(w, fmt.Errorf("falta la clave de SteamGridDB: ponla en Enviar juego > Ajustes de caratulas"), http.StatusPreconditionFailed)
+		writeErr(w, i18n.Errorf("falta la clave de SteamGridDB: ponla en Enviar juego > Ajustes de caratulas"), http.StatusPreconditionFailed)
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 25*time.Second)
@@ -970,7 +1043,7 @@ func (s *Server) handleArtworkList(w http.ResponseWriter, r *http.Request) {
 	}
 	mc := s.metaClient()
 	if !mc.HasGridKey() {
-		writeErr(w, fmt.Errorf("falta la clave de SteamGridDB"), http.StatusPreconditionFailed)
+		writeErr(w, i18n.Errorf("falta la clave de SteamGridDB"), http.StatusPreconditionFailed)
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 25*time.Second)
@@ -1022,7 +1095,7 @@ func (s *Server) handleArtworkApply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.AppID == 0 {
-		writeErr(w, fmt.Errorf("falta el juego"), http.StatusBadRequest)
+		writeErr(w, i18n.Errorf("falta el juego"), http.StatusBadRequest)
 		return
 	}
 	if err := allowedArtworkURL(req.URL); err != nil {
@@ -1120,7 +1193,7 @@ func (s *Server) startJob(kind, title string, fn func(ctx context.Context, repor
 	s.jobMu.Lock()
 	defer s.jobMu.Unlock()
 	if s.job != nil && !s.job.Prog.Done && s.job.Prog.Error == "" {
-		return nil, fmt.Errorf("ya hay una operacion en curso: %s", s.job.Title)
+		return nil, i18n.Errorf("ya hay una operacion en curso: %s", s.job.Title)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -1221,14 +1294,14 @@ func (s *Server) registerShortcut(ctx context.Context, c *deck.Client, opts deck
 
 	if steamCorriendo {
 		if !c.CEFAvailable(ctx) {
-			return 0, false, fmt.Errorf(
+			return 0, false, i18n.Errorf(
 				"Steam esta abierto pero no responde: cierralo en la Deck y vuelve a intentarlo, " +
 					"o reinicialo y espera a que cargue del todo. Anadir el juego con Steam abierto " +
 					"le haria perder los accesos directos que ya tienes")
 		}
 		appID, err := c.AddShortcutLive(ctx, opts.Name, opts.Exe, opts.StartDir, opts.LaunchOptions, opts.CompatTool)
 		if err != nil {
-			return 0, false, fmt.Errorf("no se pudo anadir el juego a traves de Steam: %w", err)
+			return 0, false, i18n.Errorf("no se pudo anadir el juego a traves de Steam: %w", err)
 		}
 		return appID, true, nil
 	}
@@ -1247,7 +1320,7 @@ func (s *Server) registerShortcut(ctx context.Context, c *deck.Client, opts deck
 func safeRelExe(exe string) (string, error) {
 	// El navegador puede estar en Windows y mandar "bin\juego.exe".
 	clean := strings.ReplaceAll(strings.TrimSpace(exe), `\`, "/")
-	malo := fmt.Errorf("la ruta del ejecutable tiene que ser relativa a la carpeta del juego, sin \"..\": %q", exe)
+	malo := i18n.Errorf("la ruta del ejecutable tiene que ser relativa a la carpeta del juego, sin \"..\": %q", exe)
 	if clean == "" || strings.HasPrefix(clean, "/") || strings.Contains(clean, ":") {
 		return "", malo
 	}
@@ -1285,7 +1358,7 @@ func (s *Server) handleSendGame(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.LocalPath == "" {
-		writeErr(w, fmt.Errorf("elige la carpeta del juego"), http.StatusBadRequest)
+		writeErr(w, i18n.Errorf("elige la carpeta del juego"), http.StatusBadRequest)
 		return
 	}
 	info, err := os.Stat(req.LocalPath)
@@ -1297,7 +1370,7 @@ func (s *Server) handleSendGame(w http.ResponseWriter, r *http.Request) {
 		req.Name = filepath.Base(req.LocalPath)
 	}
 	if req.AddShortcut && req.Exe == "" {
-		writeErr(w, fmt.Errorf("elige el ejecutable del juego para poder anadirlo a Steam"), http.StatusBadRequest)
+		writeErr(w, i18n.Errorf("elige el ejecutable del juego para poder anadirlo a Steam"), http.StatusBadRequest)
 		return
 	}
 	exeRel := ""
@@ -1402,7 +1475,7 @@ func (s *Server) handleSendROM(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.LocalPath == "" || req.System == "" {
-		writeErr(w, fmt.Errorf("elige la ROM y el sistema de destino"), http.StatusBadRequest)
+		writeErr(w, i18n.Errorf("elige la ROM y el sistema de destino"), http.StatusBadRequest)
 		return
 	}
 

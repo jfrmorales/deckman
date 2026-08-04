@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"github.com/jfrmorales/deckman/internal/i18n"
 	"os"
 	"path/filepath"
 	"strings"
@@ -51,6 +52,12 @@ type Config struct {
 	KeyPath   string `json:"keyPath,omitempty"`
 	LastLocal string `json:"lastLocal,omitempty"` // ultima carpeta usada al enviar
 	GridKey   string `json:"gridKey,omitempty"`   // clave de SteamGridDB (caratulas)
+
+	// Idioma de la interfaz: "es", "en", "fr" o "" para seguir al navegador.
+	// Vive aqui y no en el navegador porque tambien decide en que idioma
+	// traduce el servidor sus mensajes de error: si lo guardara solo el
+	// navegador, la interfaz saldria en frances y los errores en castellano.
+	Idioma string `json:"idioma,omitempty"`
 
 	// De cuando solo se podia guardar una Deck. Solo se leen, para migrar la
 	// configuracion existente a Decks; al primer Save desaparecen del fichero.
@@ -315,7 +322,7 @@ func EnsureKey() (keyPath, pubKey string, err error) {
 		}
 		signer, err := ssh.ParsePrivateKey(priv)
 		if err != nil {
-			return "", "", fmt.Errorf("la clave guardada no es valida: %w", err)
+			return "", "", i18n.Errorf("la clave guardada no es valida: %w", err)
 		}
 		text := authorizedKeyLine(signer.PublicKey())
 		os.WriteFile(pubPath, []byte(text), 0o644)

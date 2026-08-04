@@ -87,9 +87,41 @@ Cuidado al lanzar el binario en segundo plano: a veces el proceso acaba en el
 host, fuera del contenedor de distrobox, y `pkill` desde dentro no lo ve. Se
 localiza con `distrobox-host-exec ss -ltnp | grep 8777`.
 
+## Idiomas
+
+Desde la 0.5.0 la aplicación habla **castellano, inglés y francés**, y el
+castellano es **el original**: se escribe primero y hace de **clave** del
+catálogo. Nada de identificadores tipo `err.roms.delete_failed` — con ellos el
+código deja de decir lo que pasa y hay que ir al catálogo para leerlo.
+
+```go
+return i18n.Errorf("no se pudo borrar %q de %s: %w", nombre, sistema, err)
+```
+
+Dos catálogos, misma idea en los dos:
+
+- `internal/i18n/catalogo.go` — los mensajes del servidor. `i18n.Errorf`
+  sustituye a `fmt.Errorf` en todo lo que pueda acabar delante de una persona;
+  el error guarda el formato y sus argumentos **sin juntarlos**, y se traduce en
+  el borde HTTP (`writeErr`), cuando ya se sabe qué idioma quiere quien mira.
+- `internal/server/web/i18n-catalogo.js` — la interfaz. El HTML **no lleva
+  marcas**: `i18n.js` recorre el DOM y traduce cada nodo buscándolo por su
+  texto. Lo que pinta JavaScript va con `t('...', arg)`, con huecos `{0}`.
+
+Al añadir texto nuevo: escríbelo en castellano y añade las dos traducciones.
+Si falta una, sale el castellano — se entiende menos, pero nunca aparece una
+clave cruda. Hay pruebas que comprueban que los verbos de formato cuadran, que
+inglés y francés cubren lo mismo y que no quedan claves huérfanas.
+
+Si repintas la interfaz desde JavaScript, acuérdate de que `aplicarIdioma`
+tiene que volver a llamar a esa función: lo generado después del recorrido del
+DOM no lo alcanza el traductor y se queda en el idioma anterior.
+
 ## Estilo
 
-- Todo en castellano: interfaz, comentarios, mensajes de error, documentación.
+- **Comentarios y documentación interna, en castellano.** Lo que ve el usuario
+  va en los tres idiomas (arriba); el README también (`README.en.md`,
+  `README.fr.md`).
 - Los comentarios explican **por qué**, no qué. Si algo parece arbitrario, es
   que hay una trampa detrás: cuéntala y di cómo se comprobó.
 - Los mensajes de error se los lee una persona: que digan qué pasó y qué hacer.

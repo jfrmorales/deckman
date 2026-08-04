@@ -3,6 +3,7 @@ package deck
 import (
 	"context"
 	"fmt"
+	"github.com/jfrmorales/deckman/internal/i18n"
 	"net/url"
 	"path"
 	"sort"
@@ -29,13 +30,13 @@ type ROM struct {
 // perfectamente legitimas y no se tocan.
 func nombreSuelto(n string) error {
 	if strings.TrimSpace(n) == "" {
-		return fmt.Errorf("hace falta el nombre del fichero")
+		return i18n.Errorf("hace falta el nombre del fichero")
 	}
 	if strings.ContainsAny(n, "/\\") || strings.ContainsRune(n, 0) {
-		return fmt.Errorf("un nombre de ROM no puede llevar barras: %q", n)
+		return i18n.Errorf("un nombre de ROM no puede llevar barras: %q", n)
 	}
 	if n == "." || n == ".." {
-		return fmt.Errorf("nombre de ROM invalido: %q", n)
+		return i18n.Errorf("nombre de ROM invalido: %q", n)
 	}
 	return nil
 }
@@ -46,14 +47,14 @@ func nombreSuelto(n string) error {
 func (c *Client) romSystemDir(ctx context.Context, system string) (string, error) {
 	romsDir, systems := c.romSystems(ctx)
 	if romsDir == "" {
-		return "", fmt.Errorf("no se encontro la carpeta de ROMs: instala EmuDeck en la Deck o crea ~/Emulation/roms")
+		return "", i18n.Errorf("no se encontro la carpeta de ROMs: instala EmuDeck en la Deck o crea ~/Emulation/roms")
 	}
 	for _, s := range systems {
 		if s == system {
 			return path.Join(romsDir, system), nil
 		}
 	}
-	return "", fmt.Errorf("el sistema %q no existe dentro de %s", system, romsDir)
+	return "", i18n.Errorf("el sistema %q no existe dentro de %s", system, romsDir)
 }
 
 // mueblesEmuDeck son los ficheros que EmuDeck deja en TODAS las carpetas de
@@ -79,7 +80,7 @@ func (c *Client) ListROMs(ctx context.Context, system string) ([]ROM, error) {
 	}
 	entries, err := c.sftp.ReadDir(dir)
 	if err != nil {
-		return nil, fmt.Errorf("no se pudo leer %s: %w", dir, err)
+		return nil, i18n.Errorf("no se pudo leer %s: %w", dir, err)
 	}
 
 	roms := make([]ROM, 0, len(entries))
@@ -108,7 +109,7 @@ func (c *Client) DeleteROM(ctx context.Context, system, name string) error {
 		return err
 	}
 	if err := c.sftp.Remove(path.Join(dir, name)); err != nil {
-		return fmt.Errorf("no se pudo borrar %q de %s: %w", name, system, err)
+		return i18n.Errorf("no se pudo borrar %q de %s: %w", name, system, err)
 	}
 	return nil
 }
@@ -134,10 +135,10 @@ func (c *Client) RenameROM(ctx context.Context, system, oldName, newName string)
 	// sftp.Rename pisa el destino sin avisar en algunos servidores: mejor
 	// negarse que perder la otra ROM.
 	if c.Exists(destino) {
-		return fmt.Errorf("ya hay un %q en %s", newName, system)
+		return i18n.Errorf("ya hay un %q en %s", newName, system)
 	}
 	if err := c.sftp.Rename(path.Join(dir, oldName), destino); err != nil {
-		return fmt.Errorf("no se pudo renombrar %q: %w", oldName, err)
+		return i18n.Errorf("no se pudo renombrar %q: %w", oldName, err)
 	}
 	return nil
 }
@@ -148,17 +149,17 @@ func (c *Client) RenameROM(ctx context.Context, system, oldName, newName string)
 func NombreDesdeURL(rawURL string) (string, error) {
 	u, err := url.Parse(strings.TrimSpace(rawURL))
 	if err != nil {
-		return "", fmt.Errorf("esa URL no se entiende: %v", err)
+		return "", i18n.Errorf("esa URL no se entiende: %v", err)
 	}
 	// Solo http(s): un file:// o un scheme raro acabaria en la linea de
 	// ordenes de la Deck pidiendole cosas que nadie ha pedido.
 	if (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
-		return "", fmt.Errorf("la URL tiene que empezar por http:// o https://")
+		return "", i18n.Errorf("la URL tiene que empezar por http:// o https://")
 	}
 	// Una URL acabada en barra apunta a una carpeta, y path.Base devolveria el
 	// nombre de esa carpeta: curl guardaria el indice HTML con nombre de ROM.
 	if u.Path == "" || strings.HasSuffix(u.Path, "/") {
-		return "", fmt.Errorf("esa URL no apunta a un fichero; pon el enlace directo a la ROM")
+		return "", i18n.Errorf("esa URL no apunta a un fichero; pon el enlace directo a la ROM")
 	}
 	nombre := path.Base(u.Path)
 	// El nombre viaja escapado en la URL (%20, %5B...); en el disco va tal cual.
@@ -166,7 +167,7 @@ func NombreDesdeURL(rawURL string) (string, error) {
 		nombre = suelto
 	}
 	if err := nombreSuelto(nombre); err != nil {
-		return "", fmt.Errorf("de esa URL no sale un nombre de fichero; pon el enlace directo a la ROM")
+		return "", i18n.Errorf("de esa URL no sale un nombre de fichero; pon el enlace directo a la ROM")
 	}
 	return nombre, nil
 }
@@ -185,7 +186,7 @@ func (c *Client) DownloadROM(ctx context.Context, rawURL, system string, report 
 	}
 	destino := path.Join(dir, nombre)
 	if c.Exists(destino) {
-		return fmt.Errorf("ya hay un %q en %s: borralo antes o cambiale el nombre", nombre, system)
+		return i18n.Errorf("ya hay un %q en %s: borralo antes o cambiale el nombre", nombre, system)
 	}
 	if report != nil {
 		report(Progress{Phase: "descargando en la Deck", File: nombre, Message: "la descarga la hace la Deck; aqui no hay barra de avance"})
@@ -210,9 +211,9 @@ func (c *Client) DownloadROM(ctx context.Context, rawURL, system string, report 
 	out, err := c.Run(ctx, cmd)
 	if err != nil {
 		if detalle := strings.TrimSpace(out); detalle != "" {
-			return fmt.Errorf("no se pudo descargar %q: %s", nombre, detalle)
+			return i18n.Errorf("no se pudo descargar %q: %s", nombre, detalle)
 		}
-		return fmt.Errorf("no se pudo descargar %q: comprueba el enlace y que la Deck tenga internet", nombre)
+		return i18n.Errorf("no se pudo descargar %q: comprueba el enlace y que la Deck tenga internet", nombre)
 	}
 	if report != nil {
 		report(Progress{Phase: "listo", File: nombre, Done: true})

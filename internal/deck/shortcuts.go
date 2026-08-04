@@ -3,7 +3,7 @@ package deck
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
+	"github.com/jfrmorales/deckman/internal/i18n"
 	"hash/crc32"
 	"strconv"
 	"strings"
@@ -59,7 +59,7 @@ func ParseShortcuts(data []byte) (*ShortcutsFile, error) {
 		return nil, err
 	}
 	if t != binMap {
-		return nil, fmt.Errorf("shortcuts.vdf: se esperaba un mapa en la raiz, encontrado 0x%02x", t)
+		return nil, i18n.Errorf("shortcuts.vdf: se esperaba un mapa en la raiz, encontrado 0x%02x", t)
 	}
 	if _, err := r.readCString(); err != nil { // nombre de la raiz ("shortcuts")
 		return nil, err
@@ -73,7 +73,7 @@ func ParseShortcuts(data []byte) (*ShortcutsFile, error) {
 			break
 		}
 		if t != binMap {
-			return nil, fmt.Errorf("shortcuts.vdf: entrada de tipo inesperado 0x%02x", t)
+			return nil, i18n.Errorf("shortcuts.vdf: entrada de tipo inesperado 0x%02x", t)
 		}
 		if _, err := r.readCString(); err != nil { // indice "0", "1", ...
 			return nil, err
@@ -94,7 +94,7 @@ type binReader struct {
 
 func (r *binReader) readByte() (byte, error) {
 	if r.pos >= len(r.data) {
-		return 0, fmt.Errorf("shortcuts.vdf: fin de fichero inesperado")
+		return 0, i18n.Errorf("shortcuts.vdf: fin de fichero inesperado")
 	}
 	b := r.data[r.pos]
 	r.pos++
@@ -104,7 +104,7 @@ func (r *binReader) readByte() (byte, error) {
 func (r *binReader) readCString() (string, error) {
 	i := bytes.IndexByte(r.data[r.pos:], 0)
 	if i < 0 {
-		return "", fmt.Errorf("shortcuts.vdf: cadena sin terminador NUL")
+		return "", i18n.Errorf("shortcuts.vdf: cadena sin terminador NUL")
 	}
 	s := string(r.data[r.pos : r.pos+i])
 	r.pos += i + 1
@@ -113,7 +113,7 @@ func (r *binReader) readCString() (string, error) {
 
 func (r *binReader) readInt32() (int32, error) {
 	if r.pos+4 > len(r.data) {
-		return 0, fmt.Errorf("shortcuts.vdf: entero truncado")
+		return 0, i18n.Errorf("shortcuts.vdf: entero truncado")
 	}
 	v := int32(binary.LittleEndian.Uint32(r.data[r.pos : r.pos+4]))
 	r.pos += 4
@@ -150,7 +150,7 @@ func (r *binReader) readFields() ([]*ShortcutField, error) {
 				return nil, err
 			}
 		default:
-			return nil, fmt.Errorf("shortcuts.vdf: tipo de campo desconocido 0x%02x en %q", t, key)
+			return nil, i18n.Errorf("shortcuts.vdf: tipo de campo desconocido 0x%02x en %q", t, key)
 		}
 		out = append(out, f)
 	}

@@ -36,6 +36,15 @@
       <span id="status">sin conexión</span>
     </span>
     <button id="btnChange" class="ghost hidden" title="Conectar con otra Deck">Cambiar</button>
+    <!-- El idioma se guarda en la configuración de deckman, no en el
+         navegador: también decide en qué idioma habla el servidor al dar un
+         error. Ver internal/i18n. -->
+    <select id="idioma" class="idioma" title="Idioma / Language / Langue">
+      <option value="">Auto</option>
+      <option value="es">Español</option>
+      <option value="en">English</option>
+      <option value="fr">Français</option>
+    </select>
     <button id="btnQuit" title="Cerrar deckman (apaga el servidor local)">Salir</button>
   </div>
 </header>
@@ -500,6 +509,10 @@
   </div>
 </div>
 
+<!-- El catálogo antes que la máquina, y las dos antes que app.js: i18n.js usa
+     CATALOGO al arrancar y app.js llama a t() desde el primer momento. -->
+<script src="i18n-catalogo.js"></script>
+<script src="i18n.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

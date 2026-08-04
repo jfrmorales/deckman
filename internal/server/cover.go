@@ -1,7 +1,7 @@
 package server
 
 import (
-	"fmt"
+	"github.com/jfrmorales/deckman/internal/i18n"
 	"net/http"
 	"strings"
 	"sync"
@@ -117,7 +117,7 @@ func (s *coverStore) drop(appID string) {
 func (s *Server) handleCover(w http.ResponseWriter, r *http.Request) {
 	appID := r.URL.Query().Get("appId")
 	if appID == "" || len(appID) > 10 || strings.Trim(appID, "0123456789") != "" {
-		writeErr(w, fmt.Errorf("appId invalido"), http.StatusBadRequest)
+		writeErr(w, i18n.Errorf("appId invalido"), http.StatusBadRequest)
 		return
 	}
 
@@ -147,23 +147,23 @@ func (s *Server) handleCover(w http.ResponseWriter, r *http.Request) {
 		s.covers.buildMu.Unlock()
 	}
 	if !ok {
-		writeErr(w, fmt.Errorf("ese juego no tiene portada"), http.StatusNotFound)
+		writeErr(w, i18n.Errorf("ese juego no tiene portada"), http.StatusNotFound)
 		return
 	}
 
 	fi, err := c.SFTP().Stat(p)
 	if err != nil {
-		writeErr(w, fmt.Errorf("no se pudo leer la portada: %w", err), http.StatusBadGateway)
+		writeErr(w, i18n.Errorf("no se pudo leer la portada: %w", err), http.StatusBadGateway)
 		return
 	}
 	if fi.Size() > maxCoverBytes {
 		s.logf("portada %s descartada: pesa %d bytes", p, fi.Size())
-		writeErr(w, fmt.Errorf("la portada pesa demasiado para la miniatura"), http.StatusNotFound)
+		writeErr(w, i18n.Errorf("la portada pesa demasiado para la miniatura"), http.StatusNotFound)
 		return
 	}
 	data, err := c.ReadFile(p)
 	if err != nil {
-		writeErr(w, fmt.Errorf("no se pudo leer la portada: %w", err), http.StatusBadGateway)
+		writeErr(w, i18n.Errorf("no se pudo leer la portada: %w", err), http.StatusBadGateway)
 		return
 	}
 

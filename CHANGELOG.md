@@ -13,6 +13,25 @@ bloque `<releases>` del metainfo. Los tres los sincroniza `scripts/release.sh`.
      versión nueva al publicar. Secciones: Añadido, Cambiado, Corregido,
      Eliminado. -->
 
+### Añadido
+
+- **deckman habla castellano, inglés y francés.** Por defecto sigue al idioma
+  del navegador; hay un selector en la barra superior y la elección se guarda.
+  No es solo la interfaz: **los mensajes de error del servidor también se
+  traducen**, así que no se mezcla una pantalla en francés con un fallo en
+  castellano.
+
+  La clave del catálogo es **el texto en castellano**, no un identificador
+  inventado: el código sigue diciendo lo que pasa sin ir a buscarlo a otro
+  fichero. Si falta una traducción sale el castellano, nunca una clave cruda.
+
+  Traducidos los 163 mensajes del servidor y las ~260 cadenas de la interfaz.
+  Añadir un idioma es añadir un bloque a
+  `internal/i18n/catalogo.go` y otro a
+  `internal/server/web/i18n-catalogo.js`; las contribuciones son bienvenidas.
+- **README en inglés y francés** (`README.en.md`, `README.fr.md`), enlazados
+  entre sí desde la cabecera de los tres.
+
 ## [0.4.3] — 2026-08-04
 
 ### Corregido

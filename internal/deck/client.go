@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/jfrmorales/deckman/internal/i18n"
 	"io"
 	"net"
 	"net/http"
@@ -103,11 +104,11 @@ func Connect(ctx context.Context, c Credentials) (*Client, error) {
 	if c.KeyPath != "" {
 		key, err := os.ReadFile(c.KeyPath)
 		if err != nil {
-			return nil, fmt.Errorf("no se pudo leer la clave %s: %w", c.KeyPath, err)
+			return nil, i18n.Errorf("no se pudo leer la clave %s: %w", c.KeyPath, err)
 		}
 		signer, err := ssh.ParsePrivateKey(key)
 		if err != nil {
-			return nil, fmt.Errorf("clave privada invalida: %w", err)
+			return nil, i18n.Errorf("clave privada invalida: %w", err)
 		}
 		auths = append(auths, ssh.PublicKeys(signer))
 	}
@@ -122,7 +123,7 @@ func Connect(ctx context.Context, c Credentials) (*Client, error) {
 			}))
 	}
 	if len(auths) == 0 {
-		return nil, fmt.Errorf("hay que indicar contrasena o clave privada")
+		return nil, i18n.Errorf("hay que indicar contrasena o clave privada")
 	}
 
 	cfg := &ssh.ClientConfig{
@@ -136,12 +137,12 @@ func Connect(ctx context.Context, c Credentials) (*Client, error) {
 	d := net.Dialer{Timeout: 12 * time.Second}
 	conn, err := d.DialContext(ctx, "tcp", addr)
 	if err != nil {
-		return nil, fmt.Errorf("no se puede alcanzar %s: %w", addr, err)
+		return nil, i18n.Errorf("no se puede alcanzar %s: %w", addr, err)
 	}
 	sc, chans, reqs, err := ssh.NewClientConn(conn, addr, cfg)
 	if err != nil {
 		conn.Close()
-		return nil, fmt.Errorf("fallo de autenticacion contra %s: %w", addr, err)
+		return nil, i18n.Errorf("fallo de autenticacion contra %s: %w", addr, err)
 	}
 	client := &Client{ssh: ssh.NewClient(sc, chans, reqs), Host: c.Host, User: c.User, cache: &remoteCache{}}
 	client.cefHTTP = newCEFClient(client.ssh)
@@ -153,7 +154,7 @@ func Connect(ctx context.Context, c Credentials) (*Client, error) {
 	client.sftp, err = sftp.NewClient(client.ssh, sftp.UseConcurrentWrites(true))
 	if err != nil {
 		client.ssh.Close()
-		return nil, fmt.Errorf("no se pudo abrir SFTP: %w", err)
+		return nil, i18n.Errorf("no se pudo abrir SFTP: %w", err)
 	}
 
 	// Keepalive: deckman se queda abierto y una conexion parada un rato la
@@ -229,7 +230,7 @@ func (c *Client) RunFull(ctx context.Context, cmd string) (string, string, error
 			if msg == "" {
 				msg = err.Error()
 			}
-			return stdout.String(), stderr.String(), fmt.Errorf("%s", msg)
+			return stdout.String(), stderr.String(), i18n.Errorf("%s", msg)
 		}
 		return stdout.String(), stderr.String(), nil
 	}
@@ -280,7 +281,7 @@ func (c *Client) RunStream(ctx context.Context, cmd string, onLine func(string))
 		wg.Wait()
 		if err != nil {
 			if msg := strings.TrimSpace(errText.String()); msg != "" {
-				return fmt.Errorf("%s", msg)
+				return i18n.Errorf("%s", msg)
 			}
 			return err
 		}
@@ -348,7 +349,7 @@ func (c *Client) WriteFileAtomic(p string, data []byte) error {
 		bak := p + ".deckman.bak"
 		c.sftp.Remove(bak)
 		if err := c.copyRemote(p, bak); err != nil {
-			return fmt.Errorf("no se pudo respaldar %s: %w", p, err)
+			return i18n.Errorf("no se pudo respaldar %s: %w", p, err)
 		}
 	}
 
@@ -373,10 +374,10 @@ func (c *Client) WriteFileAtomic(p string, data []byte) error {
 	if err := c.sftp.PosixRename(tmp, p); err != nil {
 		if rmErr := c.sftp.Remove(p); rmErr != nil && !os.IsNotExist(rmErr) {
 			c.sftp.Remove(tmp)
-			return fmt.Errorf("no se pudo reemplazar %s: %w", p, err)
+			return i18n.Errorf("no se pudo reemplazar %s: %w", p, err)
 		}
 		if err2 := c.sftp.Rename(tmp, p); err2 != nil {
-			return fmt.Errorf("no se pudo reemplazar %s: %w", p, err2)
+			return i18n.Errorf("no se pudo reemplazar %s: %w", p, err2)
 		}
 	}
 	return nil
@@ -419,7 +420,7 @@ func (c *Client) SteamRunning(ctx context.Context) bool {
 func (c *Client) InstallPublicKey(ctx context.Context, pubKey string) error {
 	pubKey = strings.TrimSpace(pubKey)
 	if pubKey == "" {
-		return fmt.Errorf("clave publica vacia")
+		return i18n.Errorf("clave publica vacia")
 	}
 	dir := path.Join(c.Home, ".ssh")
 	if err := c.sftp.MkdirAll(dir); err != nil {
@@ -437,10 +438,10 @@ func (c *Client) InstallPublicKey(ctx context.Context, pubKey string) error {
 	if _, err := c.sftp.Stat(authPath); err == nil {
 		existing, err = c.ReadFile(authPath)
 		if err != nil {
-			return fmt.Errorf("no se pudo leer %s en la Deck; no lo toco para no borrar tus otras claves: %w", authPath, err)
+			return i18n.Errorf("no se pudo leer %s en la Deck; no lo toco para no borrar tus otras claves: %w", authPath, err)
 		}
 	} else if !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("no se pudo comprobar %s en la Deck; no lo toco para no borrar tus otras claves: %w", authPath, err)
+		return i18n.Errorf("no se pudo comprobar %s en la Deck; no lo toco para no borrar tus otras claves: %w", authPath, err)
 	}
 
 	if bytes.Contains(existing, []byte(pubKey)) {
@@ -454,7 +455,7 @@ func (c *Client) InstallPublicKey(ctx context.Context, pubKey string) error {
 	// Atomico y con copia: authorized_keys es lo unico que separa al usuario de
 	// tener que volver a entrar con contrasena.
 	if err := c.WriteFileAtomic(authPath, existing); err != nil {
-		return fmt.Errorf("no se pudo escribir %s: %w", authPath, err)
+		return i18n.Errorf("no se pudo escribir %s: %w", authPath, err)
 	}
 	return c.sftp.Chmod(authPath, 0o600)
 }
@@ -474,7 +475,7 @@ func (c *Client) InstallPublicKey(ctx context.Context, pubKey string) error {
 func (c *Client) RemovePublicKey(ctx context.Context, pubKey string) (int, error) {
 	campos := strings.Fields(strings.TrimSpace(pubKey))
 	if len(campos) < 2 {
-		return 0, fmt.Errorf("clave publica invalida: %q", pubKey)
+		return 0, i18n.Errorf("clave publica invalida: %q", pubKey)
 	}
 	material := []byte(campos[1])
 
@@ -487,11 +488,11 @@ func (c *Client) RemovePublicKey(ctx context.Context, pubKey string) (int, error
 		if errors.Is(err, os.ErrNotExist) {
 			return 0, nil
 		}
-		return 0, fmt.Errorf("no se pudo comprobar %s en la Deck; no lo toco para no borrar tus otras claves: %w", authPath, err)
+		return 0, i18n.Errorf("no se pudo comprobar %s en la Deck; no lo toco para no borrar tus otras claves: %w", authPath, err)
 	}
 	existing, err := c.ReadFile(authPath)
 	if err != nil {
-		return 0, fmt.Errorf("no se pudo leer %s en la Deck; no lo toco para no borrar tus otras claves: %w", authPath, err)
+		return 0, i18n.Errorf("no se pudo leer %s en la Deck; no lo toco para no borrar tus otras claves: %w", authPath, err)
 	}
 
 	nuevo, quitadas := stripKeyLines(existing, material)
@@ -500,7 +501,7 @@ func (c *Client) RemovePublicKey(ctx context.Context, pubKey string) (int, error
 	}
 
 	if err := c.WriteFileAtomic(authPath, nuevo); err != nil {
-		return 0, fmt.Errorf("no se pudo escribir %s: %w", authPath, err)
+		return 0, i18n.Errorf("no se pudo escribir %s: %w", authPath, err)
 	}
 	if err := c.sftp.Chmod(authPath, 0o600); err != nil {
 		return quitadas, err

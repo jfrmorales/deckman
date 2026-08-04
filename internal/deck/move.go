@@ -3,6 +3,7 @@ package deck
 import (
 	"context"
 	"fmt"
+	"github.com/jfrmorales/deckman/internal/i18n"
 	"path"
 	"strconv"
 	"strings"
@@ -42,7 +43,7 @@ func (c *Client) MoveGame(ctx context.Context, inv *Inventory, appID, targetLibP
 		}
 	}
 	if game == nil {
-		return fmt.Errorf("no se encontro el juego con id %s", appID)
+		return i18n.Errorf("no se encontro el juego con id %s", appID)
 	}
 
 	var target *Library
@@ -53,10 +54,10 @@ func (c *Client) MoveGame(ctx context.Context, inv *Inventory, appID, targetLibP
 		}
 	}
 	if target == nil {
-		return fmt.Errorf("la unidad de destino %s no esta registrada en Steam", targetLibPath)
+		return i18n.Errorf("la unidad de destino %s no esta registrada en Steam", targetLibPath)
 	}
 	if game.LibraryPath == targetLibPath {
-		return fmt.Errorf("%s ya esta en %s", game.Name, target.Label)
+		return i18n.Errorf("%s ya esta en %s", game.Name, target.Label)
 	}
 
 	if game.Kind == "nonsteam" {
@@ -76,12 +77,12 @@ func (c *Client) moveSteamGame(ctx context.Context, game *Game, target *Library,
 	targetLibPath := target.Path
 
 	if c.SteamRunning(ctx) {
-		return fmt.Errorf("Steam esta abierto en la Deck: cierralo antes de mover un juego, o deshara el cambio al salir")
+		return i18n.Errorf("Steam esta abierto en la Deck: cierralo antes de mover un juego, o deshara el cambio al salir")
 	}
 
 	needed := game.Size + game.CompatSize + game.ShaderSize
 	if target.Free > 0 && needed > 0 && needed+512<<20 > target.Free {
-		return fmt.Errorf("no cabe: %s ocupa %s y en %s quedan %s",
+		return i18n.Errorf("no cabe: %s ocupa %s y en %s quedan %s",
 			game.Name, humanBytes(needed), target.Label, humanBytes(target.Free))
 	}
 
@@ -94,7 +95,7 @@ func (c *Client) moveSteamGame(ctx context.Context, game *Game, target *Library,
 		path.Join(dstApps, "shadercache"),
 	} {
 		if err := c.MkdirAll(d); err != nil {
-			return fmt.Errorf("no se pudo preparar %s: %w", d, err)
+			return i18n.Errorf("no se pudo preparar %s: %w", d, err)
 		}
 	}
 
@@ -132,7 +133,7 @@ func (c *Client) moveSteamGame(ctx context.Context, game *Game, target *Library,
 
 		report(Progress{Phase: "borrando el original de " + p.label, BytesDone: base + p.size, BytesTotal: needed})
 		if _, err := c.Run(ctx, fmt.Sprintf("rm -rf %s", ShellQuote(p.src))); err != nil {
-			return fmt.Errorf("copiado, pero no se pudo borrar el original %s: %w", p.src, err)
+			return i18n.Errorf("copiado, pero no se pudo borrar el original %s: %w", p.src, err)
 		}
 		movedBytes += p.size
 	}
@@ -142,15 +143,15 @@ func (c *Client) moveSteamGame(ctx context.Context, game *Game, target *Library,
 	acf := "appmanifest_" + appID + ".acf"
 	manifest, err := c.ReadFile(path.Join(srcApps, acf))
 	if err != nil {
-		return fmt.Errorf("no se pudo leer %s: %w", acf, err)
+		return i18n.Errorf("no se pudo leer %s: %w", acf, err)
 	}
 	if err := c.WriteFileAtomic(path.Join(dstApps, acf), manifest); err != nil {
-		return fmt.Errorf("no se pudo escribir el manifiesto en el destino: %w", err)
+		return i18n.Errorf("no se pudo escribir el manifiesto en el destino: %w", err)
 	}
 	if _, err := c.Run(ctx, fmt.Sprintf("rm -f %s %s",
 		ShellQuote(path.Join(srcApps, acf)),
 		ShellQuote(path.Join(dstApps, acf+".deckman.bak")))); err != nil {
-		return fmt.Errorf("no se pudo retirar el manifiesto original: %w", err)
+		return i18n.Errorf("no se pudo retirar el manifiesto original: %w", err)
 	}
 
 	report(Progress{
@@ -180,7 +181,7 @@ func (c *Client) copyVerified(ctx context.Context, src, dstDir, label string, ba
 		}
 	})
 	if err != nil {
-		return fmt.Errorf("fallo copiando %s: %w", label, err)
+		return i18n.Errorf("fallo copiando %s: %w", label, err)
 	}
 
 	// Verificamos tamano antes de que nadie borre el origen. Si no cuadra,
@@ -194,11 +195,11 @@ func (c *Client) copyVerified(ctx context.Context, src, dstDir, label string, ba
 		if err == nil {
 			err = err2
 		}
-		return fmt.Errorf("no pude verificar la copia de %s; no borro nada, revisa %s a mano: %w",
+		return i18n.Errorf("no pude verificar la copia de %s; no borro nada, revisa %s a mano: %w",
 			label, dstDir, err)
 	}
 	if srcSize != dstSize {
-		return fmt.Errorf("la copia de %s no coincide (origen %s, destino %s); no borro nada",
+		return i18n.Errorf("la copia de %s no coincide (origen %s, destino %s); no borro nada",
 			label, humanBytes(srcSize), humanBytes(dstSize))
 	}
 	return nil
@@ -223,7 +224,7 @@ func (c *Client) moveNonSteamGame(ctx context.Context, game *Game, target *Libra
 	// tirados y el juego roto. GameRoot solo esta cuando el juego cuelga de un
 	// Games conocido, que es justo cuando sabemos donde empieza y donde acaba.
 	if game.GameRoot == "" {
-		return fmt.Errorf("no se sabe que carpeta es exactamente %s: solo se pueden mover los juegos que estan "+
+		return i18n.Errorf("no se sabe que carpeta es exactamente %s: solo se pueden mover los juegos que estan "+
 			"en una carpeta Games (los que envia deckman). El acceso directo apunta a %s", game.Name, game.StartDir)
 	}
 	src := path.Clean(game.GameRoot)
@@ -234,11 +235,11 @@ func (c *Client) moveNonSteamGame(ctx context.Context, game *Game, target *Libra
 	// un emulador que vive fuera): ahi mover la carpeta no arregla nada y
 	// reescribir el Exe lo romperia.
 	if exe == "" || exe == "." || !withinDir(src, exe) {
-		return fmt.Errorf("%s se lanza desde fuera de su carpeta (%s), asi que moverlo no serviria de nada",
+		return i18n.Errorf("%s se lanza desde fuera de su carpeta (%s), asi que moverlo no serviria de nada",
 			game.Name, game.Exe)
 	}
 	if !c.safeToDelete(src) {
-		return fmt.Errorf("me niego a mover %s: no parece la carpeta de un juego", src)
+		return i18n.Errorf("me niego a mover %s: no parece la carpeta de un juego", src)
 	}
 
 	dstDir := target.GamesDir
@@ -246,16 +247,16 @@ func (c *Client) moveNonSteamGame(ctx context.Context, game *Game, target *Libra
 		dstDir = c.gamesDirFor(*target)
 	}
 	if path.Dir(src) == path.Clean(dstDir) {
-		return fmt.Errorf("%s ya esta en %s", game.Name, dstDir)
+		return i18n.Errorf("%s ya esta en %s", game.Name, dstDir)
 	}
 	dst := path.Join(dstDir, path.Base(src))
 	if c.Exists(dst) {
-		return fmt.Errorf("en el destino ya hay una carpeta %s; muevela o borrala antes", dst)
+		return i18n.Errorf("en el destino ya hay una carpeta %s; muevela o borrala antes", dst)
 	}
 
 	needed := game.Size
 	if target.Free > 0 && needed > 0 && needed+512<<20 > target.Free {
-		return fmt.Errorf("no cabe: %s ocupa %s y en %s quedan %s",
+		return i18n.Errorf("no cabe: %s ocupa %s y en %s quedan %s",
 			game.Name, humanBytes(needed), target.Label, humanBytes(target.Free))
 	}
 
@@ -266,7 +267,7 @@ func (c *Client) moveNonSteamGame(ctx context.Context, game *Game, target *Libra
 	// que quedarse con el juego movido y el acceso directo apuntando al vacio.
 	appID64, err := strconv.ParseUint(game.AppID, 10, 32)
 	if err != nil {
-		return fmt.Errorf("id de acceso directo invalido: %s", game.AppID)
+		return i18n.Errorf("id de acceso directo invalido: %s", game.AppID)
 	}
 	appID := uint32(appID64)
 	// pgrep fresco, no el del inventario: la foto puede venir de una cache del
@@ -275,14 +276,14 @@ func (c *Client) moveNonSteamGame(ctx context.Context, game *Game, target *Libra
 	// abierto, que ya borro seis juegos una vez.
 	enCaliente := c.SteamRunning(ctx)
 	if enCaliente && !c.CEFAvailable(ctx) {
-		return fmt.Errorf(
+		return i18n.Errorf(
 			"Steam esta abierto pero no responde: cierralo en la Deck y vuelve a intentarlo, " +
 				"o reinicialo y espera a que cargue del todo. Cambiar la ruta del juego con Steam " +
 				"abierto le haria perder los accesos directos que ya tienes")
 	}
 
 	if err := c.MkdirAll(dstDir); err != nil {
-		return fmt.Errorf("no se pudo preparar %s: %w", dstDir, err)
+		return i18n.Errorf("no se pudo preparar %s: %w", dstDir, err)
 	}
 	if err := c.copyVerified(ctx, src, dstDir, "juego", 0, needed, report); err != nil {
 		return err
@@ -298,15 +299,15 @@ func (c *Client) moveNonSteamGame(ctx context.Context, game *Game, target *Libra
 	newStartDir := dst + strings.TrimPrefix(path.Clean(game.StartDir), src)
 	if enCaliente {
 		if err := c.SetShortcutPathLive(ctx, appID, newExe, newStartDir); err != nil {
-			return fmt.Errorf("copiado a %s, pero Steam no acepto la ruta nueva; borra esa copia y vuelve a intentarlo: %w", dst, err)
+			return i18n.Errorf("copiado a %s, pero Steam no acepto la ruta nueva; borra esa copia y vuelve a intentarlo: %w", dst, err)
 		}
 	} else if err := c.RelocateShortcut(ctx, appID, src, dst); err != nil {
-		return fmt.Errorf("copiado a %s, pero no se pudo actualizar el acceso directo; borra esa copia y vuelve a intentarlo: %w", dst, err)
+		return i18n.Errorf("copiado a %s, pero no se pudo actualizar el acceso directo; borra esa copia y vuelve a intentarlo: %w", dst, err)
 	}
 
 	report(Progress{Phase: "borrando el original", BytesDone: needed, BytesTotal: needed})
 	if _, err := c.Run(ctx, fmt.Sprintf("rm -rf %s", ShellQuote(src))); err != nil {
-		return fmt.Errorf("%s ya esta en %s y el acceso directo apunta alli, pero no se pudo borrar la copia vieja de %s: %w",
+		return i18n.Errorf("%s ya esta en %s y el acceso directo apunta alli, pero no se pudo borrar la copia vieja de %s: %w",
 			game.Name, dst, src, err)
 	}
 
@@ -382,14 +383,14 @@ func (c *Client) Delete(ctx context.Context, inv *Inventory, appID string, t Del
 		}
 	}
 	if game == nil {
-		return 0, fmt.Errorf("no se encontro el juego con id %s", appID)
+		return 0, i18n.Errorf("no se encontro el juego con id %s", appID)
 	}
 	// Un solo pgrep para toda la operacion, y fresco a proposito (nunca el del
 	// inventario, que puede venir de una foto): de esto depende que no se toque
 	// shortcuts.vdf con Steam abierto.
 	steamCorriendo := c.SteamRunning(ctx)
 	if t.Game && game.Kind == "steam" && steamCorriendo {
-		return 0, fmt.Errorf("Steam esta abierto: cierralo antes de desinstalar, o volvera a escribir el manifiesto")
+		return 0, i18n.Errorf("Steam esta abierto: cierralo antes de desinstalar, o volvera a escribir el manifiesto")
 	}
 
 	// Quitar el acceso directo toca shortcuts.vdf, que con Steam abierto NO se
@@ -405,12 +406,12 @@ func (c *Client) Delete(ctx context.Context, inv *Inventory, appID string, t Del
 	if t.Shortcut && game.Kind == "nonsteam" {
 		id, err := strconv.ParseUint(appID, 10, 32)
 		if err != nil {
-			return 0, fmt.Errorf("id de acceso directo invalido: %s", appID)
+			return 0, i18n.Errorf("id de acceso directo invalido: %s", appID)
 		}
 		shortcutID = uint32(id)
 		if steamCorriendo {
 			if !c.CEFAvailable(ctx) {
-				return 0, fmt.Errorf(
+				return 0, i18n.Errorf(
 					"Steam esta abierto pero no responde: cierralo en la Deck y vuelve a intentarlo, " +
 						"o reinicialo y espera a que cargue del todo. Quitar el acceso directo con Steam " +
 						"abierto le haria perder los que ya tienes")
@@ -436,10 +437,10 @@ func (c *Client) Delete(ctx context.Context, inv *Inventory, appID string, t Del
 			// promete coinciden.
 			dir := nonSteamDir(game)
 			if dir == "" {
-				return 0, fmt.Errorf("el acceso directo no apunta a ninguna carpeta; borra los ficheros a mano")
+				return 0, i18n.Errorf("el acceso directo no apunta a ninguna carpeta; borra los ficheros a mano")
 			}
 			if !c.safeToDelete(dir) {
-				return 0, fmt.Errorf("me niego a borrar %s: no parece una carpeta de juego", dir)
+				return 0, i18n.Errorf("me niego a borrar %s: no parece una carpeta de juego", dir)
 			}
 			paths = append(paths, dir)
 		}
@@ -471,7 +472,7 @@ func (c *Client) Delete(ctx context.Context, inv *Inventory, appID string, t Del
 	if t.Shortcut && game.Kind == "nonsteam" {
 		if quitarEnCaliente {
 			if err := c.RemoveShortcutLive(ctx, shortcutID); err != nil {
-				return freed, fmt.Errorf("no se pudo quitar el acceso directo a traves de Steam: %w", err)
+				return freed, i18n.Errorf("no se pudo quitar el acceso directo a traves de Steam: %w", err)
 			}
 			// El mapeo de Proton huerfano se queda: limpiarlo obligaria a
 			// escribir config.vdf, y con Steam abierto eso tambien se pierde al
@@ -520,7 +521,7 @@ func (c *Client) safeToDelete(p string) bool {
 // Devuelve una descripcion de lo que ha hecho, para poder decirselo al usuario.
 func (c *Client) RestartSteam(ctx context.Context) (string, error) {
 	if !c.SteamRunning(ctx) {
-		return "", fmt.Errorf("Steam no parece estar arrancado en la Deck")
+		return "", i18n.Errorf("Steam no parece estar arrancado en la Deck")
 	}
 
 	state, _ := c.Run(ctx, "systemctl --user is-active steam-launcher.service 2>/dev/null || true")
@@ -529,14 +530,14 @@ func (c *Client) RestartSteam(ctx context.Context) (string, error) {
 		runCtx, cancel := context.WithTimeout(ctx, 90*time.Second)
 		defer cancel()
 		if _, err := c.Run(runCtx, "systemctl --user restart steam-launcher.service"); err != nil {
-			return "", fmt.Errorf("no se pudo reiniciar el servicio de Steam: %w", err)
+			return "", i18n.Errorf("no se pudo reiniciar el servicio de Steam: %w", err)
 		}
 		return "Steam reiniciado en modo juego. Tarda unos segundos en volver a aparecer.", nil
 	}
 
 	// Modo escritorio: lo cerramos y lo tiene que abrir el usuario.
 	if _, err := c.Run(ctx, "steam -shutdown"); err != nil {
-		return "", fmt.Errorf("no se pudo cerrar Steam: %w", err)
+		return "", i18n.Errorf("no se pudo cerrar Steam: %w", err)
 	}
 	return "Steam cerrado. En modo escritorio hay que volver a abrirlo a mano desde la Deck.", nil
 }

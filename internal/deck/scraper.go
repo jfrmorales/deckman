@@ -3,6 +3,7 @@ package deck
 import (
 	"context"
 	"fmt"
+	"github.com/jfrmorales/deckman/internal/i18n"
 	"io"
 	"net/http"
 	"net/url"
@@ -135,7 +136,7 @@ func SistemaScrapeable(system string) bool {
 func (c *Client) mediaDirDe(ctx context.Context, system string) (string, error) {
 	romsDir, _ := c.romSystems(ctx)
 	if romsDir == "" {
-		return "", fmt.Errorf("no se encontro la carpeta de ROMs")
+		return "", i18n.Errorf("no se encontro la carpeta de ROMs")
 	}
 	// EmuDeck deja <sistema>/media como enlace a tools/downloaded_media/<sistema>.
 	// Seguir el enlace es mas fiable que rehacer la ruta a mano: si la
@@ -177,7 +178,7 @@ func (c *Client) ScrapeSystem(ctx context.Context, system string, rehacer bool, 
 	carpeta, ok := libretroSistemas[system]
 	if !ok {
 		res.SinSoporte = true
-		return res, fmt.Errorf("no se buscan caratulas de %q: libretro no tiene ese sistema", system)
+		return res, i18n.Errorf("no se buscan caratulas de %q: libretro no tiene ese sistema", system)
 	}
 
 	roms, err := c.ListROMs(ctx, system)
@@ -204,7 +205,7 @@ func (c *Client) ScrapeSystem(ctx context.Context, system string, rehacer bool, 
 	sort.Strings(juegos)
 	res.Juegos = len(juegos)
 	if len(juegos) == 0 {
-		return res, fmt.Errorf("no hay ROMs que scrapear en %s", system)
+		return res, i18n.Errorf("no hay ROMs que scrapear en %s", system)
 	}
 
 	mediaDir, err := c.mediaDirDe(ctx, system)
@@ -214,7 +215,7 @@ func (c *Client) ScrapeSystem(ctx context.Context, system string, rehacer bool, 
 	res.MediaDir = mediaDir
 	for _, m := range mediosLibretro {
 		if err := c.MkdirAll(path.Join(mediaDir, m.esde)); err != nil {
-			return res, fmt.Errorf("no se pudo crear %s: %w", path.Join(mediaDir, m.esde), err)
+			return res, i18n.Errorf("no se pudo crear %s: %w", path.Join(mediaDir, m.esde), err)
 		}
 	}
 
@@ -296,7 +297,7 @@ func (c *Client) ScrapeSystem(ctx context.Context, system string, rehacer bool, 
 	// Un fallo de red suelto no invalida el resto: se avisa solo si no se
 	// consiguio nada, que es cuando el usuario tiene algo que arreglar.
 	if res.Imagenes == 0 && res.Saltados == 0 && primeraE != nil {
-		return res, fmt.Errorf("no se pudo bajar ninguna caratula: %w", primeraE)
+		return res, i18n.Errorf("no se pudo bajar ninguna caratula: %w", primeraE)
 	}
 	if report != nil {
 		report(Progress{Phase: "listo", FilesDone: hechos, FilesTotal: len(juegos), Done: true})
@@ -306,7 +307,7 @@ func (c *Client) ScrapeSystem(ctx context.Context, system string, rehacer bool, 
 
 // errNoEncontrado: libretro no tiene ese juego. No es un fallo que arreglar,
 // es lo normal en volcados con nombre propio.
-var errNoEncontrado = fmt.Errorf("sin caratula en libretro")
+var errNoEncontrado = i18n.Errorf("sin caratula en libretro")
 
 func esNoEncontrado(err error) bool { return strings.Contains(err.Error(), errNoEncontrado.Error()) }
 
@@ -325,10 +326,10 @@ func descargarMiniatura(ctx context.Context, sistema, tipo, juego string) ([]byt
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode == http.StatusNotFound {
-		return nil, fmt.Errorf("%s: %w", juego, errNoEncontrado)
+		return nil, i18n.Errorf("%s: %w", juego, errNoEncontrado)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("libretro respondio %s al pedir %s", resp.Status, juego)
+		return nil, i18n.Errorf("libretro respondio %s al pedir %s", resp.Status, juego)
 	}
 	// 16 MiB de tope: una caratula son cientos de KB, y asi una respuesta
 	// inesperada no se come la memoria.

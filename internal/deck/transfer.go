@@ -3,6 +3,7 @@ package deck
 import (
 	"context"
 	"fmt"
+	"github.com/jfrmorales/deckman/internal/i18n"
 	"os"
 	"path"
 	"path/filepath"
@@ -47,7 +48,7 @@ const uploadConcurrency = 4
 func (c *Client) UploadTree(ctx context.Context, localPath, remoteDir string, onProgress ProgressFunc) error {
 	info, err := os.Stat(localPath)
 	if err != nil {
-		return fmt.Errorf("no se puede leer %s: %w", localPath, err)
+		return i18n.Errorf("no se puede leer %s: %w", localPath, err)
 	}
 
 	report := throttle(onProgress)
@@ -81,7 +82,7 @@ func (c *Client) UploadTree(ctx context.Context, localPath, remoteDir string, on
 			return nil
 		})
 		if err != nil {
-			return fmt.Errorf("error recorriendo %s: %w", localPath, err)
+			return i18n.Errorf("error recorriendo %s: %w", localPath, err)
 		}
 		remoteDir = path.Join(remoteDir, filepath.Base(base))
 	} else {
@@ -90,7 +91,7 @@ func (c *Client) UploadTree(ctx context.Context, localPath, remoteDir string, on
 	}
 
 	if len(files) == 0 {
-		return fmt.Errorf("no hay ficheros que copiar en %s", localPath)
+		return i18n.Errorf("no hay ficheros que copiar en %s", localPath)
 	}
 
 	// Los mas grandes primero: reparte mejor el trabajo entre las 4 hebras.
@@ -111,7 +112,7 @@ func (c *Client) UploadTree(ctx context.Context, localPath, remoteDir string, on
 	sort.Strings(dirList)
 	for _, d := range dirList {
 		if err := c.sftp.MkdirAll(d); err != nil {
-			return fmt.Errorf("no se pudo crear %s en la Deck: %w", d, err)
+			return i18n.Errorf("no se pudo crear %s en la Deck: %w", d, err)
 		}
 	}
 
@@ -166,7 +167,7 @@ func (c *Client) UploadTree(ctx context.Context, localPath, remoteDir string, on
 					var err error
 					copied, err = c.uploadOne(ctx, f, dst)
 					if err != nil {
-						errOnce.Do(func() { firstErr = fmt.Errorf("%s: %w", f.rel, err); cancel() })
+						errOnce.Do(func() { firstErr = i18n.Errorf("%s: %w", f.rel, err); cancel() })
 						return
 					}
 				}
@@ -306,10 +307,10 @@ type NonSteamOptions struct {
 // seguir usandolo cuando Steam esta cerrado, que es cuando toca.
 func (c *Client) AddNonSteamGame(ctx context.Context, opts NonSteamOptions) (uint32, error) {
 	if opts.Name == "" {
-		return 0, fmt.Errorf("hace falta un nombre para el juego")
+		return 0, i18n.Errorf("hace falta un nombre para el juego")
 	}
 	if opts.Exe == "" {
-		return 0, fmt.Errorf("hace falta la ruta del ejecutable")
+		return 0, i18n.Errorf("hace falta la ruta del ejecutable")
 	}
 	if opts.StartDir == "" {
 		opts.StartDir = path.Dir(opts.Exe)
@@ -325,7 +326,7 @@ func (c *Client) AddNonSteamGame(ctx context.Context, opts NonSteamOptions) (uin
 	data, _ := c.ReadFile(scPath) // que no exista es valido
 	sf, err := ParseShortcuts(data)
 	if err != nil {
-		return 0, fmt.Errorf("shortcuts.vdf ilegible, no lo toco por seguridad: %w", err)
+		return 0, i18n.Errorf("shortcuts.vdf ilegible, no lo toco por seguridad: %w", err)
 	}
 
 	newSc := NewShortcut(opts.Name, opts.Exe, opts.StartDir, opts.LaunchOptions)
@@ -365,12 +366,12 @@ func (c *Client) AddNonSteamGame(ctx context.Context, opts NonSteamOptions) (uin
 		return 0, err
 	}
 	if err := c.WriteFileAtomic(scPath, out); err != nil {
-		return 0, fmt.Errorf("no se pudo escribir shortcuts.vdf: %w", err)
+		return 0, i18n.Errorf("no se pudo escribir shortcuts.vdf: %w", err)
 	}
 
 	if opts.CompatTool != "" {
 		if err := c.SetCompatTool(ctx, fmt.Sprint(appID), opts.CompatTool); err != nil {
-			return appID, fmt.Errorf("juego anadido, pero no se pudo asignar Proton: %w", err)
+			return appID, i18n.Errorf("juego anadido, pero no se pudo asignar Proton: %w", err)
 		}
 	}
 	return appID, nil
@@ -423,7 +424,7 @@ func (c *Client) RelocateShortcut(ctx context.Context, appID uint32, oldDir, new
 	}
 	sf, err := ParseShortcuts(data)
 	if err != nil {
-		return fmt.Errorf("shortcuts.vdf ilegible, no lo toco por seguridad: %w", err)
+		return i18n.Errorf("shortcuts.vdf ilegible, no lo toco por seguridad: %w", err)
 	}
 
 	var entry *Shortcut
@@ -434,7 +435,7 @@ func (c *Client) RelocateShortcut(ctx context.Context, appID uint32, oldDir, new
 		}
 	}
 	if entry == nil {
-		return fmt.Errorf("no hay ningun acceso directo con id %d", appID)
+		return i18n.Errorf("no hay ningun acceso directo con id %d", appID)
 	}
 
 	relocateShortcut(entry, appID, oldDir, newDir)
@@ -507,7 +508,7 @@ func (c *Client) RemoveShortcut(ctx context.Context, appID uint32) error {
 		out = append(out, s)
 	}
 	if !found {
-		return fmt.Errorf("no hay ningun acceso directo con id %d", appID)
+		return i18n.Errorf("no hay ningun acceso directo con id %d", appID)
 	}
 	sf.Entries = out
 	marshalled := sf.Marshal()
@@ -533,7 +534,7 @@ func checkNoShortcutsLost(antes, despues []byte, borrado *uint32) error {
 	}
 	nuevo, err := ParseShortcuts(despues)
 	if err != nil {
-		return fmt.Errorf("lo que ibamos a escribir no se puede releer; no toco shortcuts.vdf: %w", err)
+		return i18n.Errorf("lo que ibamos a escribir no se puede releer; no toco shortcuts.vdf: %w", err)
 	}
 
 	presentes := map[uint32]bool{}
@@ -546,7 +547,7 @@ func checkNoShortcutsLost(antes, despues []byte, borrado *uint32) error {
 			continue // este si tocaba quitarlo
 		}
 		if !presentes[id] {
-			return fmt.Errorf("me niego a escribir shortcuts.vdf: desapareceria %q (%d) y no era la intencion",
+			return i18n.Errorf("me niego a escribir shortcuts.vdf: desapareceria %q (%d) y no era la intencion",
 				s.GetStr("AppName"), id)
 		}
 	}
@@ -567,17 +568,17 @@ func (c *Client) ApplyCompatTool(ctx context.Context, appID, tool string) (bool,
 		return false, c.SetCompatTool(ctx, appID, tool)
 	}
 	if !c.CEFAvailable(ctx) {
-		return false, fmt.Errorf(
+		return false, i18n.Errorf(
 			"Steam esta abierto pero no responde: cierralo en la Deck y vuelve a intentarlo, " +
 				"o reinicialo y espera a que cargue del todo. Cambiar la version de Proton con " +
 				"Steam abierto se perderia al salir")
 	}
 	id, err := strconv.ParseUint(appID, 10, 32)
 	if err != nil {
-		return false, fmt.Errorf("id de juego invalido: %s", appID)
+		return false, i18n.Errorf("id de juego invalido: %s", appID)
 	}
 	if err := c.SetCompatToolLive(ctx, uint32(id), tool); err != nil {
-		return false, fmt.Errorf("no se pudo cambiar la version de Proton a traves de Steam: %w", err)
+		return false, i18n.Errorf("no se pudo cambiar la version de Proton a traves de Steam: %w", err)
 	}
 	return true, nil
 }
@@ -591,16 +592,16 @@ func (c *Client) SetCompatTool(ctx context.Context, appID, tool string) error {
 	cfgPath := path.Join(c.SteamRoot(), "config", "config.vdf")
 	data, err := c.ReadFile(cfgPath)
 	if err != nil {
-		return fmt.Errorf("no se pudo leer config.vdf: %w", err)
+		return i18n.Errorf("no se pudo leer config.vdf: %w", err)
 	}
 	root, err := ParseVDF(data)
 	if err != nil {
-		return fmt.Errorf("config.vdf ilegible, no lo toco por seguridad: %w", err)
+		return i18n.Errorf("config.vdf ilegible, no lo toco por seguridad: %w", err)
 	}
 
 	store := root.Get("InstallConfigStore")
 	if store == nil {
-		return fmt.Errorf("config.vdf no tiene InstallConfigStore; formato inesperado")
+		return i18n.Errorf("config.vdf no tiene InstallConfigStore; formato inesperado")
 	}
 	mapping := store.Ensure("Software", "Valve", "Steam", "CompatToolMapping")
 
@@ -620,10 +621,10 @@ func (c *Client) SetCompatTool(ctx context.Context, appID, tool string) error {
 // UploadROM copia una ROM a la carpeta del sistema correspondiente de EmuDeck.
 func (c *Client) UploadROM(ctx context.Context, localPath, romsDir, system string, onProgress ProgressFunc) error {
 	if romsDir == "" || system == "" {
-		return fmt.Errorf("hay que indicar la carpeta de ROMs y el sistema")
+		return i18n.Errorf("hay que indicar la carpeta de ROMs y el sistema")
 	}
 	if strings.Contains(system, "/") || strings.Contains(system, "..") {
-		return fmt.Errorf("nombre de sistema invalido: %q", system)
+		return i18n.Errorf("nombre de sistema invalido: %q", system)
 	}
 	dst := path.Join(romsDir, system)
 	if err := c.MkdirAll(dst); err != nil {

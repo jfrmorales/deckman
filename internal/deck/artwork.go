@@ -3,6 +3,7 @@ package deck
 import (
 	"context"
 	"fmt"
+	"github.com/jfrmorales/deckman/internal/i18n"
 	"os"
 	"path"
 	"regexp"
@@ -35,7 +36,7 @@ func ArtKinds() []string { return []string{"grid", "gridh", "hero", "logo", "ico
 func ArtFileName(appID uint32, kind, ext string) (string, error) {
 	suffix, ok := artSuffix[kind]
 	if !ok {
-		return "", fmt.Errorf("tipo de arte desconocido: %q", kind)
+		return "", i18n.Errorf("tipo de arte desconocido: %q", kind)
 	}
 	return fmt.Sprintf("%d%s%s", appID, suffix, steamExt(ext)), nil
 }
@@ -167,7 +168,7 @@ func (c *Client) ClearArtwork(ctx context.Context, appID uint32) error {
 // RemoveArtworkKind borra solo un tipo de arte.
 func (c *Client) RemoveArtworkKind(ctx context.Context, appID uint32, kind string) error {
 	if _, ok := artSuffix[kind]; !ok {
-		return fmt.Errorf("tipo de arte desconocido: %q", kind)
+		return i18n.Errorf("tipo de arte desconocido: %q", kind)
 	}
 	return c.removeArtwork(ctx, appID, []string{kind})
 }
@@ -186,7 +187,7 @@ func (c *Client) removeArtwork(ctx context.Context, appID uint32, kinds []string
 	for _, k := range kinds {
 		for _, n := range files[k] {
 			if err := c.sftp.Remove(path.Join(dir, n)); err != nil {
-				return fmt.Errorf("no se pudo borrar %s: %w", n, err)
+				return i18n.Errorf("no se pudo borrar %s: %w", n, err)
 			}
 		}
 	}
@@ -242,10 +243,10 @@ func (c *Client) WriteArtwork(ctx context.Context, appID uint32, kind, ext strin
 		// Sin la extension POSIX hay que apartar el destino antes de renombrar.
 		if rmErr := c.sftp.Remove(dst); rmErr != nil && !os.IsNotExist(rmErr) {
 			c.sftp.Remove(tmp)
-			return "", fmt.Errorf("no se pudo dejar %s en su sitio: %w", name, err)
+			return "", i18n.Errorf("no se pudo dejar %s en su sitio: %w", name, err)
 		}
 		if err2 := c.sftp.Rename(tmp, dst); err2 != nil {
-			return "", fmt.Errorf("no se pudo dejar %s en su sitio: %w", name, err2)
+			return "", i18n.Errorf("no se pudo dejar %s en su sitio: %w", name, err2)
 		}
 	}
 	return name, nil

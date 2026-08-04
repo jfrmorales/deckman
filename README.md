@@ -1,5 +1,7 @@
 # deckman
 
+***Español** · [English](README.en.md) · [Français](README.fr.md)*
+
 Gestiona los juegos de tu Steam Deck desde el ordenador: ver qué hay instalado,
 enviar juegos de Windows y ROMs, cambiar carátulas, mover juegos entre el SSD
 interno y la microSD, y liberar espacio.
@@ -18,6 +20,9 @@ comprobarlos:
 sha256sum -c SHA256SUMS
 chmod +x deckman-*-linux-amd64
 ```
+
+La interfaz habla **castellano, inglés y francés**. Por defecto sigue al
+navegador, y hay un selector en la barra superior.
 
 ---
 

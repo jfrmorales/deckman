@@ -3,6 +3,7 @@ package deck
 import (
 	"context"
 	"fmt"
+	"github.com/jfrmorales/deckman/internal/i18n"
 	"sort"
 	"strconv"
 	"strings"
@@ -48,7 +49,7 @@ var extROM = []string{
 func (c *Client) ROMSystems(ctx context.Context) (string, []SistemaROM, error) {
 	romsDir, _ := c.romSystems(ctx)
 	if romsDir == "" {
-		return "", nil, fmt.Errorf("no se encontro la carpeta de ROMs: instala EmuDeck en la Deck o crea ~/Emulation/roms")
+		return "", nil, i18n.Errorf("no se encontro la carpeta de ROMs: instala EmuDeck en la Deck o crea ~/Emulation/roms")
 	}
 
 	// Los enlaces simbolicos se saltan porque EmuDeck crea alias: «gamecube»
@@ -75,7 +76,7 @@ exit 0`, ShellQuote(romsDir), strings.Join(extROM, "|"))
 
 	out, err := c.Run(ctx, cmd)
 	if err != nil {
-		return "", nil, fmt.Errorf("no se pudieron contar las ROMs de %s: %w", romsDir, err)
+		return "", nil, i18n.Errorf("no se pudieron contar las ROMs de %s: %w", romsDir, err)
 	}
 
 	return romsDir, parseSistemas(out), nil

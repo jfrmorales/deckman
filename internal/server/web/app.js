@@ -113,8 +113,8 @@ function renderDecks() {
 
     const olvidar = document.createElement('button');
     olvidar.className = 'deckforget';
-    olvidar.textContent = 'Olvidar';
-    olvidar.title = 'Quitarla y retirarle la clave SSH de deckman';
+    olvidar.textContent = t('Olvidar');
+    olvidar.title = t('Quitarla y retirarle la clave SSH de deckman');
     olvidar.onclick = () => forgetDeck(i);
 
     li.append(usar, olvidar);
@@ -152,27 +152,31 @@ async function forgetDeck(i) {
   try {
     const r = await api('/api/decks/forget', { index: i });
     if (r.aviso) banner(r.aviso, 'warn');
-    else if (r.revocada) banner(`${nombre} olvidada y clave SSH retirada.`, 'ok');
-    else banner(`${nombre} olvidada.`, 'ok');
+    else if (r.revocada) banner(t('{0} olvidada y clave SSH retirada.', nombre), 'ok');
+    else banner(t('{0} olvidada.', nombre), 'ok');
     inventory = null;
     await refreshState();
     applyConnState();
   } catch (e) {
-    banner('No se pudo olvidar la Deck: ' + e.message, 'err');
+    banner(t('No se pudo olvidar la Deck: {0}', e.message), 'err');
   }
 }
 
 async function refreshState() {
   try {
     state = await api('/api/state');
+    // El idioma va antes que nada: si no, se ve un parpadeo de castellano.
+    // idiomaEfectivo lo decide el servidor (lo elegido o, si no hay nada, lo
+    // que pide el navegador), así que aquí no se vuelve a decidir.
+    aplicarIdioma(state.idiomaEfectivo, state.idioma);
     $('host').value = state.host || '';
     $('user').value = state.user || 'deck';
     $('port').value = state.port || 22;
     renderDecks();
     $('appVersion').textContent = state.version || '';
     $('password').placeholder = state.hasKey
-      ? 'clave SSH instalada — no hace falta'
-      : 'contraseña del usuario deck';
+      ? t('clave SSH instalada — no hace falta')
+      : t('contraseña del usuario deck');
     applyConnState();
     updateArtworkHint();
     updateJobButtons(); // puede haber un trabajo en curso de antes de recargar
@@ -180,13 +184,35 @@ async function refreshState() {
   } catch (e) { /* el servidor aún arrancando */ }
 }
 
+// aplicarIdioma repinta la interfaz y deja el desplegable marcando lo que hay
+// guardado, que puede ser "" (automático) aunque se esté viendo en francés.
+function aplicarIdioma(efectivo, elegido) {
+  I18N.aplicar(efectivo || 'es');
+  const sel = $('idioma');
+  if (sel && sel.value !== (elegido || '')) sel.value = elegido || '';
+  // Lo pintado por JS (la tabla de juegos) no lo alcanza el recorrido del DOM
+  // porque se genera después: se vuelve a pintar lo que haya.
+  if (inventory) { renderStorage(); renderGames(); renderSendOptions(); }
+  if (state) renderDecks();
+}
+
+async function cambiarIdioma() {
+  const lang = $('idioma').value;
+  try {
+    const r = await api('/api/settings', { idioma: lang });
+    aplicarIdioma(r.idiomaEfectivo, r.idioma);
+  } catch (e) {
+    banner(t('No se pudo cambiar el idioma: {0}', e.message), 'err');
+  }
+}
+
 async function connect() {
   const btn = $('btnConnect');
   btn.disabled = true;
-  btn.textContent = 'Conectando…';
+  btn.textContent = t('Conectando…');
   $('connLed').className = 'led busy';
   connError('');
-  banner('Conectando…');
+  banner(t('Conectando…'));
   try {
     const r = await api('/api/connect', {
       host: $('host').value.trim(),
@@ -205,18 +231,18 @@ async function connect() {
     // El error va también dentro de la tarjeta: el banner de arriba queda
     // lejos del botón que se acaba de pulsar y pasa desapercibido.
     connError('No se pudo conectar: ' + e.message);
-    banner('No se pudo conectar: ' + e.message, 'err');
+    banner(t('No se pudo conectar: {0}', e.message), 'err');
     applyConnState();
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Conectar';
+    btn.textContent = t('Conectar');
   }
 }
 
 // ---------- inventario ----------
 
 async function loadInventory() {
-  $('emptyLib').textContent = 'Leyendo la Deck…';
+  $('emptyLib').textContent = t('Leyendo la Deck…');
   $('emptyLib').classList.remove('hidden');
   try {
     inventory = await api('/api/inventory');
@@ -225,8 +251,8 @@ async function loadInventory() {
     renderSendOptions();
     banner('');
   } catch (e) {
-    banner('No se pudo leer la biblioteca: ' + e.message, 'err');
-    $('emptyLib').textContent = 'Sin datos.';
+    banner(t('No se pudo leer la biblioteca: {0}', e.message), 'err');
+    $('emptyLib').textContent = t('Sin datos.');
   }
 }
 
@@ -238,10 +264,10 @@ function renderStorage() {
     const div = document.createElement('div');
     div.className = 'disk';
     div.innerHTML = `
-      <h3>${escapeHtml(lib.label)}
-        <span class="badge ${lib.removable ? 'sd' : ''}">${lib.removable ? 'microSD' : 'interno'}</span>
+      <h3>${escapeHtml(t(lib.label))}
+        <span class="badge ${lib.removable ? 'sd' : ''}">${lib.removable ? 'microSD' : t('interno')}</span>
       </h3>
-      <div class="nums">${fmtBytes(lib.used)} usados · <strong>${fmtBytes(lib.free)} libres</strong> de ${fmtBytes(lib.total)}</div>
+      <div class="nums">${t('{0} usados', fmtBytes(lib.used))} · <strong>${t('{0} libres', fmtBytes(lib.free))}</strong> ${t('de {0}', fmtBytes(lib.total))}</div>
       <div class="bar ${pct > 92 ? 'full' : ''} ${lib.removable ? 'sd' : ''}"><div style="width:${pct.toFixed(1)}%"></div></div>`;
     el.appendChild(div);
   }
@@ -271,14 +297,14 @@ function visibleGames() {
 function emptyLibText() {
   if (!inventory) return 'Conecta con la Deck para ver la biblioteca.';
   const total = (inventory.games || []).length;
-  const cuantos = total === 1 ? 'el único juego' : `los ${total} juegos`;
+  const cuantos = total === 1 ? t('el único juego') : `los ${total} juegos`;
   const q = $('filter').value.trim();
   if (!total) return 'La Deck no tiene juegos instalados.';
   if (q) return `Ningún juego coincide con «${q}». Borra el filtro para ver ${cuantos}.`;
   if (!$('showSteam').checked || !$('showNonSteam').checked) {
     return `Los filtros Steam / No-Steam esconden ${cuantos}. Marca alguna casilla para verlos.`;
   }
-  return 'Ningún juego que mostrar.';
+  return t('Ningún juego que mostrar.');
 }
 
 // moveTarget dice a qué unidad se puede mover un juego, o null si no procede.
@@ -315,7 +341,7 @@ function renderGames() {
     const tr = document.createElement('tr');
 
     const lib = libs.find((l) => l.path === g.libraryPath);
-    const locLabel = lib ? lib.label : (g.libraryPath || g.startDir || '—');
+    const locLabel = lib ? t(lib.label) : (g.libraryPath || g.startDir || '—');
 
     // Selector de Proton. Si el juego tiene asignada una versión que ya no
     // está instalada, la añadimos igualmente para no cambiarla sin querer al
@@ -326,19 +352,19 @@ function renderGames() {
       if (g.compatTool && !shown.some((t) => t.name === g.compatTool)) {
         shown.push({ name: g.compatTool, displayName: g.compatTool + ' (no instalado)' });
       }
-      const opts = ['<option value="">Por defecto</option>']
+      const opts = [`<option value="">${escapeHtml(t('Por defecto'))}</option>`]
         .concat(shown.map((t) =>
           `<option value="${escapeHtml(t.name)}"${t.name === g.compatTool ? ' selected' : ''}>${escapeHtml(t.displayName)}</option>`));
       compatCell = `<select class="compat" data-appid="${escapeHtml(g.appId)}">${opts.join('')}</select>`;
     }
 
     const extras = [];
-    if (g.compatSize) extras.push(`prefijo ${fmtBytes(g.compatSize)}`);
-    if (g.shaderSize) extras.push(`shaders ${fmtBytes(g.shaderSize)}`);
+    if (g.compatSize) extras.push(t('prefijo {0}', fmtBytes(g.compatSize)));
+    if (g.shaderSize) extras.push(t('shaders {0}', fmtBytes(g.shaderSize)));
 
     const target = moveTarget(g, libs);
     const moveBtn = target
-      ? `<button data-move="${escapeHtml(g.appId)}" data-target="${escapeHtml(target.path)}" title="Mover a ${escapeHtml(target.label)}">→ ${escapeHtml(target.label)}</button>`
+      ? `<button data-move="${escapeHtml(g.appId)}" data-target="${escapeHtml(target.path)}" title="${escapeHtml(t('Mover a {0}', t(target.label)))}">→ ${escapeHtml(t(target.label))}</button>`
       : '';
 
     // La ruta completa solo en los no-Steam: en los de Steam no aporta nada
@@ -350,17 +376,17 @@ function renderGames() {
       <td class="covercell">${coverCell(g)}</td>
       <td>
         <div class="gname">
-          <span>${escapeHtml(g.name || '(sin nombre)')}</span>
-          <span class="kind ${g.kind === 'nonsteam' ? 'ns' : ''}">${g.kind === 'nonsteam' ? 'no-Steam' : 'Steam'}</span>
+          <span>${escapeHtml(g.name || t('(sin nombre)'))}</span>
+          <span class="kind ${g.kind === 'nonsteam' ? 'ns' : ''}">${g.kind === 'nonsteam' ? t('no-Steam') : 'Steam'}</span>
         </div>
-        <div class="loc">jugado: ${fmtDate(g.lastPlayed)}</div>
+        <div class="loc">${t('jugado: {0}', fmtDate(g.lastPlayed))}</div>
       </td>
       <td class="num">${fmtBytes(g.size)}</td>
       <td class="locc"><span class="loc">${escapeHtml(locLabel)}</span>${locSub}</td>
       <td class="protonc">${compatCell}</td>
       <td class="num extrasc"><span class="loc">${extras.join('<br>') || '—'}</span></td>
       <td><div class="acts">
-        ${moveBtn}<button class="danger" data-del="${escapeHtml(g.appId)}">Eliminar</button>
+        ${moveBtn}<button class="danger" data-del="${escapeHtml(g.appId)}">${t('Eliminar')}</button>
       </div></td>`;
     body.appendChild(tr);
   }
@@ -509,7 +535,7 @@ function renderSendOptions() {
     }
   }
   mostrarSistemaBusqueda();
-  $('romsDirLabel').textContent = inventory.romsDir || 'no se encontró EmuDeck';
+  $('romsDirLabel').textContent = inventory.romsDir || t('no se encontró EmuDeck');
   updateJobButtons();
 }
 
@@ -539,13 +565,13 @@ async function openBrowser(targetId, mode) {
   let start = state.lastLocal || '';
   if (mode === 'rel') {
     br.base = $('sendPath').value;
-    if (!br.base) { banner('Elige primero la carpeta del juego.', 'err'); return; }
+    if (!br.base) { banner(t('Elige primero la carpeta del juego.'), 'err'); return; }
     start = br.base;
   }
 
   $('brTitle').textContent = mode === 'rel' ? 'Elegir el ejecutable'
     : (mode === 'any' ? 'Elegir fichero o carpeta' : 'Elegir carpeta');
-  $('brHint').textContent = 'un clic selecciona · doble clic entra o elige';
+  $('brHint').textContent = t('un clic selecciona · doble clic entra o elige');
   $('brFilter').value = '';
   $('browser').classList.remove('hidden');
 
@@ -679,18 +705,18 @@ function selectEntry(e, li) {
 function updateFooter() {
   const pick = $('brPick');
   if (br.selected) {
-    $('brSelected').textContent = 'Elegido: ' + br.selected.name;
+    $('brSelected').textContent = t('Elegido: ') + br.selected.name;
     pick.disabled = false;
-    pick.textContent = 'Seleccionar';
+    pick.textContent = t('Seleccionar');
   } else if (br.mode === 'dir' && br.path && br.path !== '@roots') {
     // Sin nada marcado, el botón elige la carpeta en la que estás.
-    $('brSelected').textContent = 'Se usará la carpeta actual';
+    $('brSelected').textContent = t('Se usará la carpeta actual');
     pick.disabled = false;
-    pick.textContent = 'Usar esta carpeta';
+    pick.textContent = t('Usar esta carpeta');
   } else {
     $('brSelected').textContent = '';
     pick.disabled = true;
-    pick.textContent = 'Seleccionar';
+    pick.textContent = t('Seleccionar');
   }
 }
 
@@ -780,9 +806,9 @@ let artRequestSeq = 0;
 
 async function openArtwork(appId, name, steamAppId) {
   art = { appId, name, steamAppId: steamAppId || '', gameId: 0, kind: 'grid', current: {}, busy: false };
-  $('artTitle').textContent = 'Carátulas — ' + name;
+  $('artTitle').textContent = t('Carátulas — ') + name;
   $('artGameSel').innerHTML = '';
-  $('artBody').innerHTML = '<p class="empty">Buscando el juego en SteamGridDB…</p>';
+  $('artBody').innerHTML = `<p class="empty">${escapeHtml(t('Buscando el juego en SteamGridDB…'))}</p>`;
   $('artStatus').textContent = '';
   $('artModal').classList.remove('hidden');
 
@@ -801,7 +827,7 @@ async function openArtwork(appId, name, steamAppId) {
     $('artRestart').classList.toggle('hidden', art.live);
     $('artLive').textContent = art.live
       ? 'Los cambios se aplican al instante, sin reiniciar Steam.'
-      : 'Steam no responde en caliente: los cambios necesitarán reiniciarlo.';
+      : t('Steam no responde en caliente: los cambios necesitarán reiniciarlo.');
   } catch { /* no es crítico */ }
 
   try {
@@ -833,7 +859,7 @@ async function loadArtOptions() {
   const seq = ++artRequestSeq;
   const kind = art.kind;
   const spec = ART_KINDS.find((k) => k.key === kind);
-  $('artBody').innerHTML = '<p class="empty">Cargando imágenes…</p>';
+  $('artBody').innerHTML = `<p class="empty">${escapeHtml(t('Cargando imágenes…'))}</p>`;
   markTabs();
   try {
     const r = await api('/api/artwork/list', {
@@ -876,7 +902,7 @@ async function applyArt(opt, el, kind) {
   art.busy = true;
   $('artBody').querySelectorAll('.artitem').forEach((x) => x.classList.remove('chosen'));
   el.classList.add('working');
-  $('artStatus').textContent = 'Instalando…';
+  $('artStatus').textContent = t('Instalando…');
   try {
     const r = await api('/api/artwork/apply', {
       appId: art.appId, kind, url: opt.url, ext: opt.ext || '',
@@ -889,7 +915,7 @@ async function applyArt(opt, el, kind) {
     if (!r.live) $('artRestart').classList.remove('hidden');
     markTabs();
   } catch (e) {
-    $('artStatus').textContent = 'Error: ' + e.message;
+    $('artStatus').textContent = t('Error: ') + e.message;
   } finally {
     el.classList.remove('working');
     art.busy = false;
@@ -914,11 +940,11 @@ async function openPreview(opt, el, kind) {
   const partes = [`${opt.width}×${opt.height}`];
   if (opt.style) partes.push(opt.style);
   if (opt.author) partes.push('por ' + opt.author);
-  if (opt.animated) partes.push('se muestra la previa animada; se instalará el original en alta resolución');
+  if (opt.animated) partes.push(t('se muestra la previa animada; se instalará el original en alta resolución'));
   $('prevMeta').textContent = partes.join(' · ');
 
   $('prevApply').disabled = false;
-  $('prevApply').textContent = 'Aplicar esta imagen';
+  $('prevApply').textContent = t('Aplicar esta imagen');
   $('artPreview').classList.remove('hidden');
 
   // El tamaño real importa: las animadas pesan decenas de MB.
@@ -940,7 +966,7 @@ async function applyFromPreview() {
   if (!preview) return;
   const { opt, el, kind } = preview;
   $('prevApply').disabled = true;
-  $('prevApply').textContent = 'Instalando…';
+  $('prevApply').textContent = t('Instalando…');
   await applyArt(opt, el, kind);
   closePreview();
 }
@@ -948,16 +974,16 @@ async function applyFromPreview() {
 // ---------- reiniciar Steam ----------
 
 async function restartSteam(btn) {
-  if (!confirm('¿Reiniciar Steam en la Deck?\n\nSe cerrará cualquier juego que tengas abierto. ' +
-               'Hace falta para que aparezcan las carátulas y los juegos añadidos.')) return;
+  if (!confirm(t('¿Reiniciar Steam en la Deck?\n\nSe cerrará cualquier juego que tengas abierto. ') +
+               t('Hace falta para que aparezcan las carátulas y los juegos añadidos.'))) return;
   const prev = btn.textContent;
   btn.disabled = true;
-  btn.textContent = 'Reiniciando…';
+  btn.textContent = t('Reiniciando…');
   try {
     const r = await api('/api/restart-steam', {});
     banner(r.message || 'Steam reiniciado.', 'ok');
   } catch (e) {
-    banner('No se pudo reiniciar Steam: ' + e.message, 'err');
+    banner(t('No se pudo reiniciar Steam: {0}', e.message), 'err');
   } finally {
     btn.disabled = false;
     btn.textContent = prev;
@@ -976,7 +1002,7 @@ async function removeArt() {
     if (!r.live) $('artRestart').classList.remove('hidden');
     markTabs();
   } catch (e) {
-    $('artStatus').textContent = 'Error: ' + e.message;
+    $('artStatus').textContent = t('Error: ') + e.message;
   }
 }
 
@@ -1005,14 +1031,14 @@ async function runDetect(overrideAppId) {
   if (!path) return;
   const box = $('detectBox');
   box.classList.remove('hidden');
-  $('detectTitle').textContent = 'Analizando la carpeta…';
+  $('detectTitle').textContent = t('Analizando la carpeta…');
   $('detectList').innerHTML = '';
   $('detectAlt').classList.add('hidden');
 
   try {
     detection = await api('/api/detect', { localPath: path, overrideAppId: overrideAppId || '' });
   } catch (e) {
-    $('detectTitle').textContent = 'No se pudo analizar';
+    $('detectTitle').textContent = t('No se pudo analizar');
     $('detectList').innerHTML = `<li class="bad">${escapeHtml(e.message)}</li>`;
     return;
   }
@@ -1030,10 +1056,10 @@ function renderDetection() {
       `encontrado en <code>${escapeHtml(local.appIdSource)}</code>`]);
   } else if (online && online.appId) {
     rows.push(['warn', `Steam appid <strong>${escapeHtml(online.appId)}</strong>`,
-      'deducido del nombre, no venía en la carpeta']);
+      t('deducido del nombre, no venía en la carpeta')]);
   } else {
     rows.push(['warn', 'Sin identificar en Steam',
-      online && online.note ? escapeHtml(online.note) : 'puede ser un juego que no está en la tienda']);
+      online && online.note ? escapeHtml(online.note) : t('puede ser un juego que no está en la tienda')]);
   }
 
   // Nombre
@@ -1059,7 +1085,7 @@ function renderDetection() {
         'si no arranca, cámbialo abajo: ' + escapeHtml(exes.slice(1, 4).map((e) => e.rel).join(', '))]);
     }
   } else {
-    rows.push(['bad', 'No se encontró ningún .exe', 'tendrás que indicarlo a mano']);
+    rows.push(['bad', t('No se encontró ningún .exe'), 'tendrás que indicarlo a mano']);
   }
 
   // Proton
@@ -1078,7 +1104,7 @@ function renderDetection() {
     }
   }
 
-  $('detectTitle').textContent = 'Detección';
+  $('detectTitle').textContent = t('Detección');
   $('detectList').innerHTML = rows.map(([kind, main, sub]) =>
     `<li class="${kind}"><span class="dmain">${main}</span><span class="dsub">${sub || ''}</span></li>`).join('');
 
@@ -1100,15 +1126,15 @@ async function saveGridKey() {
     updateArtworkHint();
     banner(r.hasGridKey ? 'Clave de SteamGridDB guardada.' : 'Clave borrada.', 'ok');
   } catch (e) {
-    banner('No se pudo guardar: ' + e.message, 'err');
+    banner(t('No se pudo guardar: {0}', e.message), 'err');
   }
 }
 
 function updateArtworkHint() {
   const has = !!state.hasGridKey;
   $('gridKeyState').textContent = has
-    ? 'Hay una clave guardada. Para borrarla, guarda el campo vacío.'
-    : 'Todavía no hay clave guardada.';
+    ? t('Hay una clave guardada. Para borrarla, guarda el campo vacío.')
+    : t('Todavía no hay clave guardada.');
   $('artworkHint').textContent = has ? '' : '(falta la clave, mira Ajustes abajo)';
   $('sendArtwork').disabled = !has;
   if (!has) $('sendArtwork').checked = false;
@@ -1118,7 +1144,7 @@ function updateArtworkHint() {
 
 function showProgress(title) {
   $('pTitle').textContent = title;
-  $('pPhase').textContent = 'empezando…';
+  $('pPhase').textContent = t('empezando…');
   $('pFill').style.width = '0%';
   $('pFill').className = 'pfill';
   $('pBytes').textContent = '';
@@ -1204,7 +1230,7 @@ function updateJobButtons() {
 // nada: va al banner, no al panel de progreso.
 async function startJob(path, body, titulo, fallo) {
   if (jobBusy()) {
-    banner('Ya hay una operación en curso: espera a que termine o cancélala.', 'err');
+    banner(t('Ya hay una operación en curso: espera a que termine o cancélala.'), 'err');
     return false;
   }
   try {
@@ -1221,9 +1247,9 @@ async function startJob(path, body, titulo, fallo) {
 
 async function sendGame() {
   const path = $('sendPath').value;
-  if (!path) { banner('Elige la carpeta del juego.', 'err'); return; }
+  if (!path) { banner(t('Elige la carpeta del juego.'), 'err'); return; }
   const addShortcut = $('addShortcut').checked;
-  if (addShortcut && !$('sendExe').value) { banner('Elige el ejecutable.', 'err'); return; }
+  if (addShortcut && !$('sendExe').value) { banner(t('Elige el ejecutable.'), 'err'); return; }
   await startJob('/api/send-game', {
     localPath: path,
     name: $('sendName').value.trim(),
@@ -1233,17 +1259,17 @@ async function sendGame() {
     addShortcut,
     artwork: addShortcut && $('sendArtwork').checked,
     steamAppId: detectedAppId(),
-  }, 'Enviando juego', 'No se pudo enviar el juego');
+  }, t('Enviando juego'), t('No se pudo enviar el juego'));
 }
 
 async function sendRom() {
   const path = $('romPath').value;
-  if (!path) { banner('Elige la ROM.', 'err'); return; }
+  if (!path) { banner(t('Elige la ROM.'), 'err'); return; }
   await startJob('/api/send-rom', {
     localPath: path,
     romsDir: inventory.romsDir,
     system: $('romSystem').value,
-  }, 'Enviando ROM', 'No se pudo enviar la ROM');
+  }, t('Enviando ROM'), t('No se pudo enviar la ROM'));
 }
 
 async function moveGame(appId, target) {
@@ -1255,18 +1281,18 @@ async function moveGame(appId, target) {
   // Steam cerrado (al salir reescribe los .acf y deshace el cambio), mientras
   // que en uno no-Steam lo que se toca es el acceso directo, y eso Steam sí
   // sabe hacerlo en caliente.
-  let aviso = '\n\nSteam debe estar cerrado en la Deck.';
+  let aviso = '\n\n' + t('Steam debe estar cerrado en la Deck.');
   if (g.kind === 'nonsteam') {
-    aviso = `\n\nSe copia la carpeta a ${lib ? lib.gamesDir : target} y se actualiza el acceso directo.`
+    aviso = '\n\n' + t('Se copia la carpeta a {0} y se actualiza el acceso directo.', lib ? lib.gamesDir : target)
       + (inventory.steamRunning
-        ? ' Steam está abierto: se lo pediremos a él, así que no hace falta cerrarlo.'
+        ? ' ' + t('Steam está abierto: se lo pediremos a él, así que no hace falta cerrarlo.')
         : '');
     if (g.hasCompat) {
-      aviso += '\nEl prefijo de Proton (partidas guardadas) se queda donde está, que es donde Steam lo busca.';
+      aviso += '\n' + t('El prefijo de Proton (partidas guardadas) se queda donde está, que es donde Steam lo busca.');
     }
   }
-  if (!confirm(`¿Mover "${g.name}" (${fmtBytes(g.size)}) a ${lib ? lib.label : target}?${aviso}`)) return;
-  await startJob('/api/move', { appId, target }, `Moviendo ${g.name}`, 'No se pudo mover el juego');
+  if (!confirm(t('¿Mover "{0}" ({1}) a {2}?', g.name, fmtBytes(g.size), lib ? t(lib.label) : target) + aviso)) return;
+  await startJob('/api/move', { appId, target }, t('Moviendo {0}', g.name), t('No se pudo mover el juego'));
 }
 
 // --- borrado ---
@@ -1277,10 +1303,10 @@ function openDelete(appId) {
   const g = (inventory.games || []).find((x) => x.appId === appId);
   if (!g) return;
   delAppId = appId;
-  $('delTitle').textContent = 'Eliminar: ' + g.name;
-  $('delGameLabel').textContent = `Ficheros del juego (${fmtBytes(g.size)})`;
-  $('delCompatLabel').textContent = `Prefijo de Proton (${fmtBytes(g.compatSize)})`;
-  $('delShaderLabel').textContent = `Caché de shaders (${fmtBytes(g.shaderSize)})`;
+  $('delTitle').textContent = t('Eliminar: ') + g.name;
+  $('delGameLabel').textContent = t('Ficheros del juego ({0})', fmtBytes(g.size));
+  $('delCompatLabel').textContent = t('Prefijo de Proton ({0})', fmtBytes(g.compatSize));
+  $('delShaderLabel').textContent = t('Caché de shaders ({0})', fmtBytes(g.shaderSize));
   $('delCompat').parentElement.classList.toggle('hidden', !g.hasCompat);
   $('delShader').parentElement.classList.toggle('hidden', !g.hasShaders);
   $('delShortcutRow').classList.toggle('hidden', g.kind !== 'nonsteam');
@@ -1301,16 +1327,16 @@ async function confirmDelete() {
     shortcut: $('delShortcut').checked && !$('delShortcutRow').classList.contains('hidden'),
   };
   if (!targets.game && !targets.compatData && !targets.shaderCache && !targets.shortcut) {
-    banner('No has marcado nada que borrar.', 'err');
+    banner(t('No has marcado nada que borrar.'), 'err');
     return;
   }
   $('delModal').classList.add('hidden');
   try {
     const r = await api('/api/delete', { appId: delAppId, targets });
-    banner(`Liberados ${fmtBytes(r.freed)}.`, 'ok');
+    banner(t('Liberados {0}.', fmtBytes(r.freed)), 'ok');
     await loadInventory();
   } catch (e) {
-    banner('No se pudo eliminar: ' + e.message, 'err');
+    banner(t('No se pudo eliminar: {0}', e.message), 'err');
   }
 }
 
@@ -1319,14 +1345,14 @@ async function confirmDelete() {
 // Lanzado desde el escritorio (Flatpak, acceso directo) no hay consola con
 // Ctrl+C: este boton es la unica forma visible de apagar el servidor.
 async function quit() {
-  if (!confirm('¿Cerrar deckman? Se apaga el servidor local de este PC.')) return;
+  if (!confirm(t('¿Cerrar deckman? Se apaga el servidor local de este PC.'))) return;
   try {
     await api('/api/quit', {});
     document.body.innerHTML =
       '<div class="goodbye"><p>deckman se ha cerrado.</p><p class="hint">Ya puedes cerrar esta pestaña.</p></div>';
     window.close(); // solo funciona si la pestaña la abrio deckman; si no, queda la despedida
   } catch (e) {
-    banner('No se puede salir: ' + e.message, 'err');
+    banner(t('No se puede salir: {0}', e.message), 'err');
   }
 }
 
@@ -1346,6 +1372,7 @@ function init() {
     $('host').focus();
   };
   $('btnQuit').onclick = quit;
+  $('idioma').onchange = cambiarIdioma;
   $('btnChange').onclick = () => { showConnectForm = true; connError(''); applyConnState(); };
   // Enter en cualquier campo de la tarjeta conecta: es un formulario de tres
   // casillas y obligar a bajar al botón sobra.
@@ -1470,9 +1497,9 @@ function init() {
       // porque al salir Steam reescribe config.vdf desde su copia en memoria.
       banner(r.live
         ? 'Proton actualizado. Steam ya lo ha aplicado, sin reiniciar.'
-        : 'Proton actualizado. Se verá la próxima vez que arranques Steam.', 'ok');
+        : t('Proton actualizado. Se verá la próxima vez que arranques Steam.'), 'ok');
     } catch (err) {
-      banner('No se pudo cambiar Proton: ' + err.message, 'err');
+      banner(t('No se pudo cambiar Proton: {0}', err.message), 'err');
     }
   });
 
@@ -1533,26 +1560,26 @@ function init() {
 
     if (btn.dataset.romdel) {
       const name = btn.dataset.romdel;
-      if (!confirm(`¿Borrar "${name}" de ${system}? No hay papelera en la Deck.`)) return;
+      if (!confirm(t('¿Borrar "{0}" de {1}? No hay papelera en la Deck.', name, system))) return;
       try {
         await api('/api/roms/delete', { system, name });
-        banner('ROM borrada.', 'ok');
+        banner(t('ROM borrada.'), 'ok');
         loadManageRoms();
       } catch (err) {
-        banner('No se pudo borrar: ' + err.message, 'err');
+        banner(t('No se pudo borrar: {0}', err.message), 'err');
       }
     }
 
     if (btn.dataset.romren) {
       const name = btn.dataset.romren;
-      const newName = prompt('Nuevo nombre:', name);
+      const newName = prompt(t('Nuevo nombre:'), name);
       if (!newName || newName === name) return;
       try {
         await api('/api/roms/rename', { system, name, newName });
-        banner('ROM renombrada.', 'ok');
+        banner(t('ROM renombrada.'), 'ok');
         loadManageRoms();
       } catch (err) {
-        banner('No se pudo renombrar: ' + err.message, 'err');
+        banner(t('No se pudo renombrar: {0}', err.message), 'err');
       }
     }
   });
@@ -1566,7 +1593,7 @@ async function loadManageSystems() {
   const sel = $('manageRomSystem');
   const previo = sel.value;
   const hint = $('manageSystemsHint');
-  hint.textContent = 'Mirando qué sistemas tienen ROMs…';
+  hint.textContent = t('Mirando qué sistemas tienen ROMs…');
 
   try {
     const res = await api('/api/roms/systems');
@@ -1576,26 +1603,26 @@ async function loadManageSystems() {
     for (const s of lista) {
       const o = document.createElement('option');
       o.value = s.name;
-      o.textContent = `${s.name} — ${s.count} ${s.count === 1 ? 'ROM' : 'ROMs'}`;
+      o.textContent = t(s.count === 1 ? '{0} — {1} ROM' : '{0} — {1} ROMs', s.name, s.count);
       sel.appendChild(o);
     }
     if (previo && lista.some((s) => s.name === previo)) sel.value = previo;
 
     hint.textContent = lista.length
-      ? `${lista.length} ${lista.length === 1 ? 'sistema' : 'sistemas'} con ROMs en ${res.romsDir}`
+      ? t(lista.length === 1 ? '{0} sistema con ROMs en {1}' : '{0} sistemas con ROMs en {1}', lista.length, res.romsDir)
       : `No hay ninguna ROM en ${res.romsDir || 'la Deck'}.`;
   } catch (err) {
-    hint.textContent = 'No se pudieron leer los sistemas: ' + err.message;
+    hint.textContent = t('No se pudieron leer los sistemas: ') + err.message;
   }
 }
 
 async function loadManageRoms() {
   const sys = $('manageRomSystem').value;
-  if (!sys) { banner('Elige el sistema.', 'err'); return; }
+  if (!sys) { banner(t('Elige el sistema.'), 'err'); return; }
 
   const btn = $('btnLoadRoms');
   btn.disabled = true;
-  btn.textContent = 'Cargando…';
+  btn.textContent = t('Cargando…');
 
   try {
     const res = await api('/api/roms/list?system=' + encodeURIComponent(sys));
@@ -1615,8 +1642,8 @@ async function loadManageRoms() {
         <td><div class="gname"><span>${escapeHtml(r.name)}</span></div></td>
         <td class="num">${fmtBytes(r.size)}</td>
         <td><div class="acts">
-          <button data-romren="${escapeHtml(r.name)}">Renombrar</button>
-          <button class="danger" data-romdel="${escapeHtml(r.name)}">Eliminar</button>
+          <button data-romren="${escapeHtml(r.name)}">${t('Renombrar')}</button>
+          <button class="danger" data-romdel="${escapeHtml(r.name)}">${t('Eliminar')}</button>
         </div></td>
       `;
       body.appendChild(tr);
@@ -1629,12 +1656,12 @@ async function loadManageRoms() {
     $('scrapeResumen').classList.add('hidden');
     $('btnScrapeSystem').disabled = !puede;
     $('scrapeStatus').textContent = puede
-      ? '' : `libretro no tiene carátulas de ${sys}.`;
+      ? '' : t('libretro no tiene carátulas de {0}.', sys);
   } catch (err) {
-    banner('No se pudieron listar las ROMs: ' + err.message, 'err');
+    banner(t('No se pudieron listar las ROMs: {0}', err.message), 'err');
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Cargar';
+    btn.textContent = t('Cargar');
   }
 }
 
@@ -1646,7 +1673,7 @@ async function scrapeSystem() {
   $('scrapeResumen').classList.add('hidden');
   const ok = await startJob('/api/roms/scrape',
     { system: sys, rehacer: $('scrapeRehacer').checked },
-    'Buscando carátulas', 'No se pudo empezar la búsqueda de carátulas');
+    t('Buscando carátulas'), t('No se pudo empezar la búsqueda de carátulas'));
   if (ok) esperarScrape(sys);
 }
 
@@ -1679,7 +1706,7 @@ async function esperarScrape(sys) {
     caja.innerHTML = html;
     caja.classList.remove('hidden');
   } catch (err) {
-    $('scrapeStatus').textContent = 'No se pudo leer el resumen: ' + err.message;
+    $('scrapeStatus').textContent = t('No se pudo leer el resumen: ') + err.message;
   }
 }
 
@@ -1693,14 +1720,14 @@ function mostrarSistemaBusqueda() {
 async function downloadRom() {
   const url = $('downloadUrl').value.trim();
   const sys = $('downloadRomSystem').value;
-  if (!url) { $('downloadStatus').textContent = 'Elige un resultado o pega una URL.'; return; }
-  if (!sys) { $('downloadStatus').textContent = 'Elige el sistema de destino.'; return; }
+  if (!url) { $('downloadStatus').textContent = t('Elige un resultado o pega una URL.'); return; }
+  if (!sys) { $('downloadStatus').textContent = t('Elige el sistema de destino.'); return; }
 
   $('downloadStatus').textContent = '';
   // La descarga es un trabajo largo del servidor: el avance y el botón de
   // cancelar salen por el panel de progreso, como enviar una ROM.
   const ok = await startJob('/api/roms/download', { url, system: sys },
-    'Descargando ROM', 'No se pudo empezar la descarga');
+    t('Descargando ROM'), t('No se pudo empezar la descarga'));
   if (ok) {
     $('downloadUrl').value = '';
     $('searchRomsList').classList.add('hidden');
@@ -1714,7 +1741,7 @@ async function searchRom() {
   const btn = $('btnSearchRom');
   const lista = $('searchRomsList');
   btn.disabled = true;
-  $('searchStatus').textContent = 'Buscando en archive.org…';
+  $('searchStatus').textContent = t('Buscando en archive.org…');
   lista.innerHTML = '';
   lista.classList.add('hidden');
 
@@ -1729,7 +1756,7 @@ async function searchRom() {
     const list = res.results || [];
     if (!list.length) {
       $('searchStatus').textContent = sys
-        ? `Sin resultados de ${sys}. Prueba a buscar en todos los sistemas.`
+        ? t('Sin resultados de {0}. Prueba a buscar en todos los sistemas.', sys)
         : 'Sin resultados con archivo descargable.';
       return;
     }
@@ -1754,7 +1781,7 @@ async function searchRom() {
       lista.appendChild(li);
     }
   } catch (err) {
-    $('searchStatus').textContent = 'La búsqueda falló: ' + err.message;
+    $('searchStatus').textContent = t('La búsqueda falló: ') + err.message;
   } finally {
     btn.disabled = false;
   }

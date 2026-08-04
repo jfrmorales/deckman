@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/jfrmorales/deckman/internal/i18n"
 	"io"
 	"net/http"
 	"net/url"
@@ -171,7 +172,7 @@ func searchArchiveOrg(ctx context.Context, query, system string) ([]SearchResult
 		} `json:"response"`
 	}
 	if err := archiveGetJSON(ctx, searchURL, &busqueda); err != nil {
-		return nil, fmt.Errorf("no se pudo consultar archive.org: %w", err)
+		return nil, i18n.Errorf("no se pudo consultar archive.org: %w", err)
 	}
 
 	docs := busqueda.Response.Docs
@@ -229,7 +230,7 @@ func archiveGetJSON(ctx context.Context, u string, v any) error {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("archive.org respondio %s", resp.Status)
+		return i18n.Errorf("archive.org respondio %s", resp.Status)
 	}
 	return json.NewDecoder(io.LimitReader(resp.Body, archiveMaxCuerpo)).Decode(v)
 }

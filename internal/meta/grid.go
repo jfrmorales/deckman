@@ -3,6 +3,7 @@ package meta
 import (
 	"context"
 	"fmt"
+	"github.com/jfrmorales/deckman/internal/i18n"
 	"io"
 	"net/http"
 	"net/url"
@@ -44,7 +45,7 @@ func (c *Client) GridGameID(ctx context.Context, steamAppID string) (int, error)
 		return 0, err
 	}
 	if !out.Success || out.Data.ID == 0 {
-		return 0, fmt.Errorf("SteamGridDB no tiene ese juego: %s", strings.Join(out.Errors, ", "))
+		return 0, i18n.Errorf("SteamGridDB no tiene ese juego: %s", strings.Join(out.Errors, ", "))
 	}
 	return out.Data.ID, nil
 }
@@ -63,7 +64,7 @@ func (c *Client) GridSearchByName(ctx context.Context, name string) (int, error)
 		return 0, err
 	}
 	if !out.Success || len(out.Data) == 0 {
-		return 0, fmt.Errorf("SteamGridDB no encuentra %q", name)
+		return 0, i18n.Errorf("SteamGridDB no encuentra %q", name)
 	}
 	return out.Data[0].ID, nil
 }
@@ -86,7 +87,7 @@ func (c *Client) SearchGames(ctx context.Context, name string) ([]GridGame, erro
 		return nil, err
 	}
 	if !out.Success {
-		return nil, fmt.Errorf("SteamGridDB rechazo la busqueda")
+		return nil, i18n.Errorf("SteamGridDB rechazo la busqueda")
 	}
 	return out.Data, nil
 }
@@ -177,7 +178,7 @@ func ArtKinds() map[string]string {
 func (c *Client) ListArtwork(ctx context.Context, gameID int, kind string, animated bool) ([]ArtOption, error) {
 	spec, ok := artKinds[kind]
 	if !ok {
-		return nil, fmt.Errorf("tipo de arte desconocido: %q", kind)
+		return nil, i18n.Errorf("tipo de arte desconocido: %q", kind)
 	}
 
 	q := url.Values{}
@@ -217,7 +218,7 @@ func (c *Client) ListArtwork(ctx context.Context, gameID int, kind string, anima
 		return nil, err
 	}
 	if !out.Success {
-		return nil, fmt.Errorf("SteamGridDB: %s", strings.Join(out.Errors, ", "))
+		return nil, i18n.Errorf("SteamGridDB: %s", strings.Join(out.Errors, ", "))
 	}
 
 	opts := make([]ArtOption, 0, len(out.Data))
@@ -336,28 +337,28 @@ func (c *Client) Download(ctx context.Context, rawURL string) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("la descarga devolvio HTTP %d", resp.StatusCode)
+		return nil, i18n.Errorf("la descarga devolvio HTTP %d", resp.StatusCode)
 	}
 	if resp.ContentLength > maxArtworkBytes {
-		return nil, fmt.Errorf("la imagen pesa %d MB, por encima del limite de %d MB",
+		return nil, i18n.Errorf("la imagen pesa %d MB, por encima del limite de %d MB",
 			resp.ContentLength>>20, maxArtworkBytes>>20)
 	}
 
 	// Un byte mas que el limite: si lo alcanzamos, es que no cabia.
 	data, err := io.ReadAll(io.LimitReader(resp.Body, maxArtworkBytes+1))
 	if err != nil {
-		return nil, fmt.Errorf("descarga interrumpida tras %d bytes: %w", len(data), err)
+		return nil, i18n.Errorf("descarga interrumpida tras %d bytes: %w", len(data), err)
 	}
 	if len(data) > maxArtworkBytes {
-		return nil, fmt.Errorf("la imagen supera el limite de %d MB", maxArtworkBytes>>20)
+		return nil, i18n.Errorf("la imagen supera el limite de %d MB", maxArtworkBytes>>20)
 	}
 	if len(data) == 0 {
-		return nil, fmt.Errorf("imagen vacia")
+		return nil, i18n.Errorf("imagen vacia")
 	}
 	// Si el servidor dijo cuanto pesaba, tiene que cuadrar. Cubre tambien un
 	// corte de red a mitad de descarga.
 	if resp.ContentLength > 0 && int64(len(data)) != resp.ContentLength {
-		return nil, fmt.Errorf("descarga incompleta: %d de %d bytes", len(data), resp.ContentLength)
+		return nil, i18n.Errorf("descarga incompleta: %d de %d bytes", len(data), resp.ContentLength)
 	}
 	return data, nil
 }
@@ -373,7 +374,7 @@ func (c *Client) ResolveGridGame(ctx context.Context, steamAppID, name string) (
 	if name != "" {
 		return c.GridSearchByName(ctx, name)
 	}
-	return 0, fmt.Errorf("hacen falta el appid o el nombre")
+	return 0, i18n.Errorf("hacen falta el appid o el nombre")
 }
 
 // HeadSize consulta cuanto pesa un fichero sin descargarlo. Devuelve 0 si el
@@ -396,7 +397,7 @@ func (c *Client) HeadSize(ctx context.Context, rawURL string) (int64, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return 0, fmt.Errorf("HTTP %d al consultar el tamano", resp.StatusCode)
+		return 0, i18n.Errorf("HTTP %d al consultar el tamano", resp.StatusCode)
 	}
 	if resp.ContentLength < 0 {
 		return 0, nil

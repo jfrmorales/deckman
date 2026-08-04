@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/jfrmorales/deckman/internal/i18n"
 	"io"
 	"net/http"
 	"net/url"
@@ -50,7 +51,7 @@ func New(gridKey string) *Client {
 // checkRedirect revalida el destino de cada salto de una descarga de imagen.
 func (c *Client) checkRedirect(req *http.Request, via []*http.Request) error {
 	if len(via) >= 10 {
-		return fmt.Errorf("demasiadas redirecciones")
+		return i18n.Errorf("demasiadas redirecciones")
 	}
 	if len(via) == 0 || via[0].Header.Get(artRequestHeader) == "" {
 		return nil // no es una descarga de imagen
@@ -59,7 +60,7 @@ func (c *Client) checkRedirect(req *http.Request, via []*http.Request) error {
 		return nil
 	}
 	if err := c.AllowURL(req.URL.String()); err != nil {
-		return fmt.Errorf("la descarga redirige a un sitio no permitido: %w", err)
+		return i18n.Errorf("la descarga redirige a un sitio no permitido: %w", err)
 	}
 	return nil
 }
@@ -109,7 +110,7 @@ func (c *Client) getJSON(ctx context.Context, rawURL string, hdr map[string]stri
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 400))
-		return fmt.Errorf("%s devolvio HTTP %d: %s", hostOf(rawURL), resp.StatusCode, strings.TrimSpace(string(body)))
+		return i18n.Errorf("%s devolvio HTTP %d: %s", hostOf(rawURL), resp.StatusCode, strings.TrimSpace(string(body)))
 	}
 	return json.NewDecoder(io.LimitReader(resp.Body, 8<<20)).Decode(out)
 }
@@ -155,7 +156,7 @@ func (c *Client) SearchStore(ctx context.Context, term string) ([]Match, error) 
 // AppDetails pide la ficha de un appid concreto.
 func (c *Client) AppDetails(ctx context.Context, appID string) (*GameInfo, error) {
 	if _, err := strconv.Atoi(appID); err != nil {
-		return nil, fmt.Errorf("appid invalido: %q", appID)
+		return nil, i18n.Errorf("appid invalido: %q", appID)
 	}
 	u := "https://store.steampowered.com/api/appdetails?appids=" + appID + "&l=spanish"
 
@@ -177,7 +178,7 @@ func (c *Client) AppDetails(ctx context.Context, appID string) (*GameInfo, error
 	}
 	entry, ok := out[appID]
 	if !ok || !entry.Success {
-		return nil, fmt.Errorf("Steam no reconoce el appid %s", appID)
+		return nil, i18n.Errorf("Steam no reconoce el appid %s", appID)
 	}
 	info := &GameInfo{
 		AppID:       appID,
@@ -196,7 +197,7 @@ func (c *Client) AppDetails(ctx context.Context, appID string) (*GameInfo, error
 // ProtonDB consulta como se comporta el juego bajo Proton.
 func (c *Client) ProtonDB(ctx context.Context, appID string) (*Proton, error) {
 	if _, err := strconv.Atoi(appID); err != nil {
-		return nil, fmt.Errorf("appid invalido: %q", appID)
+		return nil, i18n.Errorf("appid invalido: %q", appID)
 	}
 	u := "https://www.protondb.com/api/v1/reports/summaries/" + appID + ".json"
 

@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/jfrmorales/deckman/internal/i18n"
 	"net"
 	"net/http"
 	"path"
@@ -122,13 +123,13 @@ func (c *Client) cefTargets(ctx context.Context) ([]cefTarget, error) {
 	}
 	resp, err := c.cefHTTPClient().Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("el depurador de Steam no responde: %w", err)
+		return nil, i18n.Errorf("el depurador de Steam no responde: %w", err)
 	}
 	defer resp.Body.Close()
 
 	var targets []cefTarget
 	if err := json.NewDecoder(resp.Body).Decode(&targets); err != nil {
-		return nil, fmt.Errorf("respuesta inesperada del depurador: %w", err)
+		return nil, i18n.Errorf("respuesta inesperada del depurador: %w", err)
 	}
 	return targets, nil
 }
@@ -146,7 +147,7 @@ func (c *Client) sharedJSContext(ctx context.Context) (cefTarget, error) {
 			return t, nil
 		}
 	}
-	return cefTarget{}, fmt.Errorf("no se encontro SharedJSContext; puede que Steam aun este arrancando")
+	return cefTarget{}, i18n.Errorf("no se encontro SharedJSContext; puede que Steam aun este arrancando")
 }
 
 var cefMsgID atomic.Int64
@@ -206,7 +207,7 @@ func (c *Client) cefEval(ctx context.Context, expr string) (json.RawMessage, err
 		})
 	}
 	if err != nil {
-		return nil, fmt.Errorf("no se pudo abrir el canal con Steam: %w", err)
+		return nil, i18n.Errorf("no se pudo abrir el canal con Steam: %w", err)
 	}
 	defer conn.CloseNow()
 
@@ -224,7 +225,7 @@ func (c *Client) cefEval(ctx context.Context, expr string) (json.RawMessage, err
 		},
 	}
 	if err := wsjson.Write(ctx, conn, req); err != nil {
-		return nil, fmt.Errorf("no se pudo enviar la orden a Steam: %w", err)
+		return nil, i18n.Errorf("no se pudo enviar la orden a Steam: %w", err)
 	}
 
 	// Steam manda tambien eventos por el mismo canal: hay que ir leyendo hasta
@@ -248,20 +249,20 @@ func (c *Client) cefEval(ctx context.Context, expr string) (json.RawMessage, err
 			} `json:"error"`
 		}
 		if err := wsjson.Read(ctx, conn, &resp); err != nil {
-			return nil, fmt.Errorf("Steam corto la comunicacion: %w", err)
+			return nil, i18n.Errorf("Steam corto la comunicacion: %w", err)
 		}
 		if resp.ID != id {
 			continue // un evento suyo, no es lo nuestro
 		}
 		if resp.Error != nil {
-			return nil, fmt.Errorf("Steam rechazo la orden: %s", resp.Error.Message)
+			return nil, i18n.Errorf("Steam rechazo la orden: %s", resp.Error.Message)
 		}
 		if d := resp.Result.ExceptionDetails; d != nil {
 			msg := d.Exception.Description
 			if msg == "" {
 				msg = d.Text
 			}
-			return nil, fmt.Errorf("error dentro de Steam: %s", msg)
+			return nil, i18n.Errorf("error dentro de Steam: %s", msg)
 		}
 		return resp.Result.Result.Value, nil
 	}
@@ -291,7 +292,7 @@ func (c *Client) CEFAvailable(ctx context.Context) bool {
 func (c *Client) ApplyArtworkLive(ctx context.Context, appID uint32, kind, ext string, data []byte) error {
 	assetType, ok := artAssetType[kind]
 	if !ok {
-		return fmt.Errorf("Steam no admite cambiar %q en caliente", kind)
+		return i18n.Errorf("Steam no admite cambiar %q en caliente", kind)
 	}
 
 	// Steam quiere la extension sin punto, y solo entiende png o jpg.
@@ -313,7 +314,7 @@ func (c *Client) ApplyArtworkLive(ctx context.Context, appID uint32, kind, ext s
 	}
 	var s string
 	if err := json.Unmarshal(got, &s); err != nil || s != "ok" {
-		return fmt.Errorf("Steam no confirmo el cambio (respondio %s)", string(got))
+		return i18n.Errorf("Steam no confirmo el cambio (respondio %s)", string(got))
 	}
 	return nil
 }
@@ -322,7 +323,7 @@ func (c *Client) ApplyArtworkLive(ctx context.Context, appID uint32, kind, ext s
 func (c *Client) ClearArtworkLive(ctx context.Context, appID uint32, kind string) error {
 	assetType, ok := artAssetType[kind]
 	if !ok {
-		return fmt.Errorf("Steam no admite quitar %q en caliente", kind)
+		return i18n.Errorf("Steam no admite quitar %q en caliente", kind)
 	}
 	expr := fmt.Sprintf(
 		`(async () => { await SteamClient.Apps.ClearCustomArtworkForApp(%d, %d); return "ok"; })()`,
@@ -352,7 +353,7 @@ func jsString(s string) string {
 // Devuelve el appid que asigna Steam, que es aleatorio.
 func (c *Client) AddShortcutLive(ctx context.Context, name, exe, startDir, launchOptions, compatTool string) (uint32, error) {
 	if name == "" || exe == "" {
-		return 0, fmt.Errorf("hacen falta el nombre y el ejecutable")
+		return 0, i18n.Errorf("hacen falta el nombre y el ejecutable")
 	}
 	if startDir == "" {
 		startDir = path.Dir(exe)
@@ -377,7 +378,7 @@ func (c *Client) AddShortcutLive(ctx context.Context, name, exe, startDir, launc
 	}
 	var appID uint32
 	if err := json.Unmarshal(got, &appID); err != nil || appID == 0 {
-		return 0, fmt.Errorf("Steam devolvio un identificador raro: %s", string(got))
+		return 0, i18n.Errorf("Steam devolvio un identificador raro: %s", string(got))
 	}
 	return appID, nil
 }
@@ -406,7 +407,7 @@ func (c *Client) RemoveShortcutLive(ctx context.Context, appID uint32) error {
 // la proxima vez que se cambie el arte.
 func (c *Client) SetShortcutPathLive(ctx context.Context, appID uint32, exe, startDir string) error {
 	if exe == "" || startDir == "" {
-		return fmt.Errorf("hacen falta el ejecutable y la carpeta")
+		return i18n.Errorf("hacen falta el ejecutable y la carpeta")
 	}
 	expr := fmt.Sprintf(`(async () => {
 		await SteamClient.Apps.SetShortcutExe(%d, %s);
@@ -420,7 +421,7 @@ func (c *Client) SetShortcutPathLive(ctx context.Context, appID uint32, exe, sta
 	}
 	var s string
 	if err := json.Unmarshal(got, &s); err != nil || s != "ok" {
-		return fmt.Errorf("Steam no confirmo el cambio (respondio %s)", string(got))
+		return i18n.Errorf("Steam no confirmo el cambio (respondio %s)", string(got))
 	}
 	return nil
 }

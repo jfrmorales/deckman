@@ -2,7 +2,7 @@ package server
 
 import (
 	"context"
-	"fmt"
+	"github.com/jfrmorales/deckman/internal/i18n"
 	"net/http"
 
 	"github.com/jfrmorales/deckman/internal/deck"
@@ -55,11 +55,11 @@ func (s *Server) handleRomsScrape(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.System == "" {
-		writeErr(w, fmt.Errorf("elige el sistema"), http.StatusBadRequest)
+		writeErr(w, i18n.Errorf("elige el sistema"), http.StatusBadRequest)
 		return
 	}
 	if !deck.SistemaScrapeable(req.System) {
-		writeErr(w, fmt.Errorf("no se buscan caratulas de %q: libretro no tiene ese sistema", req.System), http.StatusBadRequest)
+		writeErr(w, i18n.Errorf("no se buscan caratulas de %q: libretro no tiene ese sistema", req.System), http.StatusBadRequest)
 		return
 	}
 
@@ -88,7 +88,7 @@ func (s *Server) handleRomsScrapeResumen(w http.ResponseWriter, r *http.Request)
 	res := s.ultimoScrape
 	s.mu.RUnlock()
 	if res == nil {
-		writeErr(w, fmt.Errorf("todavia no se ha buscado ninguna caratula"), http.StatusNotFound)
+		writeErr(w, i18n.Errorf("todavia no se ha buscado ninguna caratula"), http.StatusNotFound)
 		return
 	}
 	writeJSON(w, map[string]any{"ok": true, "resumen": res})
@@ -97,7 +97,7 @@ func (s *Server) handleRomsScrapeResumen(w http.ResponseWriter, r *http.Request)
 func (s *Server) handleRomsList(w http.ResponseWriter, r *http.Request) {
 	system := r.URL.Query().Get("system")
 	if system == "" {
-		writeErr(w, fmt.Errorf("elige el sistema"), http.StatusBadRequest)
+		writeErr(w, i18n.Errorf("elige el sistema"), http.StatusBadRequest)
 		return
 	}
 	c, err := s.conn()
@@ -174,7 +174,7 @@ func (s *Server) handleRomsDownload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.URL == "" || req.System == "" {
-		writeErr(w, fmt.Errorf("hacen falta la URL y el sistema de destino"), http.StatusBadRequest)
+		writeErr(w, i18n.Errorf("hacen falta la URL y el sistema de destino"), http.StatusBadRequest)
 		return
 	}
 	// El nombre se valida ya, antes de abrir el trabajo: si la URL no sirve,
@@ -202,7 +202,7 @@ func (s *Server) handleRomsDownload(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleRomsSearch(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query().Get("q")
 	if q == "" {
-		writeErr(w, fmt.Errorf("escribe que quieres buscar"), http.StatusBadRequest)
+		writeErr(w, i18n.Errorf("escribe que quieres buscar"), http.StatusBadRequest)
 		return
 	}
 	results, err := searchArchiveOrg(r.Context(), q, r.URL.Query().Get("system"))

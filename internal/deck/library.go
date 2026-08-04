@@ -3,6 +3,7 @@ package deck
 import (
 	"context"
 	"fmt"
+	"github.com/jfrmorales/deckman/internal/i18n"
 	"path"
 	"sort"
 	"strconv"
@@ -158,7 +159,7 @@ func (c *Client) UserID(ctx context.Context, steamRoot string) (string, error) {
 		`ls -1t %s 2>/dev/null | grep -E '^[0-9]+$' | head -1`,
 		ShellQuote(path.Join(steamRoot, "userdata"))))
 	if err != nil || out == "" {
-		return "", fmt.Errorf("no se encontro ninguna cuenta de Steam en userdata")
+		return "", i18n.Errorf("no se encontro ninguna cuenta de Steam en userdata")
 	}
 	uid := strings.TrimSpace(out)
 	if c.cache != nil {
@@ -240,15 +241,15 @@ func (c *Client) libraries(ctx context.Context, steamRoot string) ([]Library, er
 	p := path.Join(steamRoot, "steamapps", "libraryfolders.vdf")
 	data, err := c.ReadFile(p)
 	if err != nil {
-		return nil, fmt.Errorf("no se pudo leer %s: %w", p, err)
+		return nil, i18n.Errorf("no se pudo leer %s: %w", p, err)
 	}
 	root, err := ParseVDF(data)
 	if err != nil {
-		return nil, fmt.Errorf("libraryfolders.vdf ilegible: %w", err)
+		return nil, i18n.Errorf("libraryfolders.vdf ilegible: %w", err)
 	}
 	lf := root.Get("libraryfolders")
 	if lf == nil {
-		return nil, fmt.Errorf("libraryfolders.vdf no tiene la clave esperada")
+		return nil, i18n.Errorf("libraryfolders.vdf no tiene la clave esperada")
 	}
 
 	var libs []Library

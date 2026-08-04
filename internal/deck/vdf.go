@@ -2,7 +2,7 @@ package deck
 
 import (
 	"bytes"
-	"fmt"
+	"github.com/jfrmorales/deckman/internal/i18n"
 	"sort"
 	"strings"
 )
@@ -30,7 +30,7 @@ func ParseVDF(data []byte) (*VDFNode, error) {
 			break
 		}
 		if p.peek() == '}' {
-			return nil, fmt.Errorf("llave de cierre inesperada en offset %d", p.pos)
+			return nil, i18n.Errorf("llave de cierre inesperada en offset %d", p.pos)
 		}
 		node, err := p.parsePair()
 		if err != nil {
@@ -82,7 +82,7 @@ func (p *vdfParser) parsePair() (*VDFNode, error) {
 		for {
 			p.skipSpace()
 			if p.eof() {
-				return nil, fmt.Errorf("falta '}' para la clave %q", key)
+				return nil, i18n.Errorf("falta '}' para la clave %q", key)
 			}
 			if p.peek() == '}' {
 				p.pos++
@@ -104,7 +104,7 @@ func (p *vdfParser) parsePair() (*VDFNode, error) {
 
 func (p *vdfParser) parseString() (string, error) {
 	if p.eof() {
-		return "", fmt.Errorf("fin de fichero inesperado")
+		return "", i18n.Errorf("fin de fichero inesperado")
 	}
 	if p.peek() != '"' {
 		// Token sin comillas (Valve lo admite en algunos ficheros).
@@ -117,7 +117,7 @@ func (p *vdfParser) parseString() (string, error) {
 			p.pos++
 		}
 		if start == p.pos {
-			return "", fmt.Errorf("token vacio en offset %d", p.pos)
+			return "", i18n.Errorf("token vacio en offset %d", p.pos)
 		}
 		return string(p.data[start:p.pos]), nil
 	}
@@ -150,7 +150,7 @@ func (p *vdfParser) parseString() (string, error) {
 		sb.WriteByte(c)
 		p.pos++
 	}
-	return "", fmt.Errorf("cadena sin cerrar")
+	return "", i18n.Errorf("cadena sin cerrar")
 }
 
 // Get busca un descendiente siguiendo la ruta de claves. La comparacion no

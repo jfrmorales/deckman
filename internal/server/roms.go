@@ -101,3 +101,20 @@ func (s *Server) handleRomsDownload(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte(`{"ok":true}`))
 }
+
+func (s *Server) handleRomsSearch(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query().Get("q")
+	if q == "" {
+		s.replyError(w, http.StatusBadRequest, "Búsqueda vacía")
+		return
+	}
+
+	results, err := searchArchiveOrg(q)
+	if err != nil {
+		s.replyError(w, http.StatusInternalServerError, "Error en la búsqueda: "+err.Error())
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{"results": results})
+}

@@ -135,6 +135,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/roms/delete", s.guard(s.handleRomsDelete))
 	mux.HandleFunc("/api/roms/rename", s.guard(s.handleRomsRename))
 	mux.HandleFunc("/api/roms/download", s.guard(s.handleRomsDownload))
+	mux.HandleFunc("/api/roms/search", s.guard(s.handleRomsSearch))
 	mux.HandleFunc("/api/events", s.handleEvents)
 
 	return mux

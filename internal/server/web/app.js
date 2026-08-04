@@ -1513,6 +1513,7 @@ function init() {
   // Eventos Emulación
   if ($('btnLoadRoms')) $('btnLoadRoms').onclick = loadManageRoms;
   if ($('btnDownloadRom')) $('btnDownloadRom').onclick = downloadRom;
+  if ($('btnSearchRom')) $('btnSearchRom').onclick = searchRom;
   if ($('btnScrapeSystem')) $('btnScrapeSystem').onclick = scrapeSystem;
   
   $('manageRomsBody').addEventListener('click', async (e) => {
@@ -1582,10 +1583,14 @@ async function loadManageRoms() {
 }
 
 async function downloadRom() {
-  const url = $('downloadUrl').value.trim();
+  let url = $('downloadUrl').value.trim();
   const sys = $('downloadRomSystem').value;
+  if (!url && window.selectedSearchUrl) {
+    url = window.selectedSearchUrl;
+  }
+  
   if (!url || !sys) {
-    $('downloadStatus').textContent = 'Faltan datos';
+    $('downloadStatus').textContent = 'Faltan datos (URL o selección)';
     return;
   }
   
@@ -1597,9 +1602,55 @@ async function downloadRom() {
     await api('/api/roms/download', { url, system: sys });
     $('downloadStatus').textContent = 'Descarga completada con éxito';
     $('downloadUrl').value = '';
+    window.selectedSearchUrl = null;
+    $('searchRomsList').classList.add('hidden');
     banner('ROM descargada en ' + sys, 'ok');
   } catch (err) {
     $('downloadStatus').textContent = 'Error: ' + err.message;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function searchRom() {
+  const q = $('searchRomInput').value.trim();
+  if (!q) return;
+  
+  const btn = $('btnSearchRom');
+  btn.disabled = true;
+  $('searchStatus').textContent = 'Buscando en archive.org...';
+  $('searchRomsList').innerHTML = '';
+  $('searchRomsList').classList.remove('hidden');
+  window.selectedSearchUrl = null;
+  
+  try {
+    const res = await api('/api/roms/search?q=' + encodeURIComponent(q));
+    const list = res.results || [];
+    
+    if (list.length === 0) {
+      $('searchStatus').textContent = 'No se encontraron resultados';
+      return;
+    }
+    
+    $('searchStatus').textContent = '';
+    list.forEach((r, i) => {
+      const li = document.createElement('li');
+      li.className = 'brrow';
+      li.innerHTML = `
+        <span class="ic">🎮</span>
+        <span class="nm">${escapeHtml(r.title)}</span>
+        <span class="sz">${fmtBytes(r.size)}</span>
+      `;
+      li.onclick = () => {
+        document.querySelectorAll('#searchRomsList .brrow').forEach(e => e.classList.remove('sel'));
+        li.classList.add('sel');
+        window.selectedSearchUrl = r.url;
+        $('downloadUrl').value = ''; // Clear manual input
+      };
+      $('searchRomsList').appendChild(li);
+    });
+  } catch (err) {
+    $('searchStatus').textContent = 'Error: ' + err.message;
   } finally {
     btn.disabled = false;
   }

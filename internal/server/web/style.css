@@ -561,3 +561,181 @@ thead th {
   border-bottom: 1px solid var(--line);
 }
 .empty { padding: 34px 26px; line-height: 1.7; }
+
+/* ---- Emulación (Premium Web App Design) ---- */
+.emulation-panel {
+  animation: fade-in 0.3s ease-out;
+}
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.emu-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.emu-header h2 {
+  font-size: 28px;
+  margin: 0 0 8px;
+  background: linear-gradient(135deg, #e4e8f0, #8b95a8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.5px;
+}
+.emu-header .subtitle {
+  margin: 0;
+  color: var(--dim);
+  font-size: 15px;
+}
+
+.emu-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.emu-card {
+  background: rgba(26, 31, 41, 0.6);
+  border: 1px solid rgba(46, 55, 70, 0.5);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 14px;
+  padding: 20px;
+  text-align: left;
+  transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  color: inherit;
+  font-family: inherit;
+}
+
+.emu-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(77, 157, 224, 0.4);
+  background: rgba(35, 41, 54, 0.8);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.emu-card.active-card {
+  border-color: var(--accent);
+  background: linear-gradient(145deg, rgba(35, 41, 54, 0.9), rgba(26, 31, 41, 0.9));
+  box-shadow: 0 0 0 1px var(--accent) inset, 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.emu-card::after {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: radial-gradient(circle at 100% 0%, rgba(77, 157, 224, 0.15) 0%, transparent 50%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+.emu-card:hover::after, .emu-card.active-card::after {
+  opacity: 1;
+}
+
+.emu-icon {
+  font-size: 28px;
+  margin-bottom: 4px;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+}
+
+.emu-card h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.emu-card p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--dim);
+}
+
+.emu-content {
+  margin-top: 8px;
+}
+
+.emu-subpanel {
+  animation: slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.emu-subpanel.hidden {
+  display: none !important;
+}
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(15px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.premium-card {
+  background: rgba(26, 31, 41, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(46, 55, 70, 0.6);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  padding: 32px;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 280px;
+  gap: 16px;
+}
+
+.huge-icon {
+  font-size: 64px;
+  filter: drop-shadow(0 8px 16px rgba(0,0,0,0.4));
+  margin-bottom: 8px;
+}
+
+.empty-state h3 {
+  font-size: 22px;
+  margin: 0;
+  color: var(--fg);
+}
+
+.empty-state p {
+  color: var(--dim);
+  max-width: 400px;
+  margin: 0 0 16px;
+  line-height: 1.6;
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+@keyframes float {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0); }
+}
+
+.animate-pulse {
+  animation: glow-pulse 3s infinite alternate;
+}
+@keyframes glow-pulse {
+  from { filter: drop-shadow(0 0 5px rgba(224, 163, 77, 0.3)) drop-shadow(0 8px 16px rgba(0,0,0,0.4)); }
+  to { filter: drop-shadow(0 0 20px rgba(224, 163, 77, 0.7)) drop-shadow(0 8px 16px rgba(0,0,0,0.4)); }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 12s linear infinite;
+}
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

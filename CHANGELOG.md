@@ -13,6 +13,14 @@ bloque `<releases>` del metainfo. Los tres los sincroniza `scripts/release.sh`.
      versión nueva al publicar. Secciones: Añadido, Cambiado, Corregido,
      Eliminado. -->
 
+### Cambiado
+
+- **La pestaña «Enviar ROM» pasa a ser «Emulación»**, con cuatro tarjetas que
+  hacen de subpestaña: *Enviar ROM* (lo de antes, igual de funcional),
+  *Gestionar*, *Descargar* y *Scrapear*. Las tres últimas son de momento un
+  hueco marcado como «Próximamente»: el sitio donde irán, para no volver a
+  mover la interfaz cuando lleguen.
+
 ## [0.2.4] — 2026-08-03
 
 ### Cambiado

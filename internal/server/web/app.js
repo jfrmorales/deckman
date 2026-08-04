@@ -1472,6 +1472,27 @@ function init() {
 
   connectEvents();
   refreshState();
+
+  // Subpestañas de Emulación: las tarjetas hacen de pestaña y solo se ve el
+  // panel de la elegida.
+  document.querySelectorAll('.emu-card').forEach((card) => {
+    card.addEventListener('click', () => {
+      document.querySelectorAll('.emu-card').forEach(c => c.classList.remove('active-card'));
+      card.classList.add('active-card');
+
+      document.querySelectorAll('.emu-subpanel').forEach(p => {
+        p.classList.add('hidden');
+        p.classList.remove('active');
+      });
+
+      const targetId = card.dataset.subtab;
+      const targetPanel = $(targetId);
+      if (targetPanel) {
+        targetPanel.classList.remove('hidden');
+        targetPanel.classList.add('active');
+      }
+    });
+  });
 }
 
 document.addEventListener('DOMContentLoaded', init);

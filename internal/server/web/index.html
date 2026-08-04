@@ -42,7 +42,7 @@
 <nav class="tabs">
   <button class="tab active" data-tab="library">Biblioteca</button>
   <button class="tab" data-tab="send">Enviar juego</button>
-  <button class="tab" data-tab="rom">Enviar ROM</button>
+  <button class="tab" data-tab="rom">Emulación</button>
 </nav>
 
 <main>
@@ -224,27 +224,92 @@
     </details>
   </section>
 
-  <!-- ---------- ENVIAR ROM ---------- -->
-  <section id="tab-rom" class="panel">
-    <div class="card">
-      <h2>Enviar una ROM</h2>
-      <p class="hint">Copia a la carpeta de EmuDeck <code id="romsDirLabel">—</code>.</p>
+  <!-- ---------- EMULACIÓN ---------- -->
+  <section id="tab-rom" class="panel emulation-panel">
+    <div class="emu-dashboard">
+      <header class="emu-header">
+        <h2>Emulación</h2>
+        <p class="subtitle">Gestiona tu colección, descargas y scrapers</p>
+      </header>
 
-      <div class="field">
-        <label>Fichero o carpeta en este PC</label>
-        <div class="row">
-          <input id="romPath" readonly placeholder="Nada seleccionado">
-          <button data-browse="romPath" data-mode="any">Elegir…</button>
+      <div class="emu-cards">
+        <button class="emu-card active-card" data-subtab="emu-send">
+          <div class="emu-icon">📥</div>
+          <h3>Enviar ROM</h3>
+          <p>Copia roms a la Deck</p>
+        </button>
+        <button class="emu-card" data-subtab="emu-manage">
+          <div class="emu-icon">📁</div>
+          <h3>Gestionar</h3>
+          <p>Organiza tu colección</p>
+        </button>
+        <button class="emu-card" data-subtab="emu-download">
+          <div class="emu-icon">⚡</div>
+          <h3>Descargar</h3>
+          <p>Obtén nuevas roms</p>
+        </button>
+        <button class="emu-card" data-subtab="emu-scrape">
+          <div class="emu-icon">🖼️</div>
+          <h3>Scrapear</h3>
+          <p>Descarga metadatos</p>
+        </button>
+      </div>
+
+      <div class="emu-content">
+        <!-- Subpestaña: Enviar ROM -->
+        <div id="emu-send" class="emu-subpanel active">
+          <div class="card premium-card">
+            <h2>Enviar una ROM</h2>
+            <p class="hint">Copia a la carpeta de EmuDeck <code id="romsDirLabel">—</code>.</p>
+
+            <div class="field">
+              <label>Fichero o carpeta en este PC</label>
+              <div class="row">
+                <input id="romPath" readonly placeholder="Nada seleccionado">
+                <button data-browse="romPath" data-mode="any">Elegir…</button>
+              </div>
+            </div>
+
+            <div class="field">
+              <label>Sistema</label>
+              <select id="romSystem"></select>
+            </div>
+
+            <button id="btnSendRom" class="primary big">Enviar ROM</button>
+            <p class="hint">Después, en la Deck, actualiza la lista de juegos en ES-DE o Steam ROM Manager.</p>
+          </div>
+        </div>
+
+        <!-- Subpestaña: Gestionar -->
+        <div id="emu-manage" class="emu-subpanel hidden">
+          <div class="card premium-card empty-state">
+            <div class="huge-icon animate-float">🎮</div>
+            <h3>Gestor de Colección</h3>
+            <p>Visualiza, renombra y elimina ROMs de tu Steam Deck directamente desde aquí.</p>
+            <button class="primary" disabled>Próximamente</button>
+          </div>
+        </div>
+
+        <!-- Subpestaña: Descargar -->
+        <div id="emu-download" class="emu-subpanel hidden">
+          <div class="card premium-card empty-state">
+            <div class="huge-icon animate-pulse">⚡</div>
+            <h3>Descargas Directas</h3>
+            <p>Busca y descarga ROMs homebrew o de dominio público directamente a tu Deck.</p>
+            <button class="primary" disabled>Próximamente</button>
+          </div>
+        </div>
+
+        <!-- Subpestaña: Scrapear -->
+        <div id="emu-scrape" class="emu-subpanel hidden">
+          <div class="card premium-card empty-state">
+            <div class="huge-icon animate-spin-slow">✨</div>
+            <h3>Scraper Integrado</h3>
+            <p>Actualiza las carátulas, descripciones y metadatos de tus ROMs usando ScreenScraper o TheGamesDB.</p>
+            <button class="primary" disabled>Próximamente</button>
+          </div>
         </div>
       </div>
-
-      <div class="field">
-        <label>Sistema</label>
-        <select id="romSystem"></select>
-      </div>
-
-      <button id="btnSendRom" class="primary big">Enviar ROM</button>
-      <p class="hint">Después, en la Deck, actualiza la lista de juegos en ES-DE o Steam ROM Manager.</p>
     </div>
   </section>
 

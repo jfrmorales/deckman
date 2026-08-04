@@ -348,12 +348,15 @@
               <label>Buscar en archive.org</label>
               <div class="row">
                 <input id="searchRomInput" class="pathinput" placeholder="nombre del juego" autocomplete="off">
-                <select id="searchScope">
-                  <option value="sistema">Solo del sistema elegido</option>
-                  <option value="todos">De todos los sistemas</option>
-                </select>
                 <button id="btnSearchRom">Buscar</button>
               </div>
+              <!-- Casilla y no desplegable: un <select> en esta fila hereda el
+                   width:100% de los campos del formulario y deja la caja de
+                   búsqueda en un dedal. Además así se lee de corrido. -->
+              <label class="check">
+                <input type="checkbox" id="searchTodos">
+                Buscar en todos los sistemas, no solo en <b id="searchScopeSys">el de destino</b>
+              </label>
               <p class="hint">Descarga solo lo que tengas derecho a descargar.</p>
             </div>
 

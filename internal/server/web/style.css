@@ -250,8 +250,13 @@ select.compat { padding: 5px 8px; font-size: 13px; max-width: 160px; }
 .field { margin: 18px 0; }
 .field label { display: block; font-size: 13.5px; font-weight: 500; color: var(--dim); margin-bottom: 8px; }
 .field input, .field select { width: 100%; }
-.row { display: flex; gap: 10px; }
-.row input { flex: 1; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; }
+/* min-width para que el campo de texto no acabe en un dedal: con flex-basis 0
+   basta con que un hermano pida mucho ancho para dejarlo sin sitio. Y los
+   desplegables, que en un .field valen el 100%, en fila ocupan solo lo suyo:
+   ese 100% era justo lo que se comía la caja de búsqueda. */
+.row input { flex: 1; min-width: 14ch; }
+.row select { width: auto; flex: 0 1 auto; }
 
 /* ---- progreso ---- */
 .progress {
@@ -449,7 +454,15 @@ button.mini { padding: 3px 9px; font-size: 12px; }
    tarea sobre el mismo sistema, no otra pantalla. */
 .scrapebox { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
 .scrapebox h3 { margin: 0 0 6px; font-size: 15px; }
-.scrapebox .check { display: flex; align-items: center; gap: 8px; margin: 10px 0 12px; }
+/* Estas dos casillas van sueltas entre otros controles, no en una barra de
+   filtros como las de la biblioteca: solo ahí hace falta el aire. El resto de
+   `.check` se queda como estaba (regla de arriba). */
+.scrapebox > .check,
+.field > .check { margin: 10px 0 12px; }
+/* Dentro de un .field, `width: 100%` alcanza también a las casillas: la casilla
+   se estiraba a todo el ancho y echaba su propia etiqueta a la línea de abajo,
+   flotando centrada. Una casilla ocupa lo que ocupa. */
+.check input[type="checkbox"] { width: auto; flex: 0 0 auto; }
 .scrapebox .romresults { max-height: 180px; }
 
 /* Los resultados de archive.org reutilizan las filas del explorador (.brrow);

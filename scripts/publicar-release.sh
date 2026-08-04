@@ -100,8 +100,29 @@ print(json.dumps({
     "prerelease": False,
 }))' "$TAG" <<< "$NOTAS")"
 
-RESP="$(curl -sS -X POST "${CAB[@]}" "$API/releases" -d "$CUERPO")"
-ID="$(printf '%s' "$RESP" | sacar_id || true)"
+# Reintento con espera creciente por una carrera que ya costo una release: el
+# runner arranca al recibir Forgejo el tag, y para entonces GitHub puede no
+# haberlo registrado aun. La API contesta 422 «Published releases must have a
+# valid tag», que parece un error de datos y es solo cuestion de segundos.
+# Paso v0.4.0: el job corrio 5 s despues del push y se lo comio; v0.3.0 gano la
+# misma carrera por poco. Sin reintento, esto falla una de cada tantas y hay
+# que publicar a mano.
+RESP=""
+ID=""
+espera=3
+for intento in 1 2 3 4 5; do
+	RESP="$(curl -sS -X POST "${CAB[@]}" "$API/releases" -d "$CUERPO")"
+	ID="$(printf '%s' "$RESP" | sacar_id || true)"
+	[ -n "$ID" ] && break
+	case "$RESP" in
+		*"must have a valid tag"*)
+			echo "   GitHub aun no ve el tag $TAG; reintento $intento en ${espera}s"
+			sleep "$espera"
+			espera=$((espera * 2))
+			;;
+		*) break ;;   # otro error: no se gana nada insistiendo
+	esac
+done
 
 if [ -z "$ID" ]; then
 	# Lo normal aqui es que la release ya exista (segundo intento del job, o se

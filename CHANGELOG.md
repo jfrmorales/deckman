@@ -13,6 +13,21 @@ bloque `<releases>` del metainfo. Los tres los sincroniza `scripts/release.sh`.
      versión nueva al publicar. Secciones: Añadido, Cambiado, Corregido,
      Eliminado. -->
 
+### Corregido
+
+- **La caja de buscar en archive.org se quedaba en un dedal.** El desplegable
+  que acotaba la búsqueda al sistema heredaba el `width: 100%` de los campos del
+  formulario y, en una fila, se llevaba todo el ancho. Ahora ese ajuste es una
+  casilla («Buscar en todos los sistemas, no solo en *psx*», con el nombre del
+  sistema puesto), la caja recupera su ancho y los desplegables que vayan en
+  fila ocupan solo lo suyo.
+- **Publicar fallaba de vez en cuando por una carrera con GitHub.** El CI
+  arranca en cuanto Forgejo recibe el tag, y para entonces GitHub puede no
+  haberlo registrado todavía: la API contesta *«Published releases must have a
+  valid tag»*, que parece un error de datos y es cuestión de segundos. Le pasó
+  a la v0.4.0, cuya release hubo que crear a mano. Ahora se reintenta con
+  espera creciente, y solo ante ese error concreto.
+
 ## [0.4.0] — 2026-08-04
 
 ### Añadido

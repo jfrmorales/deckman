@@ -508,6 +508,7 @@ function renderSendOptions() {
       sel.appendChild(o);
     }
   }
+  mostrarSistemaBusqueda();
   $('romsDirLabel').textContent = inventory.romsDir || 'no se encontró EmuDeck';
   updateJobButtons();
 }
@@ -1512,6 +1513,8 @@ function init() {
   };
   $('btnDownloadRom').onclick = downloadRom;
   $('btnSearchRom').onclick = searchRom;
+  // La casilla nombra el sistema al que acota, así que sigue al desplegable.
+  $('downloadRomSystem').onchange = mostrarSistemaBusqueda;
   $('searchRomInput').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') searchRom();
   });
@@ -1680,6 +1683,13 @@ async function esperarScrape(sys) {
   }
 }
 
+// mostrarSistemaBusqueda pone en la casilla el sistema al que se acota, para
+// que no haya que mirar arriba a ver cuál estaba elegido.
+function mostrarSistemaBusqueda() {
+  const el = $('searchScopeSys');
+  if (el) el.textContent = $('downloadRomSystem').value || 'el de destino';
+}
+
 async function downloadRom() {
   const url = $('downloadUrl').value.trim();
   const sys = $('downloadRomSystem').value;
@@ -1709,9 +1719,9 @@ async function searchRom() {
   lista.classList.add('hidden');
 
   // Acotar a la plataforma elegida es lo normal: teniendo puesto arcade, los
-  // resultados de PSP solo estorban. El desplegable deja abrir la búsqueda a
-  // todo cuando lo que quieres es ver qué hay y elegir.
-  const sys = $('searchScope').value === 'todos' ? '' : $('downloadRomSystem').value;
+  // resultados de PSP solo estorban. La casilla deja abrir la búsqueda a todo
+  // cuando lo que quieres es ver qué hay y elegir.
+  const sys = $('searchTodos').checked ? '' : $('downloadRomSystem').value;
 
   try {
     const res = await api('/api/roms/search?q=' + encodeURIComponent(q)

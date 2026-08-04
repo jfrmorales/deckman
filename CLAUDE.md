@@ -21,11 +21,20 @@ solo les pone nombre y orden, así que no dupliques nada ahí.
 ```sh
 make setup            # deja el clon listo (requisitos, deck.local.env, remotos, gancho)
 make check            # gofmt + vet + pruebas locales, SIN la Deck
+make audit            # golangci-lint + govulncheck
 make deck             # + las de integración contra la Deck
 make build            # linux + windows en dist/
 make flatpak          # empaqueta e instala el Flatpak (usuario)
 make release V=0.2.0  # publica de principio a fin
 ```
+
+`make audit` va **aparte** de `check` y **no** es puerta para publicar: mira
+contra una base de datos que cambia sola, así que puede ponerse en rojo sin que
+nadie haya tocado nada. El CI lo pasa igual en cada push
+(`.forgejo/workflows/auditoria.yml`). El porqué largo, en `audit.sh`.
+
+Cada exclusión de `.golangci.yml` lleva escrito su motivo. Si añades una, di
+por qué; una exclusión sin motivo es la que nadie se atreve a quitar después.
 
 `make check` pone `DECKMAN_SIN_DECK=1` para que `test.sh` ignore
 `deck.local.env`: publicar no puede depender de tener la Deck encendida.
@@ -59,6 +68,14 @@ de imagen o se los borra.
 (`WriteFileAtomic` ya lo hace) y comprueba que no pierdes datos
 (`checkNoShortcutsLost`).
 
+**La clave SSH de la Deck se verifica (TOFU) y eso no se relaja.** La primera
+conexión acepta y recuerda; un cambio posterior se planta con un
+`*deck.ClaveDeHostCambiada` y solo lo salta `ConfiarClaveNueva`, que pone el
+usuario con la huella delante. `deck.Connect` **falla** si no se le da
+`KnownHostsPath`: aceptar cualquier clave con la ruta vacía sería el viejo
+`InsecureIgnoreHostKey` pero invisible. El porqué está en
+`internal/deck/hostkey.go`.
+
 ## Verificar de verdad
 
 El usuario espera comprobación real, no "debería funcionar":
@@ -73,6 +90,26 @@ El usuario espera comprobación real, no "debería funcionar":
   aquí no hay Windows donde abrirla), las vías en caliente de la revisión
   2026-08-03 (`RemoveShortcutLive`, `SetCompatToolLive`) y `RelocateShortcut`
   (mover un no-Steam con Steam **cerrado**: solo cubierto por pruebas unitarias).
+
+  La **verificación TOFU de la clave de host** (2026-08-04) se probó entera sin
+  la Deck, y la forma merece quedar apuntada porque se reutiliza: un servidor
+  SSH de mentira en `127.0.0.1:2222` (30 líneas con `x/crypto/ssh`, acepta
+  cualquier contraseña y rechaza las sesiones) sirve de sobra, porque el
+  apretón de manos —que es donde se verifica la clave— ocurre **antes** de
+  autenticar. Arrancarlo con una semilla y luego con otra imita exactamente lo
+  que hace reinstalar SteamOS. Comprobado así: primera conexión recuerda la
+  clave, la misma clave no molesta, otra clave se planta con las dos huellas
+  (en los tres idiomas), cancelar deja `known_hosts` intacto y confiar deja una
+  sola línea con la nueva. Y con Playwright, el diálogo de la interfaz de
+  verdad, sin errores de JavaScript.
+
+  Repetido **contra la Deck del usuario** el mismo día: primera conexión
+  apunta su clave ECDSA, la segunda no molesta, sustituirla en `known_hosts`
+  por otra válida dispara el aviso con las dos huellas, y confiar deja una
+  sola línea con la real. La prueba se hizo con `XDG_CONFIG_HOME` a un
+  directorio desechable y se limpió con «olvidar Deck» (`revocada: true`); la
+  clave del usuario siguió funcionando después. De ahí salió el fallo de la
+  línea ilegible: una entrada corrupta tumbaba `knownhosts.New` entero.
 
   Sí probado contra la Deck el 2026-08-03: **mover un juego no-Steam** con Steam
   abierto (`SetShortcutPathLive`), ida y vuelta, con los 9 accesos directos

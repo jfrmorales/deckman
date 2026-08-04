@@ -2,6 +2,8 @@ package config
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -118,5 +120,86 @@ func TestRemoveDeckMantieneLaActiva(t *testing.T) {
 	}
 	if _, ok := c.RemoveDeck(0); ok {
 		t.Error("RemoveDeck deberia rechazar un indice inexistente")
+	}
+}
+
+// Un config.json ilegible no puede acabar en "no habia ninguna Deck": el
+// primer Save de la sesion lo machacaria y con el se irian las Decks
+// recordadas y keyPath. Sin keyPath, la clave que deckman instalo en la Deck
+// se queda ahi y ya no hay forma de retirarla desde la interfaz.
+func TestConfigRotaSeApartaEnVezDePerderse(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+
+	p := filepath.Join(dir, "deckman", "config.json")
+	if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	roto := `{"decks":[{"host":"192.168.1.50"` // se corto a mitad
+	if err := os.WriteFile(p, []byte(roto), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	c := Load()
+	if len(c.Decks) != 0 || c.Active != -1 {
+		t.Errorf("con la config rota se esperaban valores por defecto, hay %+v", c)
+	}
+
+	// Lo importante: el original sigue existiendo, apartado.
+	copia, err := os.ReadFile(p + ".roto")
+	if err != nil {
+		t.Fatalf("no se guardo copia del config.json ilegible: %v", err)
+	}
+	if string(copia) != roto {
+		t.Errorf("la copia no es el original: %q", copia)
+	}
+	// Y el sitio bueno queda libre para empezar de cero.
+	if _, err := os.Stat(p); !os.IsNotExist(err) {
+		t.Errorf("config.json tenia que haberse apartado, no copiado")
+	}
+}
+
+// El caso normal no puede sufrir por lo anterior: un config.json bueno se lee
+// y no se aparta nada.
+func TestConfigBuenaSeLeeSinApartarNada(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+
+	p := filepath.Join(dir, "deckman", "config.json")
+	if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	bueno := `{"decks":[{"host":"192.168.1.50","port":22,"user":"deck"}],"active":0,"keyPath":"/x/id_ed25519"}`
+	if err := os.WriteFile(p, []byte(bueno), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	c := Load()
+	if len(c.Decks) != 1 || c.ActiveDeck().Host != "192.168.1.50" {
+		t.Fatalf("no se leyo la Deck guardada: %+v", c)
+	}
+	if c.KeyPath != "/x/id_ed25519" {
+		t.Errorf("se perdio keyPath: %q", c.KeyPath)
+	}
+	if _, err := os.Stat(p + ".roto"); err == nil {
+		t.Error("se aparto un config.json que estaba bien")
+	}
+}
+
+// KnownHostsPath vive en la carpeta de configuracion, junto a la clave: si
+// devolviera "", deck.Connect se negaria a conectar (y hace bien).
+func TestKnownHostsPathEstaEnLaCarpetaDeConfiguracion(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+
+	got := KnownHostsPath()
+	if got == "" {
+		t.Fatal("KnownHostsPath vacio")
+	}
+	if filepath.Dir(got) != filepath.Join(dir, "deckman") {
+		t.Errorf("KnownHostsPath = %q, se esperaba dentro de %q", got, filepath.Join(dir, "deckman"))
+	}
+	if filepath.Base(got) != "known_hosts" {
+		t.Errorf("KnownHostsPath = %q", got)
 	}
 }

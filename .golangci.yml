@@ -1,0 +1,105 @@
+# Analisis estatico: lo que gofmt y `go vet` no ven.
+#
+# La lista esta escogida a mano, no heredada de una plantilla. Cada linter que
+# esta aqui encontro algo real en este codigo la primera vez que se ejecuto, y
+# cada exclusion de abajo lleva escrito por que — si algun dia deja de ser
+# cierto, se quita. Un linter cuyos avisos se ignoran deja de ser un linter.
+#
+# Se ejecuta con `make audit` (en contenedor, como todo) y en el CI, en un
+# trabajo aparte de las pruebas: ver .forgejo/workflows/auditoria.yml y el
+# comentario de audit.sh, que explica por que va aparte.
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  # `standard` ya trae errcheck, govet, ineffassign, staticcheck y unused.
+  default: standard
+  enable:
+    # Este programa borra y sobrescribe ficheros en la Deck de una persona.
+    # gosec vigila justo eso. De propina fue quien puso el dedo en
+    # InsecureIgnoreHostKey (G106) antes de que se arreglara.
+    - gosec
+    # Errores envueltos con %v en vez de %w: rompen errors.Is/As sin avisar, y
+    # aqui se usan para distinguir la clave de host cambiada de un fallo
+    # cualquiera de conexion.
+    - errorlint
+    # Copiar por valor una struct con mutex dentro (remoteCache).
+    - copyloopvar
+    # Respuestas HTTP sin cerrar: el scraper y el descargador abren muchas.
+    - bodyclose
+
+  settings:
+    gosec:
+      excludes:
+        # G115 (conversiones enteras que podrian desbordar): salen en vdf.go y
+        # transfer.go, y son las 9 el mismo caso — el formato VDF guarda los
+        # appid como uint32 y Steam los maneja como int32 con el mismo patron
+        # de bits, asi que la conversion de ida y vuelta es exactamente lo que
+        # hay que hacer. Revisadas una a una; ninguna viene de aritmetica.
+        - G115
+        # G304 y G703 (rutas de fichero que vienen de una variable): el
+        # programa existe para abrir ficheros que elige el usuario. Lo que
+        # protege de verdad es safeToDelete, que si esta probado.
+        - G304
+        - G703
+        # G704 (SSRF): las dos son las descargas de archive.org, o sea la
+        # funcion en si. La URL no la escribe un tercero: sale del catalogo
+        # que el propio deckman ha pedido.
+        - G704
+        # G101 (credenciales en el codigo): las dos estan en el catalogo de
+        # traducciones, y son mensajes que hablan de contraseñas, no
+        # contraseñas. La de verdad no se guarda nunca (ver config.Config).
+        - G101
+        # G204 (orden con argumentos variables): ejecutar ordenes en la Deck
+        # con rutas que elige el usuario es el proposito del programa. El
+        # entrecomillado lo hace shellQuote y esta cubierto por pruebas.
+        - G204
+        # G104 (error sin comprobar): es lo mismo que dice errcheck, que ya
+        # esta puesto y sabe distinguir mejor los casos. Dos linters gritando
+        # lo mismo hacen que se ignoren los dos.
+        - G104
+        # G306 (permisos al escribir): las dos son id_ed25519.pub, y una clave
+        # PUBLICA en 0644 es lo que deja ssh-keygen. La privada se escribe en
+        # 0600 y de eso si hay prueba (config_test.go).
+        - G306
+
+    errcheck:
+      exclude-functions:
+        # Cerrar un canal SSH ya agotado, o mandarle una señal a una sesion
+        # que se esta muriendo, puede fallar sin que haya nada que hacer al
+        # respecto ni nada que contar.
+        - (*golang.org/x/crypto/ssh.Session).Close
+        - (*golang.org/x/crypto/ssh.Session).Signal
+        - (*golang.org/x/crypto/ssh.Client).Close
+        - (*github.com/pkg/sftp.Client).Close
+        - (*github.com/coder/websocket.Conn).CloseNow
+        - (*github.com/coder/websocket.Conn).Close
+        # Escribir la respuesta HTTP: si el navegador ya se ha ido, no hay a
+        # quien contarselo. writeJSON y writeErr son el unico sitio donde se
+        # hace, y ahi el error solo puede ser ese.
+        - (net/http.ResponseWriter).Write
+        - (*encoding/json.Encoder).Encode
+
+  exclusions:
+    # std-error-handling es la lista de siempre: Close, os.Remove, los Fprint
+    # sobre un buffer... errores que no se comprueba nadie porque no informan
+    # de nada accionable. Sin ella, errcheck saca cincuenta avisos de defer y
+    # entierra los cinco que si importaban.
+    presets:
+      - std-error-handling
+      - common-false-positives
+    rules:
+      # coder/websocket documenta que su Dial devuelve una respuesta cuyo
+      # cuerpo NO hay que cerrar ("You never need to close resp.Body
+      # yourself", dial.go). bodyclose no lo sabe y marca las dos llamadas.
+      - path: internal/deck/cef\.go
+        linters:
+          - bodyclose
+      # Las pruebas montan servidores y ficheros de mentira: exigirles el
+      # mismo rigor que al codigo que toca la Deck no compra nada.
+      - path: _test\.go
+        linters:
+          - gosec
+          - errcheck

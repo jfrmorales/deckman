@@ -4,6 +4,7 @@ import (
 	"context"
 	"embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/jfrmorales/deckman/internal/i18n"
 	"io/fs"
@@ -205,6 +206,18 @@ func checkHost(host string) error {
 	return i18n.Errorf("deckman solo atiende peticiones a localhost, no a %q", host)
 }
 
+// guardar persiste la configuracion y deja dicho si no ha podido.
+//
+// Ninguna de las cuatro llamadas debe tumbar la peticion en curso: enviar un
+// juego funciona igual aunque no se recuerde la ultima carpeta. Pero fallaban
+// en silencio, y el sintoma que veia el usuario era que deckman se olvidaba de
+// su Deck entre arranques sin que nada lo explicara.
+func (s *Server) guardar(cfg config.Config) {
+	if err := cfg.Save(); err != nil {
+		s.logf("no se pudo guardar la configuracion: %v", err)
+	}
+}
+
 // logf deja constancia en la consola de deckman de las cosas que no son
 // errores para el usuario pero conviene poder mirar.
 func (s *Server) logf(format string, args ...any) {
@@ -330,6 +343,10 @@ func (s *Server) handleConnect(w http.ResponseWriter, r *http.Request) {
 		User     string `json:"user"`
 		Name     string `json:"name"` // etiqueta opcional, para distinguir varias Decks
 		Password string `json:"password"`
+		// ConfiarClave llega solo cuando el usuario ya ha visto el aviso de
+		// clave de host cambiada y ha dicho que si. Nunca viene en el primer
+		// intento: la interfaz lo manda al reintentar.
+		ConfiarClave bool `json:"confiarClave"`
 	}
 	if err := decode(r, &req); err != nil {
 		writeErr(w, err, http.StatusBadRequest)
@@ -349,7 +366,11 @@ func (s *Server) handleConnect(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 
-	creds := deck.Credentials{Host: req.Host, Port: req.Port, User: req.User, Password: req.Password}
+	creds := deck.Credentials{
+		Host: req.Host, Port: req.Port, User: req.User, Password: req.Password,
+		KnownHostsPath:    config.KnownHostsPath(),
+		ConfiarClaveNueva: req.ConfiarClave,
+	}
 
 	// Si ya tenemos clave instalada, la preferimos y no pedimos contrasena.
 	s.mu.RLock()
@@ -363,6 +384,22 @@ func (s *Server) handleConnect(w http.ResponseWriter, r *http.Request) {
 
 	client, err := deck.Connect(ctx, creds)
 	if err != nil {
+		// La clave de host cambiada no es un fallo mas: lleva una pregunta
+		// detras. Va con su propio distintivo para que la interfaz pueda
+		// enseñar las huellas y ofrecer volver a confiar, en vez de dejar al
+		// usuario con un error del que no se sale.
+		var cambiada *deck.ClaveDeHostCambiada
+		if errors.As(err, &cambiada) {
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			w.WriteHeader(http.StatusConflict)
+			json.NewEncoder(w).Encode(map[string]any{
+				"error":            i18n.Traducir(err, idioma()),
+				"claveHostCambio":  true,
+				"huellaPresentada": cambiada.Presentada,
+				"huellaRecordada":  cambiada.Recordada,
+			})
+			return
+		}
 		writeErr(w, err, http.StatusBadGateway)
 		return
 	}
@@ -390,7 +427,7 @@ func (s *Server) handleConnect(w http.ResponseWriter, r *http.Request) {
 	s.cfg.UpsertDeck(config.Deck{Host: req.Host, Port: req.Port, User: req.User, Name: req.Name})
 	cfg := s.cfg.Snapshot()
 	s.mu.Unlock()
-	cfg.Save()
+	s.guardar(cfg)
 
 	writeJSON(w, map[string]any{"ok": true, "home": client.Home, "note": keyNote})
 }
@@ -457,6 +494,7 @@ func (s *Server) handleForgetDeck(w http.ResponseWriter, r *http.Request) {
 		} else {
 			nuevo, err := deck.Connect(ctx, deck.Credentials{
 				Host: objetivo.Host, Port: objetivo.Port, User: objetivo.User, KeyPath: keyPath,
+				KnownHostsPath: config.KnownHostsPath(),
 			})
 			if err == nil {
 				defer nuevo.Close()
@@ -507,7 +545,15 @@ func (s *Server) handleForgetDeck(w http.ResponseWriter, r *http.Request) {
 	}
 	cfg := s.cfg.Snapshot()
 	s.mu.Unlock()
-	cfg.Save()
+	s.guardar(cfg)
+
+	// Fuera tambien lo que recordabamos de su clave de host. Si no, volver a
+	// añadir esa Deck despues de reinstalarle SteamOS saldria con el aviso de
+	// clave cambiada, que en ese momento no significa nada y solo enseña a
+	// darle a "confiar" sin leer.
+	if err := deck.OlvidarClaveDeHost(config.KnownHostsPath(), objetivo.Host, objetivo.Port); err != nil {
+		s.logf("no se pudo olvidar la clave de host de %s: %v", objetivo.Label(), err)
+	}
 
 	writeJSON(w, map[string]any{
 		"ok":       true,
@@ -1386,7 +1432,7 @@ func (s *Server) handleSendGame(w http.ResponseWriter, r *http.Request) {
 	s.cfg.LastLocal = filepath.Dir(req.LocalPath)
 	cfg := s.cfg.Snapshot()
 	s.mu.Unlock()
-	cfg.Save()
+	s.guardar(cfg)
 
 	gamesDir := c.Home + "/Games"
 	folderName := filepath.Base(filepath.Clean(req.LocalPath))
@@ -1483,7 +1529,7 @@ func (s *Server) handleSendROM(w http.ResponseWriter, r *http.Request) {
 	s.cfg.LastLocal = filepath.Dir(req.LocalPath)
 	cfg := s.cfg.Snapshot()
 	s.mu.Unlock()
-	cfg.Save()
+	s.guardar(cfg)
 
 	j, err := s.startJob("send-rom", "Enviando ROM a "+req.System, func(ctx context.Context, report deck.ProgressFunc) error {
 		return c.UploadROM(ctx, req.LocalPath, req.RomsDir, req.System, report)

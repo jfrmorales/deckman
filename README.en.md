@@ -21,6 +21,18 @@ sha256sum -c SHA256SUMS
 chmod +x deckman-*-linux-amd64
 ```
 
+Since 0.6.0 that `SHA256SUMS` is **signed**. The `sha256sum` above tells you the
+download is not corrupt; the signature also tells you it was published by me and
+not by someone who got hold of the release credentials:
+
+```sh
+cosign verify-blob --key cosign.pub --signature SHA256SUMS.sig SHA256SUMS
+```
+
+(`cosign.pub` and `SHA256SUMS.sig` ship with the same release.) There is also a
+`deckman-<version>.cdx.json`: the inventory of what went into the binary, in
+case you ever need to tell whether a security advisory affects you.
+
 The interface speaks **Spanish, English and French**. It follows your browser
 by default, and there is a selector in the top bar.
 
@@ -237,6 +249,15 @@ folder from the one you were looking for.
 
 ## Things worth knowing
 
+**The first connection to a Deck remembers its SSH key**, without asking
+anything. From then on, if that address answers with a different key, deckman
+**stops** and shows you both fingerprints instead of connecting. Reinstalling
+SteamOS legitimately changes that key: in that case, accept the warning and
+carry on. If you have not done anything like that, do not accept — whatever
+answers there may not be your Deck, and connecting would hand it your password.
+Remembered keys live in `known_hosts` inside deckman's config folder; forgetting
+a Deck takes its key with it.
+
 **Adding games with Steam open is safe**, but only because it goes through
 Steam's API. Steam keeps the shortcut list **in memory** and rewrites
 `shortcuts.vdf` on exit: editing that file behind its back while Steam runs is
@@ -292,7 +313,13 @@ Plain `make` lists everything you can do.
 ```sh
 make check    # local ones
 make deck     # + integration against your Steam Deck
+make audit    # static analysis and known vulnerabilities
 ```
+
+`make audit` is deliberately separate from `make check`: it checks against a
+database that changes on its own, so it can go red without anyone touching
+anything. That is fine for finding out — CI runs it on every push — but it
+would be a terrible gate for publishing.
 
 The IP and the password go in `deck.local.env` (created by `make setup` from
 the example), along with the SteamGridDB key if you want to test the artwork.

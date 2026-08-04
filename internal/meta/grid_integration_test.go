@@ -326,7 +326,7 @@ func TestIntegrationAnimatedSortedFirst(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var nAnim, firstStatic int = 0, -1
+	var nAnim, firstStatic = 0, -1
 	for i, o := range opts {
 		if o.Animated {
 			nAnim++

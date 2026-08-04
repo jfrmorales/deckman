@@ -9,6 +9,17 @@
 # (.forgejo/workflows/pruebas.yml, paso "version de go").
 GO_IMAGE="docker.io/library/golang:1.26.5"
 
+# Herramientas de auditoria (scripts/auditar.sh y el trabajo del mismo nombre
+# en el CI). Las versiones viven aqui para que el PC y el CI analicen con lo
+# mismo: un linter que dice cosas distintas en cada sitio no sirve de puerta.
+#
+# golangci-lint va clavado: una version nueva estrena reglas y convertiria un
+# push cualquiera en una tarde de arreglar avisos que ayer no existian.
+# govulncheck va suelto a proposito, que es justo lo contrario de lo que uno
+# esperaria: lo que quiero de el es la base de vulnerabilidades de HOY.
+GOLANGCI_VERSION="v2.12.2"
+GOVULNCHECK_VERSION="latest"
+
 # Dentro de distrobox, podman vive en el host.
 detectar_runtime() {
 	if command -v podman >/dev/null 2>&1; then
@@ -25,7 +36,12 @@ detectar_runtime() {
 }
 
 # Cache de modulos y de build persistente, para que recompilar sea rapido.
+#
+# deckman-gobin guarda las herramientas ya compiladas (golangci-lint,
+# govulncheck). Sin el, cada `make audit` volvia a compilarlas enteras: son
+# minutos, y hacen que nadie las ejecute.
 preparar_volumenes() {
 	$RUNTIME volume create deckman-gomod >/dev/null 2>&1 || true
 	$RUNTIME volume create deckman-gocache >/dev/null 2>&1 || true
+	$RUNTIME volume create deckman-gobin >/dev/null 2>&1 || true
 }

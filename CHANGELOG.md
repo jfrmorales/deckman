@@ -13,6 +13,68 @@ bloque `<releases>` del metainfo. Los tres los sincroniza `scripts/release.sh`.
      versión nueva al publicar. Secciones: Añadido, Cambiado, Corregido,
      Eliminado. -->
 
+### Corregido
+
+- **Se comprueba la clave SSH de la Deck.** Hasta ahora deckman aceptaba
+  cualquiera (`InsecureIgnoreHostKey`), con el razonamiento de que esto es una
+  LAN doméstica y exigir un `known_hosts` impediría conectarse tras reinstalar
+  SteamOS. La segunda mitad era cierta, pero la conclusión no: aceptar
+  cualquier clave significa que **la contraseña de la Deck viaja hacia lo que
+  conteste en esa IP**, sea la Deck o no.
+
+  Ahora es TOFU, como el `ssh` de toda la vida pero sin el susto tipográfico:
+  la primera conexión acepta y recuerda sin preguntar nada, y si después esa
+  dirección presenta otra clave, deckman se planta y enseña las dos huellas.
+  Reinstalar SteamOS la cambia de forma legítima, así que la interfaz ofrece
+  volver a confiar — con la huella delante, y solo si el usuario lo dice.
+  Olvidar una Deck se lleva también su clave recordada.
+
+  Una línea ilegible en ese fichero (una escritura a medias, alguien
+  editándolo) tumbaba la conexión a **todas** las Decks con un
+  «invalid curve point» del que no se salía desde la interfaz. Salió probando
+  contra una Deck de verdad: ahora se apartan solo las líneas rotas y las
+  demás conservan su verificación.
+- **Actualizada `golang.org/x/crypto` de v0.44.0 a v0.54.0.** `govulncheck`
+  señalaba **cinco vulnerabilidades que este código llamaba de verdad** (con
+  fichero y línea), entre ellas un bypass de la interacción física en llaves
+  FIDO/U2F. Ninguna se había detectado porque nada las miraba; eso también se
+  arregla en esta versión (ver *Añadido*).
+- **Un `config.json` ilegible ya no se pierde.** Antes salía de `Load()` como
+  «no había ninguna Deck», y el primer guardado de la sesión lo machacaba: con
+  él se iban las Decks recordadas y `keyPath` — y sin `keyPath`, la clave que
+  deckman instaló en la Deck se queda ahí sin forma de retirarla desde la
+  interfaz. Ahora se aparta como `config.json.roto` y se empieza de cero.
+- Errores que se tragaba el código en silencio y ahora se cuentan: no poder
+  guardar la configuración al conectar (el síntoma era que deckman «olvidaba»
+  la Deck entre arranques) y no poder corregir `keyPath` al migrar al Flatpak.
+
+### Añadido
+
+- **`make audit`**: `golangci-lint` (con `gosec`) y `govulncheck`, en
+  contenedor como todo lo demás. Va aparte de `make check` y **no** es puerta
+  para publicar: compara contra una base de datos que cambia sola, así que
+  puede ponerse en rojo sin que nadie haya tocado nada. El CI lo pasa en cada
+  push (`.forgejo/workflows/auditoria.yml`), que es donde uno quiere enterarse.
+  Cada exclusión de `.golangci.yml` lleva escrito su porqué.
+- **Renovate** (`.forgejo/workflows/renovate.yml`): abre pull requests cuando
+  una dependencia se queda atrás, los lunes, y sin esperar para los avisos de
+  seguridad. Dependabot no valía: el CI de este proyecto vive en un Forgejo
+  propio a propósito.
+- **Las releases van firmadas.** `SHA256SUMS` dice que lo descargado no viene
+  corrupto; la firma `cosign` dice además de quién viene. Se firma desde el PC
+  que publica y no desde el CI, para que la clave que firma no viva donde vive
+  el token que publica. Cómo comprobarlo, en el README.
+- **SBOM** (`deckman-<versión>.cdx.json`) en cada release: el inventario de lo
+  que lleva dentro el binario, para poder contestar en un segundo si un aviso
+  de seguridad afecta a la versión que alguien tiene instalada.
+- **`SECURITY.md`**: dónde informar de un fallo de seguridad, y qué protege
+  deckman y qué no.
+- Pruebas del borde HTTP (`internal/server`, del 6% al 35% de cobertura). La
+  principal **saca la lista de rutas del propio código**, así que una ruta
+  nueva queda cubierta sin que nadie se acuerde de venir a añadirla: es
+  exactamente la regresión que se coló cuando la cabecera propia solo se
+  exigía en POST.
+
 ## [0.5.0] — 2026-08-04
 
 ### Añadido

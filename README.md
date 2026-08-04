@@ -21,6 +21,18 @@ sha256sum -c SHA256SUMS
 chmod +x deckman-*-linux-amd64
 ```
 
+Desde la 0.6.0, ese `SHA256SUMS` va **firmado**. El `sha256sum` de arriba dice
+que lo descargado no viene corrupto; la firma dice además que lo publiqué yo y
+no alguien que se hiciera con el acceso a las *Releases*:
+
+```sh
+cosign verify-blob --key cosign.pub --signature SHA256SUMS.sig SHA256SUMS
+```
+
+(`cosign.pub` y `SHA256SUMS.sig` están en la misma release.) También va un
+`deckman-<versión>.cdx.json`: el inventario de lo que lleva dentro el binario,
+por si algún día hace falta saber si te afecta un aviso de seguridad.
+
 La interfaz habla **castellano, inglés y francés**. Por defecto sigue al
 navegador, y hay un selector en la barra superior.
 
@@ -237,6 +249,14 @@ vacía de la que buscabas.
 
 ## Cosas que conviene saber
 
+**La primera conexión con una Deck recuerda su clave SSH**, sin preguntar nada.
+A partir de ahí, si esa dirección contesta con otra clave, deckman **se planta**
+y enseña las dos huellas en vez de conectar. Reinstalar SteamOS cambia esa clave
+de forma legítima: en ese caso, aceptar el aviso y ya está. Si no has hecho nada
+parecido, no aceptes — quien conteste ahí puede no ser tu Deck, y conectar le
+entregaría la contraseña. Las claves recordadas viven en `known_hosts`, dentro
+de la carpeta de configuración de deckman; olvidar una Deck se lleva la suya.
+
 **Añadir juegos con Steam abierto es seguro**, pero solo porque se hace por la
 API de Steam. Steam guarda la lista de accesos directos **en memoria** y
 reescribe `shortcuts.vdf` al salir: editar ese fichero por detrás mientras
@@ -293,7 +313,13 @@ make build    # los dos binarios en dist/
 ```sh
 make check    # locales
 make deck     # + integración contra tu Steam Deck
+make audit    # análisis estático y vulnerabilidades conocidas
 ```
+
+`make audit` va aparte de `make check` a propósito: mira contra una base de
+datos que cambia sola, así que puede ponerse en rojo sin que nadie haya tocado
+nada. Eso está bien para enterarse — el CI la pasa en cada push — pero sería
+pésimo como puerta de publicar.
 
 La IP y la contraseña van en `deck.local.env` (lo crea `make setup` a partir
 del ejemplo), junto con la clave de SteamGridDB si quieres probar las carátulas.

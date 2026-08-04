@@ -47,7 +47,35 @@ WIN="deckman-$VERSION-windows-amd64.exe"
 scripts/compilar.sh linux "$SALIDA/$LIN" "$TAG"
 scripts/compilar.sh windows "$SALIDA/$WIN" "$TAG"
 
-( cd "$SALIDA" && sha256sum "$LIN" "$WIN" > SHA256SUMS )
+# --- inventario de dependencias (SBOM) --------------------------------------
+#
+# Un CycloneDX con todo lo que lleva dentro el binario. No es burocracia: el dia
+# que salga un aviso sobre una biblioteca, esto contesta en un segundo si la
+# version que alguien tiene instalada la lleva, sin recompilar nada ni fiarse de
+# que el go.mod de main sea el que se publico.
+#
+# cyclonedx-gomod se compila aqui y no viene en la imagen; con las caches del
+# job puestas cuesta poco. Si falla, la version se publica igual sin el: es
+# informacion util, no un requisito para poder descargar deckman.
+
+paso "generando el SBOM"
+SBOM="deckman-$VERSION.cdx.json"
+FICHEROS=("$LIN" "$WIN")
+# `app` y no `mod`: interesa lo que acaba DENTRO del binario, que no es todo lo
+# que aparece en go.mod (ahi hay dependencias que solo usan las pruebas).
+if go install github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@latest >/dev/null 2>&1 &&
+	"$(go env GOPATH)/bin/cyclonedx-gomod" app -main cmd/deckman -json -licenses \
+		-output "$SALIDA/$SBOM" . >/dev/null 2>&1; then
+	FICHEROS+=("$SBOM")
+	echo "   $SBOM"
+else
+	echo "   aviso: no se pudo generar el SBOM; sigo sin el" >&2
+	rm -f "$SALIDA/$SBOM"
+fi
+
+# El SHA256SUMS cubre tambien el SBOM: la firma de scripts/release.sh va sobre
+# este fichero, asi que lo que no este listado aqui no queda firmado por nadie.
+( cd "$SALIDA" && sha256sum "${FICHEROS[@]}" > SHA256SUMS )
 ls -lh "$SALIDA"
 
 # --- notas ------------------------------------------------------------------

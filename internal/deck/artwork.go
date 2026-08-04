@@ -6,7 +6,6 @@ import (
 	"github.com/jfrmorales/deckman/internal/i18n"
 	"os"
 	"path"
-	"regexp"
 	"sort"
 	"strings"
 )
@@ -87,8 +86,6 @@ func (c *Client) GridDir(ctx context.Context) (string, error) {
 	}
 	return path.Join(steamRoot, "userdata", userID, "config", "grid"), nil
 }
-
-var reNumeric = regexp.MustCompile(`^\d+$`)
 
 // artworkFiles agrupa por tipo TODOS los ficheros de arte de un juego.
 //
@@ -217,7 +214,7 @@ func (c *Client) WriteArtwork(ctx context.Context, appID uint32, kind, ext strin
 
 	dst := path.Join(dir, name)
 	tmp := dst + ".deckman.tmp"
-	c.sftp.Remove(tmp) // restos de un intento anterior
+	_ = c.sftp.Remove(tmp) // restos de un intento anterior
 
 	f, err := c.sftp.Create(tmp)
 	if err != nil {
@@ -225,24 +222,24 @@ func (c *Client) WriteArtwork(ctx context.Context, appID uint32, kind, ext strin
 	}
 	if _, err := f.Write(data); err != nil {
 		f.Close()
-		c.sftp.Remove(tmp)
+		_ = c.sftp.Remove(tmp)
 		return "", err
 	}
 	if err := f.Close(); err != nil {
-		c.sftp.Remove(tmp)
+		_ = c.sftp.Remove(tmp)
 		return "", err
 	}
 
 	// Ahora si: fuera las anteriores de este tipo (pueden tener otra extension,
 	// y Steam se quedaria con la que encuentre primero).
 	if err := c.RemoveArtworkKind(ctx, appID, kind); err != nil {
-		c.sftp.Remove(tmp)
+		_ = c.sftp.Remove(tmp)
 		return "", err
 	}
 	if err := c.sftp.PosixRename(tmp, dst); err != nil {
 		// Sin la extension POSIX hay que apartar el destino antes de renombrar.
 		if rmErr := c.sftp.Remove(dst); rmErr != nil && !os.IsNotExist(rmErr) {
-			c.sftp.Remove(tmp)
+			_ = c.sftp.Remove(tmp)
 			return "", i18n.Errorf("no se pudo dejar %s en su sitio: %w", name, err)
 		}
 		if err2 := c.sftp.Rename(tmp, dst); err2 != nil {

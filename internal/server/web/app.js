@@ -20,7 +20,16 @@ async function api(path, body) {
   const text = await res.text();
   let data = {};
   try { data = text ? JSON.parse(text) : {}; } catch { data = { error: text }; }
-  if (!res.ok) throw new Error(data.error || `error ${res.status}`);
+  if (!res.ok) {
+    // El cuerpo entero viaja con el error: hay respuestas de fallo que traen
+    // más que un texto (la de clave de host cambiada lleva las dos huellas y
+    // el distintivo con el que se decide si ofrecer volver a confiar), y sin
+    // esto se perdía al construir el Error.
+    const err = new Error(data.error || `error ${res.status}`);
+    err.data = data;
+    err.status = res.status;
+    throw err;
+  }
   return data;
 }
 
@@ -206,21 +215,30 @@ async function cambiarIdioma() {
   }
 }
 
-async function connect() {
+// connect abre la sesión con la Deck.
+//
+// confiarClave solo se pone al reintentar después de que el usuario haya visto
+// el aviso de clave de host cambiada y haya dicho que sí. Va como parámetro con
+// nombre y no posicional porque el botón llama con `() => connect()`: si se
+// enganchara directamente al onclick, el MouseEvent llegaría como primer
+// argumento y sería truthy, o sea, confiaría siempre.
+async function connect({ confiarClave = false } = {}) {
   const btn = $('btnConnect');
   btn.disabled = true;
   btn.textContent = t('Conectando…');
   $('connLed').className = 'led busy';
   connError('');
   banner(t('Conectando…'));
+  const host = $('host').value.trim();
   try {
     const r = await api('/api/connect', {
-      host: $('host').value.trim(),
+      host,
       user: $('user').value.trim() || 'deck',
       name: $('deckName').value.trim(),
       password: $('password').value,
       // El puerto ya no está fijado a 22: hay Decks con SSH movido de sitio.
       port: parseInt($('port').value, 10) || 22,
+      confiarClave,
     });
     $('password').value = '';
     showConnectForm = false;
@@ -228,6 +246,20 @@ async function connect() {
     await refreshState();
     await loadInventory();
   } catch (e) {
+    // Clave de host distinta de la recordada: es la única situación en la que
+    // hay algo que decidir, así que se pregunta con las dos huellas delante en
+    // vez de dejar un error del que no se sale. Solo se ofrece una vez: si el
+    // reintento con confiarClave vuelve a fallar, es otra cosa.
+    if (e.data && e.data.claveHostCambio && !confiarClave) {
+      btn.disabled = false;
+      btn.textContent = t('Conectar');
+      const seguir = confirm(
+        t('La Deck de {0} presenta una clave SSH distinta de la que deckman recuerda.', host) + '\n\n' +
+        t('Ahora: {0}\nAntes: {1}', e.data.huellaPresentada || '?', e.data.huellaRecordada || '?') + '\n\n' +
+        t('Si acabas de reinstalar SteamOS, esto es lo normal: acepta y deckman recordará la nueva.') + '\n\n' +
+        t('Si no has hecho nada parecido, cancela: puede que quien conteste en esa dirección no sea tu Deck, y conectar le entregaría la contraseña.'));
+      if (seguir) return connect({ confiarClave: true });
+    }
     // El error va también dentro de la tarjeta: el banner de arriba queda
     // lejos del botón que se acaba de pulsar y pasa desapercibido.
     connError('No se pudo conectar: ' + e.message);
@@ -1359,7 +1391,8 @@ async function quit() {
 // ---------- arranque ----------
 
 function init() {
-  $('btnConnect').onclick = connect;
+  // Con `= connect` el MouseEvent llegaría como primer argumento; ver connect().
+  $('btnConnect').onclick = () => connect();
   // Añadir otra: el formulario viene relleno con la Deck activa, así que sin
   // vaciarlo "añadir" acabaría actualizando la que ya estaba.
   $('btnNewDeck').onclick = () => {

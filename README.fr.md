@@ -21,6 +21,19 @@ sha256sum -c SHA256SUMS
 chmod +x deckman-*-linux-amd64
 ```
 
+Depuis la 0.6.0, ce `SHA256SUMS` est **signé**. Le `sha256sum` ci-dessus dit que
+le téléchargement n'est pas corrompu ; la signature dit en plus que c'est bien
+moi qui l'ai publié, et pas quelqu'un qui aurait mis la main sur l'accès aux
+*Releases* :
+
+```sh
+cosign verify-blob --key cosign.pub --signature SHA256SUMS.sig SHA256SUMS
+```
+
+(`cosign.pub` et `SHA256SUMS.sig` sont dans la même release.) Il y a aussi un
+`deckman-<version>.cdx.json` : l'inventaire de ce que contient le binaire, au
+cas où il faudrait un jour savoir si une alerte de sécurité vous concerne.
+
 L'interface parle **espagnol, anglais et français**. Elle suit votre navigateur
 par défaut, et un sélecteur se trouve dans la barre du haut.
 
@@ -252,6 +265,15 @@ ainsi un dossier vide de celui que l'on cherchait.
 
 ## Bon à savoir
 
+**La première connexion à une Deck mémorise sa clé SSH**, sans rien demander.
+Ensuite, si cette adresse répond avec une autre clé, deckman **s'arrête** et
+affiche les deux empreintes au lieu de se connecter. Réinstaller SteamOS change
+cette clé de façon légitime : dans ce cas, acceptez l'avertissement et c'est
+tout. Si vous n'avez rien fait de tel, n'acceptez pas — ce qui répond là n'est
+peut-être pas votre Deck, et se connecter lui livrerait le mot de passe. Les
+clés mémorisées vivent dans `known_hosts`, dans le dossier de configuration de
+deckman ; oublier une Deck emporte la sienne.
+
 **Ajouter des jeux avec Steam ouvert est sûr**, mais uniquement parce que cela
 passe par l'API de Steam. Steam garde la liste des raccourcis **en mémoire** et
 réécrit `shortcuts.vdf` en quittant : modifier ce fichier dans son dos pendant
@@ -309,7 +331,13 @@ make build    # les deux binaires dans dist/
 ```sh
 make check    # locaux
 make deck     # + intégration contre votre Steam Deck
+make audit    # analyse statique et vulnérabilités connues
 ```
+
+`make audit` est volontairement séparé de `make check` : il compare avec une
+base de données qui évolue toute seule, donc il peut passer au rouge sans que
+personne n'ait rien touché. C'est très bien pour être au courant — le CI le
+lance à chaque push — mais ce serait une très mauvaise porte pour publier.
 
 L'IP et le mot de passe vont dans `deck.local.env` (créé par `make setup` à
 partir de l'exemple), avec la clé SteamGridDB si vous voulez tester les

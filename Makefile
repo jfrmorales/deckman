@@ -7,7 +7,7 @@
 # Requisitos: podman o docker. Go NO se instala en el sistema.
 
 .DEFAULT_GOAL := help
-.PHONY: help setup check build deck flatpak release clean
+.PHONY: help setup check audit build deck flatpak release clean
 
 help:
 	@echo 'deckman — gestiona una Steam Deck desde el PC'
@@ -15,6 +15,7 @@ help:
 	@echo '  make setup        deja el clon listo: comprueba requisitos, crea'
 	@echo '                    deck.local.env y configura los remotos'
 	@echo '  make check        gofmt + vet + pruebas locales (lo mismo que el CI)'
+	@echo '  make audit        analisis estatico y vulnerabilidades conocidas'
 	@echo '  make build        binarios de Linux y Windows en dist/'
 	@echo '  make deck         check + pruebas contra tu Steam Deck de verdad'
 	@echo '  make flatpak      empaqueta e instala el Flatpak (usuario)'
@@ -32,6 +33,12 @@ setup:
 
 check:
 	@DECKMAN_SIN_DECK=1 ./test.sh
+
+# Aparte de check a proposito: mira contra una base de datos que cambia sola,
+# asi que puede ponerse en rojo sin que nadie haya tocado nada. El porque
+# esta en audit.sh.
+audit:
+	@./audit.sh
 
 build:
 	@./build.sh

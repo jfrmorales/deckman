@@ -1,0 +1,50 @@
+// Configuracion de Renovate, que abre pull requests cuando una dependencia se
+// queda atras. Lo ejecuta .forgejo/workflows/renovate.yml; alli esta el porque
+// y como montar el usuario del bot.
+//
+// En .json5 y no .json a proposito: Renovate lee los dos, y sin comentarios
+// esto acaba siendo una lista de reglas que nadie sabe por que dice lo que
+// dice. Es el mismo criterio que en el resto del repositorio.
+{
+  $schema: 'https://docs.renovatebot.com/renovate-schema.json',
+  extends: ['config:recommended'],
+
+  timezone: 'Europe/Madrid',
+  labels: ['dependencias'],
+
+  // Nada se fusiona solo. Este binario habla por SSH con la Deck de alguien y
+  // borra ficheros suyos: una dependencia entra cuando el CI ha pasado Y
+  // alguien la ha mirado, no porque los tests esten verdes.
+  automerge: false,
+
+  // Un aviso de seguridad no espera al lunes.
+  vulnerabilityAlerts: {
+    enabled: true,
+    schedule: ['at any time'],
+    labels: ['dependencias', 'seguridad'],
+  },
+
+  // Tres PR abiertos como mucho: mas que eso deja de leerse.
+  prConcurrentLimit: 3,
+  prHourlyLimit: 2,
+
+  packageRules: [
+    {
+      // Las x/... de Go se publican a la vez y se pisan entre ellas: subir
+      // x/crypto sin x/sys deja un go.sum que el CI tiene que resolver solo.
+      // Agrupadas son un PR que se mira una vez, en vez de cuatro que se
+      // ignoran.
+      matchPackageNames: ['golang.org/x/**'],
+      groupName: 'bibliotecas x de Go',
+    },
+    {
+      // La version de Go esta clavada en cuatro sitios (go.mod, los dos
+      // workflows y scripts/contenedor.sh) y hay un paso del CI que comprueba
+      // que no se separen. Un PR que toque solo go.mod falla siempre, asi que
+      // ese cambio se hace a mano.
+      matchManagers: ['gomod'],
+      matchDepTypes: ['golang'],
+      enabled: false,
+    },
+  ],
+}

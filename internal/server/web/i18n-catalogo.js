@@ -212,6 +212,15 @@ const CATALOGO = {
     'No se encontró ningún .exe': 'No .exe was found',
     'No se pudieron leer los sistemas: ': 'The systems could not be read: ',
     'No se pudieron listar las ROMs: {0}': 'The ROMs could not be listed: {0}',
+    // --- aviso de clave de host cambiada ---
+    'La Deck de {0} presenta una clave SSH distinta de la que deckman recuerda.':
+      'The Deck at {0} is presenting a different SSH key from the one deckman remembers.',
+    'Ahora: {0}\nAntes: {1}': 'Now:    {0}\nBefore: {1}',
+    'Si acabas de reinstalar SteamOS, esto es lo normal: acepta y deckman recordará la nueva.':
+      'If you have just reinstalled SteamOS, this is expected: accept and deckman will remember the new one.',
+    'Si no has hecho nada parecido, cancela: puede que quien conteste en esa dirección no sea tu Deck, y conectar le entregaría la contraseña.':
+      'If you have not done anything like that, cancel: whatever answers at that address may not be your Deck, and connecting would hand it your password.',
+
     'No se pudo analizar': 'It could not be scanned',
     'No se pudo borrar: {0}': 'It could not be deleted: {0}',
     'No se pudo cambiar Proton: {0}': 'Proton could not be changed: {0}',
@@ -471,6 +480,15 @@ const CATALOGO = {
     'No se encontró ningún .exe': 'Aucun .exe trouvé',
     'No se pudieron leer los sistemas: ': 'Les systèmes n’ont pas pu être lus : ',
     'No se pudieron listar las ROMs: {0}': 'Les ROMs n’ont pas pu être listées : {0}',
+    // --- aviso de clave de host cambiada ---
+    'La Deck de {0} presenta una clave SSH distinta de la que deckman recuerda.':
+      'La Deck de {0} présente une clé SSH différente de celle que deckman a mémorisée.',
+    'Ahora: {0}\nAntes: {1}': 'Maintenant : {0}\nAvant :      {1}',
+    'Si acabas de reinstalar SteamOS, esto es lo normal: acepta y deckman recordará la nueva.':
+      'Si vous venez de réinstaller SteamOS, c’est normal : acceptez et deckman mémorisera la nouvelle.',
+    'Si no has hecho nada parecido, cancela: puede que quien conteste en esa dirección no sea tu Deck, y conectar le entregaría la contraseña.':
+      'Si vous n’avez rien fait de tel, annulez : ce qui répond à cette adresse n’est peut-être pas votre Deck, et se connecter lui livrerait le mot de passe.',
+
     'No se pudo analizar': 'L’analyse a échoué',
     'No se pudo borrar: {0}': 'La suppression a échoué : {0}',
     'No se pudo cambiar Proton: {0}': 'Proton n’a pas pu être changé : {0}',

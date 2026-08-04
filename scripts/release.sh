@@ -360,6 +360,64 @@ if [ -n "$BUNDLE" ]; then
 	fi
 fi
 
+# --- firma ------------------------------------------------------------------
+#
+# SHA256SUMS dice que lo descargado no viene corrupto; la firma dice ademas de
+# quien viene. Sin ella, cualquiera con el token de la release podria cambiar
+# los binarios Y el SHA256SUMS a juego, y quien comprueba no notaria nada.
+#
+# Se firma AQUI y no en el CI por dos razones. La primera es de orden: el
+# SHA256SUMS definitivo no existe hasta que este PC le añade la linea del
+# .flatpak, que el runner no puede construir. La segunda es de confianza: la
+# clave que firma no tiene por que estar en el mismo sitio que el token que
+# publica, porque entonces quien se lleve uno se lleva los dos.
+#
+# Se firma cosign keyless? No: sin claves va contra Fulcio, que solo confia en
+# unos cuantos emisores OIDC publicos (GitHub, GitLab, Google...). Este CI es un
+# Forgejo propio y no esta en esa lista, asi que aqui toca clave.
+#
+# Es opcional mientras no haya clave: crear una es una decision del que publica
+# y no algo que deba imponer un script. En cuanto exista, un fallo al firmar se
+# cuenta a gritos — a estas alturas la version ya esta publicada y no se puede
+# deshacer, asi que lo unico util es decir exactamente que falta por hacer.
+
+CLAVE_FIRMA="${DECKMAN_COSIGN_KEY:-$HOME/.config/deckman/cosign.key}"
+if [ -n "$TAG" ] && command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+	if [ ! -f "$CLAVE_FIRMA" ]; then
+		echo
+		echo "(sin firmar: no hay clave en $CLAVE_FIRMA)"
+		echo " Para firmar las proximas versiones:"
+		echo "   cosign generate-key-pair --output-key-prefix ~/.config/deckman/cosign"
+		echo "   export COSIGN_PASSWORD=...   # la que le pongas al crearla"
+	elif ! command -v cosign >/dev/null 2>&1; then
+		echo "aviso: hay clave de firma pero no esta cosign; $TAG se queda SIN FIRMAR." >&2
+		echo "       Instalalo y firma a mano (ver mas abajo)." >&2
+	else
+		paso "firmando SHA256SUMS"
+		tmpf="$(mktemp -d)"
+		if gh release download "$TAG" -p SHA256SUMS -D "$tmpf" >/dev/null 2>&1 &&
+			cosign sign-blob --key "$CLAVE_FIRMA" --yes \
+				--output-signature "$tmpf/SHA256SUMS.sig" "$tmpf/SHA256SUMS" >/dev/null 2>&1; then
+			# La publica va con cada release a proposito, aunque sea siempre la
+			# misma: quien se baja los binarios tiene ahi mismo con que
+			# comprobarlos, sin buscarla en ningun otro sitio.
+			cp "${CLAVE_FIRMA%.key}.pub" "$tmpf/cosign.pub" 2>/dev/null || true
+			if gh release upload "$TAG" "$tmpf/SHA256SUMS.sig" --clobber >/dev/null 2>&1; then
+				[ -f "$tmpf/cosign.pub" ] && gh release upload "$TAG" "$tmpf/cosign.pub" --clobber >/dev/null 2>&1
+				echo "   firmado y subido SHA256SUMS.sig"
+			else
+				echo "aviso: no se pudo subir la firma de $TAG." >&2
+			fi
+		else
+			echo "aviso: no se pudo firmar $TAG. Hazlo a mano:" >&2
+			echo "       gh release download $TAG -p SHA256SUMS" >&2
+			echo "       cosign sign-blob --key $CLAVE_FIRMA --output-signature SHA256SUMS.sig SHA256SUMS" >&2
+			echo "       gh release upload $TAG SHA256SUMS.sig --clobber" >&2
+		fi
+		rm -rf "$tmpf"
+	fi
+fi
+
 echo
 echo "Publicada $TAG."
 echo "Releases:  https://github.com/jfrmorales/deckman/releases/tag/$TAG"

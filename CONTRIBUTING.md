@@ -33,8 +33,19 @@ sistema, todo va en contenedor.
 make setup    # una vez: comprueba requisitos y deja el clon listo
 make          # dice todo lo que se puede hacer
 make check    # gofmt + vet + pruebas locales (lo mismo que el CI)
+make audit    # análisis estático (golangci-lint) y vulnerabilidades conocidas
 make build    # binarios de Linux y Windows en dist/
 ```
+
+`make audit` va aparte de `make check` a propósito: compara contra una base de
+datos de vulnerabilidades que cambia sola, así que puede ponerse en rojo sin
+que nadie haya tocado nada. El CI la pasa en cada push (`auditoria.yml`), pero
+no es puerta para publicar — el porqué largo está en `audit.sh`.
+
+Lo que dice el linter está en `.golangci.yml`, con **una explicación por cada
+exclusión**. Si algo te sale marcado y crees que no debería, cámbialo ahí y
+cuenta por qué; una exclusión sin motivo escrito es la que nadie se atreve a
+quitar después.
 
 `make` a secas lista las órdenes con lo que hace cada una; no hay que
 aprenderse ningún orden. Por debajo siguen estando los scripts de siempre
@@ -118,6 +129,46 @@ suelto:
 ```sh
 GH_TOKEN=... scripts/publicar-release.sh v9.9.9
 ```
+
+### La clave de firma (una sola vez)
+
+`SHA256SUMS` dice que lo descargado no viene corrupto. La firma dice además de
+quién viene: sin ella, cualquiera con el token de arriba podría cambiar los
+binarios **y** el `SHA256SUMS` a juego, y quien comprueba no notaría nada.
+
+La firma la pone `scripts/release.sh` desde el PC que publica, no el CI. Son
+dos motivos: el `SHA256SUMS` definitivo no existe hasta que esa máquina le añade
+la línea del `.flatpak` (que el runner no puede construir), y la clave que firma
+no tiene por qué vivir donde vive el token que publica — si no, quien se lleve
+uno se lleva los dos.
+
+```sh
+cosign generate-key-pair --output-key-prefix ~/.config/deckman/cosign
+export COSIGN_PASSWORD=...   # la que le pongas al crearla
+```
+
+Deja `cosign.key` y `cosign.pub` ahí. `release.sh` los usa solos; la pública se
+sube con cada release para que quien descarga tenga con qué comprobar sin
+buscarla en ningún otro sitio. Mientras no exista la clave, se publica sin
+firmar y se dice.
+
+**Nada de esto se versiona.** Si cambias de clave, dilo en el changelog: quien
+guardara la anterior se encontraría una verificación que falla y no sabría si
+es un problema suyo.
+
+### El bot de dependencias (una sola vez)
+
+`.forgejo/workflows/renovate.yml` abre pull requests cuando una dependencia se
+queda atrás. Hace falta:
+
+1. Un usuario `renovate-bot` en el Forgejo, con acceso de escritura a este
+   repositorio.
+2. Su token de acceso en el secreto **`RENOVATE_TOKEN`** del repositorio
+   (Settings → Actions → Secrets).
+
+La primera ejecución abre un PR de configuración y una incidencia *Dependency
+Dashboard*; hasta que se acepte ese PR no propone nada más. Las reglas están en
+`renovate.json5` (en `.json5` para poder comentarlas).
 
 ## Licencia
 

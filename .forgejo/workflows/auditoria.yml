@@ -1,0 +1,64 @@
+# Analisis estatico (golangci-lint) y vulnerabilidades conocidas
+# (govulncheck) en cada push y cada pull request.
+#
+# Va en un workflow aparte de pruebas.yml a proposito, y no es una manía de
+# orden: las pruebas dan el mismo resultado hoy que dentro de un año, mientras
+# que esto compara contra una base de datos que cambia sola. Un push que no
+# toca nada puede ponerse en rojo aqui porque ayer se publico un aviso — que es
+# exactamente para lo que se pone. Separado, se ve de un vistazo si lo que ha
+# fallado es el codigo o el mundo.
+#
+# Por lo mismo NO entra en `make check` ni en scripts/release.sh: publicar una
+# correccion urgente no puede depender de que hoy no haya ningun aviso sin
+# arreglo publicado. Ver el comentario largo en audit.sh.
+#
+# Las trampas del runner son las de pruebas.yml (imagen de Go porque el label
+# `docker` no trae Go ni puede levantar contenedores; clonado a mano porque
+# actions/checkout necesita node dentro del contenedor). Estan explicadas alli.
+name: auditoria
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: auditoria-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  auditoria:
+    runs-on: docker
+    timeout-minutes: 30
+    container:
+      image: docker.io/library/golang:1.26.5
+      # Las mismas caches que pruebas.yml, mas deckman-ci-gobin: golangci-lint
+      # tarda varios minutos en compilarse y sin el volumen se recompila en
+      # cada push. El runner solo admite volumenes con el prefijo deckman-ci-*
+      # (valid_volumes en homelab/sops/forgejo/runner-config.yml.sops), asi que
+      # si se añade otro hay que declararlo alli tambien.
+      options: >-
+        -v deckman-ci-gomod:/go/pkg/mod
+        -v deckman-ci-gocache:/root/.cache/go-build
+        -v deckman-ci-gobin:/go/bin
+    env:
+      GOFLAGS: -buildvcs=false
+    steps:
+      - name: clonar
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          proto="${GITHUB_SERVER_URL%%://*}"
+          host="${GITHUB_SERVER_URL#*://}"
+          git config --global --add safe.directory '*'
+          git init -q .
+          git remote add origin "$proto://x-access-token:$TOKEN@$host/$GITHUB_REPOSITORY"
+          git fetch -q --depth 1 origin "$GITHUB_SHA"
+          git checkout -q FETCH_HEAD
+          echo "en $(git rev-parse --short HEAD)"
+
+      # El mismo script que corre `make audit` en el PC: si las comprobaciones
+      # se separan, el CI dice cosas que en casa no salen.
+      - name: auditar
+        run: scripts/auditar.sh

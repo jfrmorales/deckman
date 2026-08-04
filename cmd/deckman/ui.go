@@ -36,7 +36,7 @@ func runUI(url string, srv *server.Server, stop <-chan os.Signal, headless, plai
 		if proc := openAppWindow(url); proc != nil {
 			windowClosed := make(chan struct{})
 			go func() {
-				proc.Wait()
+				_ = proc.Wait()
 				close(windowClosed)
 			}()
 			select {

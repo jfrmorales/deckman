@@ -87,11 +87,22 @@ type Credentials struct {
 	User     string
 	Password string
 	KeyPath  string // ruta a una clave privada; tiene prioridad sobre Password
+
+	// KnownHostsPath es el fichero donde deckman recuerda la clave de cada
+	// Deck. Es obligatorio: sin el, Connect falla en vez de conectarse a
+	// ciegas. El porque esta en hostkey.go.
+	KnownHostsPath string
+	// ConfiarClaveNueva acepta y guarda la clave que presente la Deck aunque
+	// no sea la recordada. Solo se pone cuando el usuario lo ha dicho
+	// expresamente, con la huella delante.
+	ConfiarClaveNueva bool
 }
 
-// Connect abre la sesion. Aceptamos cualquier clave de host: esto es una LAN
-// domestica y exigir un known_hosts solo conseguiria que el usuario no pueda
-// conectarse tras reinstalar SteamOS.
+// Connect abre la sesion.
+//
+// La clave de host se verifica al estilo TOFU: la primera vez se acepta y se
+// recuerda, y despues un cambio se planta con un *ClaveDeHostCambiada. Ver
+// hostkey.go, que explica por que esto no siempre fue asi.
 func Connect(ctx context.Context, c Credentials) (*Client, error) {
 	if c.Port == 0 {
 		c.Port = 22
@@ -126,10 +137,15 @@ func Connect(ctx context.Context, c Credentials) (*Client, error) {
 		return nil, i18n.Errorf("hay que indicar contrasena o clave privada")
 	}
 
+	hostKey, err := hostKeyCallback(c.KnownHostsPath, c.ConfiarClaveNueva)
+	if err != nil {
+		return nil, err
+	}
+
 	cfg := &ssh.ClientConfig{
 		User:            c.User,
 		Auth:            auths,
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		HostKeyCallback: hostKey,
 		Timeout:         12 * time.Second,
 	}
 
@@ -142,6 +158,13 @@ func Connect(ctx context.Context, c Credentials) (*Client, error) {
 	sc, chans, reqs, err := ssh.NewClientConn(conn, addr, cfg)
 	if err != nil {
 		conn.Close()
+		// La clave de host cambiada sale limpia, sin envolver en "fallo de
+		// autenticacion": no lo es, y el mensaje que lleva dentro es
+		// exactamente lo que hay que leer para decidir si volver a confiar.
+		var cambiada *ClaveDeHostCambiada
+		if errors.As(err, &cambiada) {
+			return nil, cambiada
+		}
 		return nil, i18n.Errorf("fallo de autenticacion contra %s: %w", addr, err)
 	}
 	client := &Client{ssh: ssh.NewClient(sc, chans, reqs), Host: c.Host, User: c.User, cache: &remoteCache{}}
@@ -262,7 +285,7 @@ func (c *Client) RunStream(ctx context.Context, cmd string, onLine func(string))
 	wg.Add(2)
 	// rsync separa las lineas de progreso con \r, no con \n.
 	go func() { defer wg.Done(); scanLines(stdout, onLine) }()
-	go func() { defer wg.Done(); io.Copy(&errText, stderr) }()
+	go func() { defer wg.Done(); _, _ = io.Copy(&errText, stderr) }()
 
 	done := make(chan error, 1)
 	go func() { done <- sess.Wait() }()
@@ -347,25 +370,25 @@ func (c *Client) WriteFileAtomic(p string, data []byte) error {
 	// despues, el fichero bueno nunca ha dejado de estar en su sitio).
 	if _, err := c.sftp.Stat(p); err == nil {
 		bak := p + ".deckman.bak"
-		c.sftp.Remove(bak)
+		_ = c.sftp.Remove(bak) // restos de un intento anterior
 		if err := c.copyRemote(p, bak); err != nil {
 			return i18n.Errorf("no se pudo respaldar %s: %w", p, err)
 		}
 	}
 
 	tmp := p + ".deckman.tmp"
-	c.sftp.Remove(tmp)
+	_ = c.sftp.Remove(tmp)
 	f, err := c.sftp.Create(tmp)
 	if err != nil {
 		return err
 	}
 	if _, err := f.Write(data); err != nil {
 		f.Close()
-		c.sftp.Remove(tmp)
+		_ = c.sftp.Remove(tmp)
 		return err
 	}
 	if err := f.Close(); err != nil {
-		c.sftp.Remove(tmp)
+		_ = c.sftp.Remove(tmp)
 		return err
 	}
 
@@ -373,7 +396,7 @@ func (c *Client) WriteFileAtomic(p string, data []byte) error {
 	// esa extension, hay que apartar el original antes de renombrar.
 	if err := c.sftp.PosixRename(tmp, p); err != nil {
 		if rmErr := c.sftp.Remove(p); rmErr != nil && !os.IsNotExist(rmErr) {
-			c.sftp.Remove(tmp)
+			_ = c.sftp.Remove(tmp)
 			return i18n.Errorf("no se pudo reemplazar %s: %w", p, err)
 		}
 		if err2 := c.sftp.Rename(tmp, p); err2 != nil {
@@ -426,7 +449,11 @@ func (c *Client) InstallPublicKey(ctx context.Context, pubKey string) error {
 	if err := c.sftp.MkdirAll(dir); err != nil {
 		return err
 	}
-	c.sftp.Chmod(dir, 0o700)
+	// sshd rechaza las claves si ~/.ssh es demasiado permisivo, asi que se
+	// intenta ajustar. Si falla, no se corta aqui: en SteamOS la carpeta ya
+	// existe con los permisos buenos, y lo que decide de verdad si la clave
+	// sirve es la comprobacion de mas abajo, que reconecta con ella.
+	_ = c.sftp.Chmod(dir, 0o700)
 
 	authPath := path.Join(dir, "authorized_keys")
 
@@ -517,7 +544,7 @@ func (c *Client) RemovePublicKey(ctx context.Context, pubKey string) (int, error
 	// ha quedado sin nuestra clave: mientras no este comprobado, la copia es lo
 	// unico que protege al usuario de quedarse fuera de su Deck.
 	if comprobado, err := c.ReadFile(authPath); err == nil && !bytes.Contains(comprobado, material) {
-		c.sftp.Remove(authPath + ".deckman.bak")
+		_ = c.sftp.Remove(authPath + ".deckman.bak")
 	}
 	return quitadas, nil
 }

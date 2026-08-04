@@ -7,6 +7,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"github.com/jfrmorales/deckman/internal/i18n"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -184,6 +185,21 @@ func Dir() (string, error) {
 	return dir, nil
 }
 
+// KnownHostsPath es el fichero donde deckman recuerda la clave SSH de cada
+// Deck. Es suyo y no ~/.ssh/known_hosts: lo reescribe entero y no tiene por que
+// meter mano en el del usuario. El porque de recordarlas esta en
+// internal/deck/hostkey.go.
+//
+// Si no se puede resolver la carpeta de configuracion devuelve "", y entonces
+// deck.Connect se niega a conectar en vez de hacerlo a ciegas.
+func KnownHostsPath() string {
+	dir, err := Dir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(dir, "known_hosts")
+}
+
 var migrateOnce sync.Once
 
 // migrateFromLegacy copia la configuracion de ~/.config/deckman al sandbox la
@@ -227,7 +243,13 @@ func migrateFromLegacy(dir string) {
 		if json.Unmarshal(data, &c) == nil && c.KeyPath != "" {
 			c.KeyPath = filepath.Join(dir, "id_ed25519")
 			if out, err := json.MarshalIndent(&c, "", "  "); err == nil {
-				os.WriteFile(p, out, 0o600)
+				// Si esto falla, la copia migrada apunta a la clave de la carpeta
+				// vieja: fuera del sandbox no se puede leer y tocara volver a
+				// conectar con contrasena. Molesto, no destructivo; no hay nada
+				// mejor que hacer aqui que dejarlo dicho.
+				if err := os.WriteFile(p, out, 0o600); err != nil {
+					log.Printf("migracion: no se pudo corregir keyPath en %s: %v", p, err)
+				}
 			}
 		}
 	}
@@ -252,7 +274,25 @@ func Load() *Config {
 	if err != nil {
 		return c
 	}
-	json.Unmarshal(data, c)
+	if err := json.Unmarshal(data, c); err != nil {
+		// Un config.json que no parsea salia de aqui como "no hay ninguna Deck",
+		// y el primer Save de la sesion lo machacaba: con el se iban las Decks
+		// recordadas y, sobre todo, keyPath — y sin keyPath la clave que deckman
+		// instalo en la Deck queda huerfana y no hay forma de retirarla.
+		//
+		// Se aparta antes de seguir. Vale mas un fichero de mas en la carpeta de
+		// configuracion que una clave que nadie puede quitar ya.
+		roto := p + ".roto"
+		// El error del Rename va aparte del de parseo a proposito: reutilizar
+		// `err` dejaba el mensaje diciendo «no se entiende (<nil>)», que es
+		// justo la pista que hace falta cuando esto pasa.
+		if errMover := os.Rename(p, roto); errMover == nil {
+			log.Printf("config.json no se entiende (%v); se aparta en %s y se empieza de cero", err, roto)
+		} else {
+			log.Printf("config.json no se entiende (%v) y ademas no se pudo apartar: %v", err, errMover)
+		}
+		return &Config{Active: -1}
+	}
 	c.normalize()
 	return c
 }
@@ -325,7 +365,12 @@ func EnsureKey() (keyPath, pubKey string, err error) {
 			return "", "", i18n.Errorf("la clave guardada no es valida: %w", err)
 		}
 		text := authorizedKeyLine(signer.PublicKey())
-		os.WriteFile(pubPath, []byte(text), 0o644)
+		// La publica es una comodidad: la de verdad se reconstruye desde la
+		// privada cada vez que hace falta, y es lo que se devuelve aqui. Si no
+		// se puede escribir, se reconstruira otra vez la proxima.
+		if err := os.WriteFile(pubPath, []byte(text), 0o644); err != nil {
+			log.Printf("no se pudo guardar %s: %v", pubPath, err)
+		}
 		return keyPath, text, nil
 	}
 

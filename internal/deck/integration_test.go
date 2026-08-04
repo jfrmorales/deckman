@@ -32,6 +32,11 @@ func integrationClient(t *testing.T) (*Client, context.Context) {
 		User:     envOr("DECKMAN_TEST_USER", "deck"),
 		Password: os.Getenv("DECKMAN_TEST_PASS"),
 		KeyPath:  os.Getenv("DECKMAN_TEST_KEY"),
+		// Fichero de claves de host desechable, uno por prueba: la primera
+		// conexion apunta la de la Deck (TOFU) y al acabar desaparece con el
+		// directorio temporal. Asi las pruebas no dependen de lo que haya
+		// recordado la configuracion real ni la ensucian.
+		KnownHostsPath: filepath.Join(t.TempDir(), "known_hosts"),
 	})
 	if err != nil {
 		t.Fatalf("no se pudo conectar: %v", err)

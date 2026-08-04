@@ -236,7 +236,7 @@ func (c *Client) uploadOne(ctx context.Context, f localFile, dst string) (bool, 
 	// rapido que un io.Copy normal en ficheros grandes.
 	if _, err := out.ReadFrom(&ctxReader{ctx: ctx, f: in}); err != nil {
 		out.Close()
-		c.sftp.Remove(dst)
+		_ = c.sftp.Remove(dst) // limpia el fichero a medias; si no se puede, el error que importa es el de arriba
 		return false, err
 	}
 	if err := out.Close(); err != nil {

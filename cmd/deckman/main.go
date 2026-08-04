@@ -114,7 +114,9 @@ func main() {
 	fmt.Println("\ncerrando...")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	httpSrv.Shutdown(ctx)
+	// Se esta saliendo: si alguna peticion no termina en 5 segundos, el
+	// proceso muere igual y no hay nada que informar.
+	_ = httpSrv.Shutdown(ctx)
 }
 
 // isDeckman comprueba si lo que escucha en esa direccion es otro deckman,

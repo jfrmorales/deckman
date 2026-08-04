@@ -481,7 +481,10 @@ func (c *Client) Delete(ctx context.Context, inv *Inventory, appID string, t Del
 			if err := c.RemoveShortcut(ctx, shortcutID); err != nil {
 				return freed, err
 			}
-			c.SetCompatTool(ctx, appID, "") // limpia el mapeo de Proton huerfano
+			// Limpia el mapeo de Proton huerfano. Best-effort a proposito: el
+			// acceso directo ya no existe, asi que un mapeo que sobra no le
+			// hace nada a nadie, y fallar aqui no debe deshacer el borrado.
+			_ = c.SetCompatTool(ctx, appID, "")
 		}
 	}
 	return freed, nil

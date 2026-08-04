@@ -251,7 +251,8 @@ func isDeniedExe(stem string) bool {
 // minusculas.
 func splitWords(s string) []string {
 	return strings.FieldsFunc(strings.ToLower(s), func(r rune) bool {
-		return !(r >= 'a' && r <= 'z') && !(r >= '0' && r <= '9')
+		alfanumerico := (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9')
+		return !alfanumerico
 	})
 }
 
@@ -274,7 +275,11 @@ func PickExecutable(dir, gameName string) (picked []Candidate, skipped []string)
 	base := filepath.Clean(dir)
 	nameKey := normalizeKey(gameName)
 
-	filepath.WalkDir(base, func(p string, d os.DirEntry, err error) error {
+	// El error del recorrido se descarta a sabiendas: la funcion de dentro ya
+	// se traga los suyos devolviendo nil, asi que WalkDir solo puede fallar si
+	// la raiz no se puede leer, y entonces la respuesta correcta es la misma
+	// que si estuviera vacia — ningun candidato.
+	_ = filepath.WalkDir(base, func(p string, d os.DirEntry, err error) error {
 		if err != nil {
 			return nil
 		}

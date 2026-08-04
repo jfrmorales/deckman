@@ -56,9 +56,22 @@ func (c *Client) romSystemDir(ctx context.Context, system string) (string, error
 	return "", fmt.Errorf("el sistema %q no existe dentro de %s", system, romsDir)
 }
 
+// mueblesEmuDeck son los ficheros que EmuDeck deja en TODAS las carpetas de
+// sistema, tenga ROMs o no. Comprobado en una Deck real: junto a ellos hay un
+// enlace «media» a tools/downloaded_media/<sistema>. No son ROMs y listarlos
+// con un boton de Eliminar al lado es pedir un accidente.
+var mueblesEmuDeck = map[string]bool{
+	"systeminfo.txt": true,
+	"metadata.txt":   true,
+}
+
 // ListROMs lista los ficheros de un sistema. Las subcarpetas se saltan: ahi
 // dentro cada emulador se monta lo suyo (BIOS, saves, texturas) y no son ROMs
 // que el usuario quiera renombrar o borrar desde aqui.
+//
+// Lo que no encaje en extROM SI se lista: una descarga a medias o un fichero
+// con extension rara son justo lo que uno viene a limpiar. Solo se esconden
+// los muebles de EmuDeck, que no son del usuario.
 func (c *Client) ListROMs(ctx context.Context, system string) ([]ROM, error) {
 	dir, err := c.romSystemDir(ctx, system)
 	if err != nil {
@@ -71,7 +84,12 @@ func (c *Client) ListROMs(ctx context.Context, system string) ([]ROM, error) {
 
 	roms := make([]ROM, 0, len(entries))
 	for _, e := range entries {
-		if e.IsDir() {
+		// Solo ficheros de verdad. El enlace «media» que EmuDeck pone en cada
+		// sistema apunta a una carpeta, pero ReadDir lo describe como enlace,
+		// no como directorio: sin esta comprobacion se colaba en la lista con
+		// su boton de Eliminar al lado, y borrarlo deja al sistema sin
+		// caratulas.
+		if !e.Mode().IsRegular() || mueblesEmuDeck[e.Name()] {
 			continue
 		}
 		roms = append(roms, ROM{Name: e.Name(), Size: e.Size()})

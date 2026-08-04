@@ -496,10 +496,10 @@ function renderSendOptions() {
   const exp = (inventory.compatTools || []).find((t) => t.name === 'proton_experimental');
   sel.value = cur || (exp ? exp.name : '');
 
-  // Los tres desplegables de sistema (enviar, gestionar, descargar) se llenan
-  // con la misma lista. Un <option> solo puede colgar de un sitio, así que hay
-  // que crear uno por desplegable, no reutilizar el mismo nodo.
-  const selectores = ['romSystem', 'manageRomSystem', 'downloadRomSystem'].map($);
+  // Enviar y Descargar ofrecen TODOS los sistemas: la primera ROM de un
+  // sistema va a una carpeta que aún está vacía. Gestionar es al revés y se
+  // llena aparte, desde /api/roms/systems.
+  const selectores = ['romSystem', 'downloadRomSystem'].map($);
   for (const sel of selectores) sel.innerHTML = '';
   for (const s of inventory.romSystems || []) {
     for (const sel of selectores) {
@@ -1496,11 +1496,20 @@ function init() {
         targetPanel.classList.remove('hidden');
         targetPanel.classList.add('active');
       }
+      // Los sistemas con ROMs hay que ir a contarlos a la Deck, así que se
+      // piden al abrir Gestionar y no al cargar la página.
+      if (targetId === 'emu-manage') loadManageSystems();
     });
   });
 
   // --- emulación ---
   $('btnLoadRoms').onclick = loadManageRoms;
+  $('btnScrapeSystem').onclick = scrapeSystem;
+  $('manageRomSystem').onchange = () => {
+    $('manageRomsList').classList.add('hidden');
+    $('scrapeBox').classList.add('hidden');
+    $('scrapeResumen').classList.add('hidden');
+  };
   $('btnDownloadRom').onclick = downloadRom;
   $('btnSearchRom').onclick = searchRom;
   $('searchRomInput').addEventListener('keydown', (e) => {
@@ -1546,6 +1555,37 @@ function init() {
   });
 }
 
+// Sistemas que tienen ROMs, con su cuenta. Se guarda cuáles se saben
+// scrapear para no ofrecer un botón que no haría nada.
+let manageSystems = { scrapeable: {} };
+
+async function loadManageSystems() {
+  const sel = $('manageRomSystem');
+  const previo = sel.value;
+  const hint = $('manageSystemsHint');
+  hint.textContent = 'Mirando qué sistemas tienen ROMs…';
+
+  try {
+    const res = await api('/api/roms/systems');
+    manageSystems = res;
+    const lista = res.systems || [];
+    sel.innerHTML = '';
+    for (const s of lista) {
+      const o = document.createElement('option');
+      o.value = s.name;
+      o.textContent = `${s.name} — ${s.count} ${s.count === 1 ? 'ROM' : 'ROMs'}`;
+      sel.appendChild(o);
+    }
+    if (previo && lista.some((s) => s.name === previo)) sel.value = previo;
+
+    hint.textContent = lista.length
+      ? `${lista.length} ${lista.length === 1 ? 'sistema' : 'sistemas'} con ROMs en ${res.romsDir}`
+      : `No hay ninguna ROM en ${res.romsDir || 'la Deck'}.`;
+  } catch (err) {
+    hint.textContent = 'No se pudieron leer los sistemas: ' + err.message;
+  }
+}
+
 async function loadManageRoms() {
   const sys = $('manageRomSystem').value;
   if (!sys) { banner('Elige el sistema.', 'err'); return; }
@@ -1578,11 +1618,65 @@ async function loadManageRoms() {
       `;
       body.appendChild(tr);
     }
+
+    // Las carátulas se buscan del sistema que se está mirando, así que el
+    // bloque solo aparece cuando hay algo cargado.
+    const puede = manageSystems.scrapeable && manageSystems.scrapeable[sys];
+    $('scrapeBox').classList.toggle('hidden', !roms.length);
+    $('scrapeResumen').classList.add('hidden');
+    $('btnScrapeSystem').disabled = !puede;
+    $('scrapeStatus').textContent = puede
+      ? '' : `libretro no tiene carátulas de ${sys}.`;
   } catch (err) {
     banner('No se pudieron listar las ROMs: ' + err.message, 'err');
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Cargar ROMs';
+    btn.textContent = 'Cargar';
+  }
+}
+
+async function scrapeSystem() {
+  const sys = $('manageRomSystem').value;
+  if (!sys) return;
+
+  $('scrapeStatus').textContent = '';
+  $('scrapeResumen').classList.add('hidden');
+  const ok = await startJob('/api/roms/scrape',
+    { system: sys, rehacer: $('scrapeRehacer').checked },
+    'Buscando carátulas', 'No se pudo empezar la búsqueda de carátulas');
+  if (ok) esperarScrape(sys);
+}
+
+// El resumen se pide cuando el trabajo acaba: lo interesante (qué juegos se
+// quedaron sin carátula) no cabe en la barra de progreso.
+async function esperarScrape(sys) {
+  // Con tope: si el trabajo no llega a arrancar, esto no puede quedarse
+  // dando vueltas para siempre.
+  for (let i = 0; i < 3600 && jobBusy(); i++) {
+    await new Promise((r) => setTimeout(r, 700));
+  }
+  // Si falló, el error ya lo cuenta el panel de progreso, y el resumen que
+  // hay guardado sería el de la vez anterior: engañaría más que ayudar.
+  if (state.job && state.job.progress && state.job.progress.error) return;
+  try {
+    const { resumen } = await api('/api/roms/scrape-resumen');
+    const caja = $('scrapeResumen');
+    const sin = resumen.sinImagen || [];
+    let html = `<p class="hint">${resumen.conImagen} de ${resumen.juegos} juegos con carátula`
+      + ` — ${resumen.imagenes} ${resumen.imagenes === 1 ? 'imagen nueva' : 'imágenes nuevas'}`
+      + (resumen.saltados ? `, ${resumen.saltados} ya estaban` : '') + '.</p>';
+    if (sin.length) {
+      html += `<p class="hint">Sin carátula en libretro (${sin.length}). Suele ser que el nombre`
+        + ` del fichero no coincide con el del volcado original:</p><ul class="brlist romresults">`
+        + sin.map((n) => `<li class="brrow"><span class="nm">${escapeHtml(n)}</span></li>`).join('')
+        + '</ul>';
+    }
+    html += `<p class="hint">Guardadas en <code>${escapeHtml(resumen.mediaDir || '')}</code>.`
+      + ' En la Deck, recarga la lista de juegos en ES-DE para verlas.</p>';
+    caja.innerHTML = html;
+    caja.classList.remove('hidden');
+  } catch (err) {
+    $('scrapeStatus').textContent = 'No se pudo leer el resumen: ' + err.message;
   }
 }
 
@@ -1614,11 +1708,19 @@ async function searchRom() {
   lista.innerHTML = '';
   lista.classList.add('hidden');
 
+  // Acotar a la plataforma elegida es lo normal: teniendo puesto arcade, los
+  // resultados de PSP solo estorban. El desplegable deja abrir la búsqueda a
+  // todo cuando lo que quieres es ver qué hay y elegir.
+  const sys = $('searchScope').value === 'todos' ? '' : $('downloadRomSystem').value;
+
   try {
-    const res = await api('/api/roms/search?q=' + encodeURIComponent(q));
+    const res = await api('/api/roms/search?q=' + encodeURIComponent(q)
+      + (sys ? '&system=' + encodeURIComponent(sys) : ''));
     const list = res.results || [];
     if (!list.length) {
-      $('searchStatus').textContent = 'Sin resultados con archivo descargable.';
+      $('searchStatus').textContent = sys
+        ? `Sin resultados de ${sys}. Prueba a buscar en todos los sistemas.`
+        : 'Sin resultados con archivo descargable.';
       return;
     }
 

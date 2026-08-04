@@ -63,7 +63,7 @@ func TestSearchArchiveOrg(t *testing.T) {
 	archiveBase = srv.URL
 	defer func() { archiveBase = viejo }()
 
-	res, err := searchArchiveOrg(context.Background(), "sonic")
+	res, err := searchArchiveOrg(context.Background(), "sonic", "")
 	if err != nil {
 		t.Fatalf("searchArchiveOrg: %v", err)
 	}
@@ -95,7 +95,53 @@ func TestSearchArchiveOrgFallo(t *testing.T) {
 	archiveBase = srv.URL
 	defer func() { archiveBase = viejo }()
 
-	if _, err := searchArchiveOrg(context.Background(), "sonic"); err == nil {
+	if _, err := searchArchiveOrg(context.Background(), "sonic", ""); err == nil {
 		t.Error("searchArchiveOrg = nil con archive.org caido")
+	}
+}
+
+// Elegir arcade no debe traer resultados de PSP: la plataforma entra en la
+// consulta. Y un sistema que no sabemos nombrar no filtra, en vez de filtrar
+// mal y no devolver nada.
+func TestClausulaPlataforma(t *testing.T) {
+	if got := clausulaPlataforma("psx"); got != ` AND ("PlayStation" OR "PSX" OR "PS1")` {
+		t.Errorf("clausulaPlataforma(psx) = %q", got)
+	}
+	if got := clausulaPlataforma("gc"); got != ` AND ("GameCube")` {
+		t.Errorf("clausulaPlataforma(gc) = %q", got)
+	}
+	if got := clausulaPlataforma(""); got != "" {
+		t.Errorf(`clausulaPlataforma("") = %q, se esperaba sin filtro`, got)
+	}
+	if got := clausulaPlataforma("sistema-que-no-existe"); got != "" {
+		t.Errorf("clausulaPlataforma(desconocido) = %q, se esperaba sin filtro", got)
+	}
+}
+
+func TestSearchArchiveOrgFiltraPorSistema(t *testing.T) {
+	var vistaQ string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/advancedsearch.php") {
+			vistaQ = r.URL.Query().Get("q")
+		}
+		w.Write([]byte(`{"response":{"docs":[]}}`))
+	}))
+	defer srv.Close()
+
+	viejo := archiveBase
+	archiveBase = srv.URL
+	defer func() { archiveBase = viejo }()
+
+	if _, err := searchArchiveOrg(context.Background(), "sonic", "arcade"); err != nil {
+		t.Fatalf("searchArchiveOrg: %v", err)
+	}
+	if !strings.Contains(vistaQ, `"arcade"`) || !strings.Contains(vistaQ, `"MAME"`) {
+		t.Errorf("la consulta no acota a arcade: %q", vistaQ)
+	}
+	if _, err := searchArchiveOrg(context.Background(), "sonic", ""); err != nil {
+		t.Fatalf("searchArchiveOrg: %v", err)
+	}
+	if strings.Contains(vistaQ, "MAME") {
+		t.Errorf("sin sistema no deberia filtrar: %q", vistaQ)
 	}
 }

@@ -38,6 +38,11 @@ type Server struct {
 	client *deck.Client
 	cfg    *config.Config
 
+	// Resumen del ultimo scrapeo. Vive aparte del trabajo porque lo
+	// interesante (que juegos se quedaron sin caratula) no cabe en una barra
+	// de progreso y se consulta cuando el trabajo ya ha terminado.
+	ultimoScrape *deck.ResultadoScrape
+
 	quitOnce sync.Once
 	quit     chan struct{}
 
@@ -131,7 +136,10 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/restart-steam", s.guard(s.handleRestartSteam))
 	mux.HandleFunc("/api/cancel", s.guard(s.handleCancel))
 	mux.HandleFunc("/api/quit", s.guard(s.handleQuit))
+	mux.HandleFunc("/api/roms/systems", s.guard(s.handleRomsSystems))
 	mux.HandleFunc("/api/roms/list", s.guard(s.handleRomsList))
+	mux.HandleFunc("/api/roms/scrape", s.guard(s.handleRomsScrape))
+	mux.HandleFunc("/api/roms/scrape-resumen", s.guard(s.handleRomsScrapeResumen))
 	mux.HandleFunc("/api/roms/delete", s.guard(s.handleRomsDelete))
 	mux.HandleFunc("/api/roms/rename", s.guard(s.handleRomsRename))
 	mux.HandleFunc("/api/roms/download", s.guard(s.handleRomsDownload))

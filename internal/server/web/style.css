@@ -445,6 +445,13 @@ button.mini { padding: 3px 9px; font-size: 12px; }
 .brlist .empty { padding: 30px; text-align: center; color: var(--dim); }
 .hint.sel { color: var(--fg); }
 
+/* Las carátulas viven dentro de Gestionar, separadas por una línea: son otra
+   tarea sobre el mismo sistema, no otra pantalla. */
+.scrapebox { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
+.scrapebox h3 { margin: 0 0 6px; font-size: 15px; }
+.scrapebox .check { display: flex; align-items: center; gap: 8px; margin: 10px 0 12px; }
+.scrapebox .romresults { max-height: 180px; }
+
 /* Los resultados de archive.org reutilizan las filas del explorador (.brrow);
    lo único propio es el marco, que ahí lo pone el modal y aquí no hay. */
 .romresults {

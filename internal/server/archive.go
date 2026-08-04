@@ -72,17 +72,95 @@ type archiveFile struct {
 	Size string `json:"size"` // archive.org lo manda como cadena
 }
 
+// sinonimosPlataforma acota la busqueda a una plataforma.
+//
+// archive.org no tiene un campo de plataforma fiable en la seccion de
+// software: lo que funciona es exigir que el nombre de la maquina aparezca en
+// el item. Van varias formas de decir lo mismo porque quien sube un volcado
+// escribe «PSX», «PS1» o «PlayStation» segun el dia. Comprobado contra la API:
+// buscar «crash bandicoot» a secas devuelve un Super Mario Flash; con los
+// sinonimos de psx, todo lo que sale es de PlayStation.
+var sinonimosPlataforma = map[string][]string{
+	"3do":             {"3DO"},
+	"amiga":           {"Amiga"},
+	"amstradcpc":      {"Amstrad", "CPC"},
+	"arcade":          {"arcade", "MAME"},
+	"atari2600":       {"Atari 2600"},
+	"atari5200":       {"Atari 5200"},
+	"atari7800":       {"Atari 7800"},
+	"atarijaguar":     {"Jaguar"},
+	"atarilynx":       {"Lynx"},
+	"c64":             {"Commodore 64", "C64"},
+	"colecovision":    {"ColecoVision"},
+	"dreamcast":       {"Dreamcast"},
+	"fbneo":           {"arcade", "MAME"},
+	"gamegear":        {"Game Gear"},
+	"gb":              {"Game Boy"},
+	"gba":             {"Game Boy Advance", "GBA"},
+	"gbc":             {"Game Boy Color", "GBC"},
+	"gc":              {"GameCube"},
+	"genesis":         {"Genesis", "Mega Drive"},
+	"intellivision":   {"Intellivision"},
+	"mame":            {"arcade", "MAME"},
+	"mastersystem":    {"Master System"},
+	"megacd":          {"Mega CD", "Sega CD"},
+	"megadrive":       {"Mega Drive", "Genesis"},
+	"msx":             {"MSX"},
+	"n3ds":            {"3DS"},
+	"n64":             {"Nintendo 64", "N64"},
+	"nds":             {"Nintendo DS"},
+	"neogeo":          {"Neo Geo"},
+	"nes":             {"NES", "Nintendo Entertainment System"},
+	"pcengine":        {"PC Engine", "TurboGrafx"},
+	"ps2":             {"PlayStation 2", "PS2"},
+	"ps3":             {"PlayStation 3", "PS3"},
+	"psp":             {"PSP", "PlayStation Portable"},
+	"psvita":          {"Vita"},
+	"psx":             {"PlayStation", "PSX", "PS1"},
+	"saturn":          {"Saturn"},
+	"sega32x":         {"32X"},
+	"segacd":          {"Sega CD", "Mega CD"},
+	"snes":            {"SNES", "Super Nintendo"},
+	"tg16":            {"TurboGrafx", "PC Engine"},
+	"vectrex":         {"Vectrex"},
+	"virtualboy":      {"Virtual Boy"},
+	"wii":             {"Wii"},
+	"wiiu":            {"Wii U"},
+	"wonderswan":      {"WonderSwan"},
+	"xbox":            {"Xbox"},
+	"xbox360":         {"Xbox 360"},
+	"zxspectrum":      {"ZX Spectrum", "Spectrum"},
+	"wonderswancolor": {"WonderSwan Color"},
+}
+
+// clausulaPlataforma monta el «AND (... OR ...)» de la plataforma. Devuelve
+// cadena vacia si no sabemos como se llama ese sistema por ahi, que es mejor
+// que inventarse un filtro y no devolver nada.
+func clausulaPlataforma(system string) string {
+	nombres := sinonimosPlataforma[system]
+	if len(nombres) == 0 {
+		return ""
+	}
+	partes := make([]string, len(nombres))
+	for i, n := range nombres {
+		partes[i] = `"` + n + `"`
+	}
+	return " AND (" + strings.Join(partes, " OR ") + ")"
+}
+
 // searchArchiveOrg busca software en archive.org y devuelve enlaces directos.
+// Con system a "" busca en todas las plataformas.
 //
 // Son dos viajes por resultado (buscar da identificadores; los ficheros estan
 // en los metadatos de cada item), asi que se limita a unos pocos y se piden en
 // paralelo: en serie, cinco items con mala latencia son cinco esperas seguidas.
-func searchArchiveOrg(ctx context.Context, query string) ([]SearchResult, error) {
+func searchArchiveOrg(ctx context.Context, query, system string) ([]SearchResult, error) {
 	const maxItems = 5
 
+	q := query + " AND mediatype:(software)" + clausulaPlataforma(system)
 	searchURL := fmt.Sprintf(
-		"%s/advancedsearch.php?q=%s+AND+mediatype%%3A%%28software%%29&fl%%5B%%5D=identifier&fl%%5B%%5D=title&rows=%d&output=json",
-		archiveBase, url.QueryEscape(query), maxItems)
+		"%s/advancedsearch.php?q=%s&fl%%5B%%5D=identifier&fl%%5B%%5D=title&rows=%d&output=json",
+		archiveBase, url.QueryEscape(q), maxItems)
 
 	var busqueda struct {
 		Response struct {

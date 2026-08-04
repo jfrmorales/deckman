@@ -232,9 +232,13 @@
     <div class="emu-dashboard">
       <header class="emu-header">
         <h2>Emulación</h2>
-        <p class="subtitle">Gestiona tu colección, descargas y scrapers</p>
+        <p class="subtitle">Envía, organiza y descarga ROMs</p>
       </header>
 
+      <!-- Scrapear ya no es una tarjeta aparte: buscar las carátulas de un
+           sistema es algo que se hace mirando ese sistema, y para eso ya hay
+           que estar en Gestionar. Tenerlo suelto obligaba a elegir el sistema
+           dos veces, en dos sitios distintos. -->
       <div class="emu-cards">
         <button class="emu-card active-card" data-subtab="emu-send">
           <div class="emu-icon">📥</div>
@@ -244,17 +248,12 @@
         <button class="emu-card" data-subtab="emu-manage">
           <div class="emu-icon">📁</div>
           <h3>Gestionar</h3>
-          <p>Organiza tu colección</p>
+          <p>Organiza y busca carátulas</p>
         </button>
         <button class="emu-card" data-subtab="emu-download">
           <div class="emu-icon">⚡</div>
           <h3>Descargar</h3>
           <p>Obtén nuevas roms</p>
-        </button>
-        <button class="emu-card" data-subtab="emu-scrape">
-          <div class="emu-icon">🖼️</div>
-          <h3>Scrapear</h3>
-          <p>Descarga metadatos</p>
         </button>
       </div>
 
@@ -286,13 +285,22 @@
         <!-- Subpestaña: Gestionar -->
         <div id="emu-manage" class="emu-subpanel hidden">
           <div class="card premium-card">
-            <h2>Gestor de Colección</h2>
+            <h2>Gestor de colección</h2>
+            <!-- Solo salen los sistemas que tienen ROMs. EmuDeck crea 181
+                 carpetas al instalarse y elegir entre todas para llegar a las
+                 cuatro que usas no es una lista, es un obstáculo. -->
+            <p class="hint">Solo se listan los sistemas que tienen ROMs, no las 181 carpetas que crea EmuDeck.</p>
+
             <div class="field">
               <label>Sistema</label>
-              <select id="manageRomSystem"></select>
+              <div class="row">
+                <select id="manageRomSystem"></select>
+                <button id="btnLoadRoms" class="primary">Cargar</button>
+              </div>
+              <p id="manageSystemsHint" class="hint"></p>
             </div>
-            <button id="btnLoadRoms" class="primary">Cargar ROMs</button>
-            <div id="manageRomsList" class="table-wrap hidden" style="margin-top: 15px;">
+
+            <div id="manageRomsList" class="table-wrap hidden">
               <table id="manageGames">
                 <thead>
                   <tr>
@@ -304,6 +312,23 @@
                 <tbody id="manageRomsBody"></tbody>
               </table>
               <p id="emptyRoms" class="empty">No hay ROMs en este sistema.</p>
+            </div>
+
+            <div id="scrapeBox" class="scrapebox hidden">
+              <h3>Carátulas</h3>
+              <p class="hint">
+                Busca carátula, pantalla de título y captura de cada ROM en
+                libretro-thumbnails y las deja donde ES-DE las busca. Sin clave
+                ni registro. Empareja por el nombre del fichero, así que
+                funciona con nombres estilo No-Intro/Redump.
+              </p>
+              <label class="check">
+                <input type="checkbox" id="scrapeRehacer">
+                Volver a bajar las que ya están
+              </label>
+              <button id="btnScrapeSystem" class="primary">Buscar carátulas</button>
+              <p id="scrapeStatus" class="hint"></p>
+              <div id="scrapeResumen" class="hidden"></div>
             </div>
           </div>
         </div>
@@ -323,9 +348,13 @@
               <label>Buscar en archive.org</label>
               <div class="row">
                 <input id="searchRomInput" class="pathinput" placeholder="nombre del juego" autocomplete="off">
+                <select id="searchScope">
+                  <option value="sistema">Solo del sistema elegido</option>
+                  <option value="todos">De todos los sistemas</option>
+                </select>
                 <button id="btnSearchRom">Buscar</button>
               </div>
-              <p class="hint">Busca en la sección de software de archive.org. Descarga solo lo que tengas derecho a descargar.</p>
+              <p class="hint">Descarga solo lo que tengas derecho a descargar.</p>
             </div>
 
             <ul id="searchRomsList" class="brlist romresults hidden"></ul>
@@ -342,18 +371,6 @@
           </div>
         </div>
 
-        <!-- Subpestaña: Scrapear -->
-        <div id="emu-scrape" class="emu-subpanel hidden">
-          <!-- Sigue siendo un hueco a propósito: no hay scraper detrás. Un botón
-               que diera «listo» sin haber mirado ni una carátula es peor que no
-               tener el botón. -->
-          <div class="card premium-card empty-state">
-            <div class="huge-icon animate-spin-slow">✨</div>
-            <h3>Scraper integrado</h3>
-            <p>Actualizar carátulas, descripciones y metadatos de tus ROMs con ScreenScraper o TheGamesDB.</p>
-            <button class="primary" disabled>Próximamente</button>
-          </div>
-        </div>
       </div>
     </div>
   </section>

@@ -29,7 +29,8 @@ chmod +x deckman-*-linux-amd64
 | **Enviar juego** | Copia una carpeta de juego de Windows a `~/Games` y lo registra en Steam, con la versión de Proton que elijas. |
 | **Autodetección** | Al elegir la carpeta, deduce qué juego es, cuál de los `.exe` lo arranca y qué Proton conviene. |
 | **Carátulas** | Galería de SteamGridDB para elegir portada, fondo, logo e icono de cualquier juego, con vista previa. Se aplican al instante. |
-| **Emulación** | Copia ROMs a la carpeta del sistema correspondiente de EmuDeck, lista lo que ya hay en cada sistema para renombrarlo o borrarlo, y descarga ROMs por URL (la descarga la hace la Deck, no el PC) con un buscador de archive.org al lado. |
+| **Emulación** | Copia ROMs a la carpeta del sistema correspondiente de EmuDeck; lista lo que ya hay en cada sistema —solo los que tienen juegos, no las 181 carpetas de EmuDeck— para renombrarlo o borrarlo; y descarga ROMs por URL (la descarga la hace la Deck, no el PC) con un buscador de archive.org acotado al sistema elegido. |
+| **Carátulas de ROMs** | Busca carátula, pantalla de título y captura de cada ROM en libretro-thumbnails y las deja donde ES-DE las busca. Sin clave ni registro. |
 | **Mover** | Traslada un juego entre el interno y la microSD sin volver a descargarlo. También los no-Steam: se lleva la carpeta y actualiza el acceso directo. |
 | **Limpiar** | Desinstala juegos y borra por separado el prefijo de Proton o la caché de shaders. |
 

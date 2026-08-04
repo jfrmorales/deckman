@@ -399,3 +399,88 @@ hasta `AddApps`. El mismo error sale si se le pasa un appid que no existe.
 
 Queda guardado en `userdata/<id>/config/localconfig.vdf`, dentro de la entrada
 `user-collections`; Steam lo vuelca a disco en unos segundos.
+
+---
+
+## 11. EmuDeck y ES-DE (esto no es Steam, pero pica igual)
+
+Comprobado el 2026-08-04 contra una Deck real con EmuDeck instalado en la
+microSD (`/run/media/deck/USD00/Emulation`).
+
+### EmuDeck crea 181 carpetas de sistema, y ninguna está vacía
+
+Al instalarse deja una carpeta por cada sistema que soporta —**181** en esa
+Deck— tengas ese sistema o no. Y en cada una mete tres cosas:
+
+```
+roms/vic20/
+├── media -> ../../tools/downloaded_media/vic20     (enlace)
+├── metadata.txt
+└── systeminfo.txt
+```
+
+Consecuencias, las dos pagadas:
+
+- **Contar ficheros no sirve** para saber si un sistema tiene juegos: todos
+  tienen dos. Hay que contar por **extensión de ROM**. Eso además descarta solo
+  tres carpetas que sí tienen ficheros pero no son consolas: `emulators`
+  (guiones `.sh`), `model2` y `xbox360` (el propio emulador: `.exe`, `.toml`,
+  `.lua`; sus ROMs cuelgan de un `roms/` interno).
+- **`media` es un enlace y `ReadDir` no lo llama directorio.** Se colaba en la
+  lista de ROMs como si fuera un fichero, con su botón de *Eliminar* al lado —
+  y borrarlo se lleva todas las carátulas del sistema. Filtrar por
+  `Mode().IsRegular()`, no por `IsDir()`.
+
+### Hay alias: `gamecube` es un enlace a `gc`
+
+No son dos sistemas, es el mismo con dos nombres (mismo inodo). Sin saltarse
+los enlaces, la misma carpeta sale dos veces y el usuario cree tener duplicados.
+
+### Las carátulas NO van a `~/ES-DE/downloaded_media`
+
+Van a `Emulation/tools/downloaded_media/<sistema>/`, y desde cada carpeta de
+ROMs apunta ahí el enlace `media`. Lo fiable es **seguir el enlace**: si la
+instalación está en la microSD, o el usuario la movió, el enlace lo sabe y una
+ruta reconstruida a mano no.
+
+Dentro hay una subcarpeta por tipo: `covers`, `titlescreens`, `screenshots`,
+`marquees`, `miximages`, `3dboxes`, `backcovers`, `fanart`, `videos`, `wheel`…
+El fichero se llama **igual que la ROM sin extensión**, con `.png`.
+
+### Para poner una carátula NO hace falta tocar el `gamelist.xml`
+
+ES-DE empareja las imágenes **por nombre de fichero**. El `gamelist.xml` (en
+`~/ES-DE/gamelists/<sistema>/gamelist.xml`, ES-DE 3.x) es solo para el texto —
+y ahí guarda además `playcount` y `lastplayed`, así que reescribirlo sin
+conservarlos borra el historial de partidas. Si solo se bajan imágenes, no se
+toca: menos superficie y ningún riesgo.
+
+### libretro-thumbnails: carátulas sin clave ni registro
+
+```
+https://thumbnails.libretro.com/<Sistema largo>/Named_Boxarts/<Nombre>.png
+                                                 Named_Titles/
+                                                 Named_Snaps/
+```
+
+`<Sistema largo>` es el nombre con fabricante (`Nintendo - Nintendo 64`,
+`Sony - PlayStation`), no el de EmuDeck. Indexa por el nombre exacto del
+volcado No-Intro/Redump: sobre las 7 ROMs reales de la Deck de pruebas acertó
+las 7, incluidos sufijos como `(EDC)` y `(Spain)`. Acepta el escapado de
+`url.PathEscape` de Go (paréntesis como `%28`/`%29`).
+
+### ScreenScraper exige credenciales de la aplicación, no del usuario
+
+La alternativa con texto (descripción, año, género) es ScreenScraper, que usa
+ES-DE. Su API pide **dos** juegos de credenciales, y sin las primeras no se
+puede ni empezar:
+
+```
+sin devid        → "Erreur de login : Vérifier vos identifiants développeur !"
+devid falso      → "Erreur de login : Vérifier les identifiants utilisateurs !"
+```
+
+Las de desarrollador las concede su equipo por el foro, aplicación por
+aplicación, y solo a software gratuito. La cuenta de usuario es gratis (20 000
+scrapes al día, 1 hilo). Es decir: el bloqueo no es dinero, es un trámite
+humano que hay que hacer antes de escribir una línea de ese código.

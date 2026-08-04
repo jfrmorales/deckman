@@ -13,6 +13,51 @@ bloque `<releases>` del metainfo. Los tres los sincroniza `scripts/release.sh`.
      versión nueva al publicar. Secciones: Añadido, Cambiado, Corregido,
      Eliminado. -->
 
+### Añadido
+
+- **Buscar carátulas**, y esta vez de verdad. Baja carátula, pantalla de título
+  y captura de cada ROM desde **libretro-thumbnails** y las deja donde ES-DE las
+  busca (`Emulation/tools/downloaded_media/<sistema>/`, siguiendo el enlace
+  `media` que EmuDeck deja en cada carpeta, así que da igual dónde tengas la
+  instalación). Sin clave ni registro. Empareja por el nombre del fichero, que
+  es como indexa libretro: con volcados estilo No-Intro/Redump acierta casi
+  siempre. Al terminar dice qué juegos se quedaron sin nada, que es lo único
+  accionable del resultado.
+
+  No toca el `gamelist.xml`: ES-DE encuentra las imágenes solo por el nombre,
+  así que no hay motivo para reescribir un fichero del que es dueño y en el que
+  guarda tus partidas jugadas.
+
+  Lo que **no** trae es el texto (descripción, año, género, jugadores): eso
+  está en ScreenScraper, que exige credenciales de desarrollador concedidas por
+  ellos a cada aplicación. Se añadirá cuando deckman las tenga.
+
+### Cambiado
+
+- **«Gestionar» solo lista los sistemas que tienen ROMs.** EmuDeck crea 181
+  carpetas de sistema al instalarse y en una Deck real solo cuatro tenían
+  juegos: elegir entre 181 para llegar a 4 no es una lista, es un obstáculo.
+  Cada uno viene con su número de juegos, y los alias de EmuDeck se
+  deduplican (`gamecube` es un enlace a `gc`, no un sistema aparte). *Enviar
+  ROM* y *Descargar* siguen ofreciendo todos: la primera ROM de un sistema va
+  a una carpeta que aún está vacía.
+- **La búsqueda de ROMs se acota al sistema elegido.** Teniendo puesto arcade,
+  los resultados de PSP solo estorban. Un desplegable al lado permite abrirla a
+  todos los sistemas cuando lo que quieres es ver qué hay y elegir.
+- **Buscar carátulas deja de ser una subpestaña suelta y vive dentro de
+  «Gestionar»**, debajo de la lista de ROMs. Se hace sobre el sistema que estás
+  mirando, así que tenerlo aparte obligaba a elegir el sistema dos veces en dos
+  sitios distintos.
+
+### Corregido
+
+- **«Gestionar» listaba como ROMs los ficheros de EmuDeck**, con su botón de
+  *Eliminar* al lado: `systeminfo.txt`, `metadata.txt` y el enlace `media` —
+  que apunta a la carpeta de carátulas del sistema, así que borrarlo se las
+  llevaba todas por delante. Ahora solo se listan ficheros de verdad. Lo que no
+  parece una ROM (una descarga a medias, una extensión rara) **sí** sigue
+  saliendo: es justo lo que uno viene a limpiar.
+
 ## [0.3.0] — 2026-08-04
 
 ### Añadido

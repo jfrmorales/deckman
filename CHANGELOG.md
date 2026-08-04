@@ -13,6 +13,35 @@ bloque `<releases>` del metainfo. Los tres los sincroniza `scripts/release.sh`.
      versión nueva al publicar. Secciones: Añadido, Cambiado, Corregido,
      Eliminado. -->
 
+### Añadido
+
+- **Gestor de la colección de ROMs** (Emulación → Gestionar): lista lo que hay
+  en cada sistema con su tamaño, y permite renombrar y borrar. El servidor solo
+  acepta sistema y nombre, nunca una ruta: la ruta la arma él a partir de la
+  carpeta de ROMs que descubre en la Deck.
+- **Descargas directas** (Emulación → Descargar): se le da una URL y la ROM la
+  baja **la Deck**, no este PC, así que el fichero no cruza dos veces la red.
+  Va como trabajo largo, con barra de progreso y botón de cancelar como el
+  resto. El fichero se baja a un `.parcial` y solo se renombra si la descarga
+  termina bien; si falla, no queda basura en la carpeta de ROMs.
+- **Buscador en archive.org** dentro de esa misma subpestaña: busca en la
+  sección de software, se queda con el fichero descargable más prometedor de
+  cada resultado y rellena la casilla de la URL al elegir uno.
+
+### Cambiado
+
+- **Rediseño visual completo**: superficies traslúcidas, modo oscuro y
+  tipografía Inter.
+- La subpestaña **Scrapear sigue siendo un hueco** marcado como «Próximamente»:
+  no hay scraper detrás, y un botón que diga «listo» sin haber mirado ni una
+  carátula es peor que no tener el botón.
+
+### Corregido
+
+- La interfaz **ya no pide la tipografía a Google Fonts**. Va embebida en el
+  binario y tiene que verse igual sin internet; de paso, arrancar deckman ya no
+  avisa a nadie de fuera. El CSS pide Inter y cae en la del sistema si no está.
+
 ## [0.2.5] — 2026-08-04
 
 ### Cambiado

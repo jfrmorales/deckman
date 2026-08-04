@@ -496,28 +496,17 @@ function renderSendOptions() {
   const exp = (inventory.compatTools || []).find((t) => t.name === 'proton_experimental');
   sel.value = cur || (exp ? exp.name : '');
 
-  const rs = $('romSystem');
-  const ms = $('manageRomSystem');
-  const ds = $('downloadRomSystem');
-  const ss = $('scrapeRomSystem');
-  if (rs) rs.innerHTML = '';
-  if (ms) ms.innerHTML = '';
-  if (ds) ds.innerHTML = '';
-  if (ss) ss.innerHTML = '';
-  
+  // Los tres desplegables de sistema (enviar, gestionar, descargar) se llenan
+  // con la misma lista. Un <option> solo puede colgar de un sitio, así que hay
+  // que crear uno por desplegable, no reutilizar el mismo nodo.
+  const selectores = ['romSystem', 'manageRomSystem', 'downloadRomSystem'].map($);
+  for (const sel of selectores) sel.innerHTML = '';
   for (const s of inventory.romSystems || []) {
-    const opts = [
-      document.createElement('option'),
-      document.createElement('option'),
-      document.createElement('option'),
-      document.createElement('option')
-    ];
-    opts.forEach(o => { o.value = s; o.textContent = s; });
-    
-    if (rs) rs.appendChild(opts[0]);
-    if (ms) ms.appendChild(opts[1]);
-    if (ds) ds.appendChild(opts[2]);
-    if (ss) ss.appendChild(opts[3]);
+    for (const sel of selectores) {
+      const o = document.createElement('option');
+      o.value = s; o.textContent = s;
+      sel.appendChild(o);
+    }
   }
   $('romsDirLabel').textContent = inventory.romsDir || 'no se encontró EmuDeck';
   updateJobButtons();
@@ -1510,36 +1499,48 @@ function init() {
     });
   });
 
-  // Eventos Emulación
-  if ($('btnLoadRoms')) $('btnLoadRoms').onclick = loadManageRoms;
-  if ($('btnDownloadRom')) $('btnDownloadRom').onclick = downloadRom;
-  if ($('btnSearchRom')) $('btnSearchRom').onclick = searchRom;
-  if ($('btnScrapeSystem')) $('btnScrapeSystem').onclick = scrapeSystem;
-  
+  // --- emulación ---
+  $('btnLoadRoms').onclick = loadManageRoms;
+  $('btnDownloadRom').onclick = downloadRom;
+  $('btnSearchRom').onclick = searchRom;
+  $('searchRomInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') searchRom();
+  });
+  // Escribir la URL a mano deshace la marca del resultado elegido: si no,
+  // queda uno resaltado que ya no es lo que se va a descargar.
+  $('downloadUrl').addEventListener('input', () => {
+    for (const li of $('searchRomsList').querySelectorAll('.brrow.sel')) li.classList.remove('sel');
+  });
+
   $('manageRomsBody').addEventListener('click', async (e) => {
     const btn = e.target.closest('button');
     if (!btn) return;
-    
+    // El sistema sale del desplegable, no de la fila: es el mismo con el que
+    // se cargó la lista y el servidor solo acepta sistema + nombre.
+    const system = $('manageRomSystem').value;
+
     if (btn.dataset.romdel) {
-      if (!confirm('¿Seguro que quieres borrar ' + btn.dataset.romdel + '?')) return;
+      const name = btn.dataset.romdel;
+      if (!confirm(`¿Borrar "${name}" de ${system}? No hay papelera en la Deck.`)) return;
       try {
-        await api('/api/roms/delete', { path: btn.dataset.path });
-        banner('ROM borrada', 'ok');
+        await api('/api/roms/delete', { system, name });
+        banner('ROM borrada.', 'ok');
         loadManageRoms();
       } catch (err) {
-        banner('Error al borrar: ' + err.message, 'err');
+        banner('No se pudo borrar: ' + err.message, 'err');
       }
     }
-    
+
     if (btn.dataset.romren) {
-      const newName = prompt('Nuevo nombre:', btn.dataset.romren);
-      if (!newName || newName === btn.dataset.romren) return;
+      const name = btn.dataset.romren;
+      const newName = prompt('Nuevo nombre:', name);
+      if (!newName || newName === name) return;
       try {
-        await api('/api/roms/rename', { path: btn.dataset.path, newName });
-        banner('ROM renombrada', 'ok');
+        await api('/api/roms/rename', { system, name, newName });
+        banner('ROM renombrada.', 'ok');
         loadManageRoms();
       } catch (err) {
-        banner('Error al renombrar: ' + err.message, 'err');
+        banner('No se pudo renombrar: ' + err.message, 'err');
       }
     }
   });
@@ -1547,35 +1548,38 @@ function init() {
 
 async function loadManageRoms() {
   const sys = $('manageRomSystem').value;
-  if (!sys) return;
-  
+  if (!sys) { banner('Elige el sistema.', 'err'); return; }
+
   const btn = $('btnLoadRoms');
   btn.disabled = true;
-  btn.textContent = 'Cargando...';
-  
+  btn.textContent = 'Cargando…';
+
   try {
     const res = await api('/api/roms/list?system=' + encodeURIComponent(sys));
     const roms = res.roms || [];
     const body = $('manageRomsBody');
     body.innerHTML = '';
-    
+
     $('manageRomsList').classList.remove('hidden');
     $('emptyRoms').classList.toggle('hidden', roms.length > 0);
-    
+
     for (const r of roms) {
       const tr = document.createElement('tr');
+      // Solo viaja el nombre: la ruta la arma el servidor a partir del
+      // sistema, que es lo que impide que esto acabe borrando cualquier
+      // fichero de la Deck.
       tr.innerHTML = `
         <td><div class="gname"><span>${escapeHtml(r.name)}</span></div></td>
         <td class="num">${fmtBytes(r.size)}</td>
         <td><div class="acts">
-          <button data-romren="${escapeHtml(r.name)}" data-path="${escapeHtml(r.path)}">Renombrar</button>
-          <button class="danger" data-romdel="${escapeHtml(r.name)}" data-path="${escapeHtml(r.path)}">Eliminar</button>
+          <button data-romren="${escapeHtml(r.name)}">Renombrar</button>
+          <button class="danger" data-romdel="${escapeHtml(r.name)}">Eliminar</button>
         </div></td>
       `;
       body.appendChild(tr);
     }
   } catch (err) {
-    banner('Error al listar ROMs: ' + err.message, 'err');
+    banner('No se pudieron listar las ROMs: ' + err.message, 'err');
   } finally {
     btn.disabled = false;
     btn.textContent = 'Cargar ROMs';
@@ -1583,57 +1587,44 @@ async function loadManageRoms() {
 }
 
 async function downloadRom() {
-  let url = $('downloadUrl').value.trim();
+  const url = $('downloadUrl').value.trim();
   const sys = $('downloadRomSystem').value;
-  if (!url && window.selectedSearchUrl) {
-    url = window.selectedSearchUrl;
-  }
-  
-  if (!url || !sys) {
-    $('downloadStatus').textContent = 'Faltan datos (URL o selección)';
-    return;
-  }
-  
-  const btn = $('btnDownloadRom');
-  btn.disabled = true;
-  $('downloadStatus').textContent = 'Descargando (puede tardar un rato)...';
-  
-  try {
-    await api('/api/roms/download', { url, system: sys });
-    $('downloadStatus').textContent = 'Descarga completada con éxito';
+  if (!url) { $('downloadStatus').textContent = 'Elige un resultado o pega una URL.'; return; }
+  if (!sys) { $('downloadStatus').textContent = 'Elige el sistema de destino.'; return; }
+
+  $('downloadStatus').textContent = '';
+  // La descarga es un trabajo largo del servidor: el avance y el botón de
+  // cancelar salen por el panel de progreso, como enviar una ROM.
+  const ok = await startJob('/api/roms/download', { url, system: sys },
+    'Descargando ROM', 'No se pudo empezar la descarga');
+  if (ok) {
     $('downloadUrl').value = '';
-    window.selectedSearchUrl = null;
     $('searchRomsList').classList.add('hidden');
-    banner('ROM descargada en ' + sys, 'ok');
-  } catch (err) {
-    $('downloadStatus').textContent = 'Error: ' + err.message;
-  } finally {
-    btn.disabled = false;
   }
 }
 
 async function searchRom() {
   const q = $('searchRomInput').value.trim();
   if (!q) return;
-  
+
   const btn = $('btnSearchRom');
+  const lista = $('searchRomsList');
   btn.disabled = true;
-  $('searchStatus').textContent = 'Buscando en archive.org...';
-  $('searchRomsList').innerHTML = '';
-  $('searchRomsList').classList.remove('hidden');
-  window.selectedSearchUrl = null;
-  
+  $('searchStatus').textContent = 'Buscando en archive.org…';
+  lista.innerHTML = '';
+  lista.classList.add('hidden');
+
   try {
     const res = await api('/api/roms/search?q=' + encodeURIComponent(q));
     const list = res.results || [];
-    
-    if (list.length === 0) {
-      $('searchStatus').textContent = 'No se encontraron resultados';
+    if (!list.length) {
+      $('searchStatus').textContent = 'Sin resultados con archivo descargable.';
       return;
     }
-    
+
     $('searchStatus').textContent = '';
-    list.forEach((r, i) => {
+    lista.classList.remove('hidden');
+    for (const r of list) {
       const li = document.createElement('li');
       li.className = 'brrow';
       li.innerHTML = `
@@ -1641,35 +1632,20 @@ async function searchRom() {
         <span class="nm">${escapeHtml(r.title)}</span>
         <span class="sz">${fmtBytes(r.size)}</span>
       `;
+      // Elegir un resultado rellena la casilla de la URL en vez de guardarla
+      // aparte: así lo que se va a descargar está a la vista antes de darle.
       li.onclick = () => {
-        document.querySelectorAll('#searchRomsList .brrow').forEach(e => e.classList.remove('sel'));
+        for (const otro of lista.querySelectorAll('.brrow')) otro.classList.remove('sel');
         li.classList.add('sel');
-        window.selectedSearchUrl = r.url;
-        $('downloadUrl').value = ''; // Clear manual input
+        $('downloadUrl').value = r.url;
       };
-      $('searchRomsList').appendChild(li);
-    });
+      lista.appendChild(li);
+    }
   } catch (err) {
-    $('searchStatus').textContent = 'Error: ' + err.message;
+    $('searchStatus').textContent = 'La búsqueda falló: ' + err.message;
   } finally {
     btn.disabled = false;
   }
-}
-
-async function scrapeSystem() {
-  const sys = $('scrapeRomSystem').value;
-  if (!sys) return;
-  
-  const btn = $('btnScrapeSystem');
-  btn.disabled = true;
-  $('scrapeStatus').textContent = 'Analizando ' + sys + ' y buscando metadatos...';
-  
-  // Como es un stub o función básica, simularemos el scraper
-  setTimeout(() => {
-    $('scrapeStatus').textContent = 'Completado: metadatos y carátulas actualizadas (simulado)';
-    btn.disabled = false;
-    banner('Scraper de ' + sys + ' finalizado', 'ok');
-  }, 3000);
 }
 
 document.addEventListener('DOMContentLoaded', init);

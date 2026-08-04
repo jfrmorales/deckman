@@ -445,6 +445,14 @@ button.mini { padding: 3px 9px; font-size: 12px; }
 .brlist .empty { padding: 30px; text-align: center; color: var(--dim); }
 .hint.sel { color: var(--fg); }
 
+/* Los resultados de archive.org reutilizan las filas del explorador (.brrow);
+   lo único propio es el marco, que ahí lo pone el modal y aquí no hay. */
+.romresults {
+  flex: none; max-height: 260px;
+  margin: 4px 0 14px; padding: 6px;
+  border: 1px solid var(--line); border-radius: 10px;
+}
+
 @media (max-width: 640px) { .brplaces { display: none; } }
 
 /* Las migas se desplazan cuando la ruta es larga: un degradado a la izquierda

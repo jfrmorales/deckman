@@ -13,6 +13,8 @@ bloque `<releases>` del metainfo. Los tres los sincroniza `scripts/release.sh`.
      versión nueva al publicar. Secciones: Añadido, Cambiado, Corregido,
      Eliminado. -->
 
+## [0.6.0] — 2026-08-04
+
 ### Corregido
 
 - **Se comprueba la clave SSH de la Deck.** Hasta ahora deckman aceptaba
@@ -392,7 +394,8 @@ interno y microSD, desinstalar, la ventana WebView2 en un Windows real,
 `RemoveShortcutLive`, `SetCompatToolLive` y `RelocateShortcut`. Están recogidas
 en `CLAUDE.md`. Por eso 0.1.0 y no 1.0.0.
 
-[No publicado]: https://github.com/jfrmorales/deckman/compare/v0.5.0...HEAD
+[No publicado]: https://github.com/jfrmorales/deckman/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/jfrmorales/deckman/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/jfrmorales/deckman/compare/v0.4.3...v0.5.0
 [0.4.3]: https://github.com/jfrmorales/deckman/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/jfrmorales/deckman/compare/v0.4.1...v0.4.2

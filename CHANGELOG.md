@@ -13,6 +13,8 @@ bloque `<releases>` del metainfo. Los tres los sincroniza `scripts/release.sh`.
      versión nueva al publicar. Secciones: Añadido, Cambiado, Corregido,
      Eliminado. -->
 
+## [0.4.0] — 2026-08-04
+
 ### Añadido
 
 - **Buscar carátulas**, y esta vez de verdad. Baja carátula, pantalla de título
@@ -255,7 +257,8 @@ interno y microSD, desinstalar, la ventana WebView2 en un Windows real,
 `RemoveShortcutLive`, `SetCompatToolLive` y `RelocateShortcut`. Están recogidas
 en `CLAUDE.md`. Por eso 0.1.0 y no 1.0.0.
 
-[No publicado]: https://github.com/jfrmorales/deckman/compare/v0.3.0...HEAD
+[No publicado]: https://github.com/jfrmorales/deckman/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/jfrmorales/deckman/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/jfrmorales/deckman/compare/v0.2.5...v0.3.0
 [0.2.5]: https://github.com/jfrmorales/deckman/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/jfrmorales/deckman/compare/v0.2.3...v0.2.4

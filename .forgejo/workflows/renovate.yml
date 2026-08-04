@@ -39,7 +39,11 @@ jobs:
           RENOVATE_PLATFORM: gitea
           RENOVATE_ENDPOINT: ${{ github.server_url }}/api/v1
           RENOVATE_REPOSITORIES: ${{ github.repository }}
-          RENOVATE_GIT_AUTHOR: 'renovate-bot <renovate-bot@007090.xyz>'
+          # Dominio `.invalid` (RFC 2606, reservado y no enrutable) a
+          # proposito: git exige algo con forma de correo para firmar el
+          # commit, pero este repositorio es publico y el dominio de nadie
+          # tiene por que salir en el. Nunca va a recibir correo.
+          RENOVATE_GIT_AUTHOR: 'renovate-bot <renovate-bot@noreply.invalid>'
           # El fichero de configuracion del repositorio es renovate.json5: se
           # eligio .json5 para poder comentar las reglas. Hay que decirselo,
           # porque el que crea en el PR inicial es .json si no.

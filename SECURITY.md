@@ -2,16 +2,21 @@
 
 ## Informar de un fallo
 
-Si has encontrado algo que compromete la seguridad de quien usa deckman,
-escribe a **jfrmorales@outlook.com** con el asunto `deckman: seguridad`.
+Si has encontrado algo que compromete la seguridad de quien usa deckman, usa
+**[Report a vulnerability](https://github.com/jfrmorales/deckman/security/advisories/new)**
+(pestaña *Security* del repositorio). El aviso queda **privado** entre quien lo
+manda y yo hasta que esté corregido, que es justo lo que hace falta aquí.
 
-No lo abras como incidencia publica hasta que este corregido. Este es un
-proyecto de una persona sin guardia de nadie: contesto en cuanto lo veo, y si
-en dos semanas no has recibido respuesta, insiste — es que se ha perdido, no
-que se este ignorando.
+Si no puedes usar esa vía, abre una incidencia diciendo solo que quieres
+contactar por un tema de seguridad —sin los detalles— y seguimos por ahí. No
+publiques cómo reproducirlo hasta que haya arreglo.
 
-Cuenta que hace falta para reproducirlo. Si no estas seguro de si lo que has
-visto cuenta como fallo de seguridad, mandalo igual.
+Cuenta qué hace falta para reproducirlo. Si no estás seguro de si lo que has
+visto cuenta como fallo de seguridad, mándalo igual.
+
+Este es un proyecto de una persona y no hay guardia de nadie: contesto en
+cuanto lo veo, y si en dos semanas no has recibido respuesta, insiste — es que
+se ha perdido, no que se esté ignorando.
 
 ## Que protege deckman y que no
 

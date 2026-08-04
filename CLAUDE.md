@@ -188,7 +188,7 @@ Las comprobaciones automáticas corren en **Forgejo Actions**
 (`.forgejo/workflows/pruebas.yml`), no en GitHub: el CI no depende de un
 servicio de terceros. Dos trampas de ese runner, ya pagadas:
 
-- El label `docker` usa la imagen `homelab-ci` (node, **sin Go**) y el runner
+- La imagen del label `docker` va con node y **sin Go**, y el runner
   **no puede levantar contenedores dentro del job**. Por eso el job declara
   `container: golang:...` y por eso ahí no se usa `./test.sh`, que monta un
   contenedor: ese script existe para no instalar Go en el PC de nadie, problema

@@ -35,9 +35,9 @@ jobs:
       # Las mismas caches que pruebas.yml, mas deckman-ci-gobin: golangci-lint
       # tarda varios minutos en compilarse y sin el volumen se recompila en
       # cada push. El runner solo admite volumenes que casen con deckman-ci-*
-      # (valid_volumes en homelab/sops/forgejo/runner-config.yml.sops). Es un
-      # comodin, comprobado: otro volumen con ese prefijo no obliga a tocar
-      # nada alli. Con otro nombre, el job no arranca siquiera.
+      # (`valid_volumes` en su configuracion, que vive fuera de este
+      # repositorio). Es un comodin, comprobado: otro volumen con ese prefijo
+      # no obliga a tocar nada alli. Con otro nombre, el job no arranca.
       options: >-
         -v deckman-ci-gomod:/go/pkg/mod
         -v deckman-ci-gocache:/root/.cache/go-build

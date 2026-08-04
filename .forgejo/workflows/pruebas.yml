@@ -5,8 +5,8 @@
 # depender de un servicio de terceros. El repositorio de GitHub sigue siendo la
 # cara publica, pero sin Actions.
 #
-# El job va dentro de la imagen oficial de Go, no en la del label `docker`
-# (homelab-ci, basada en node y sin Go): el runner no puede levantar
+# El job va dentro de la imagen oficial de Go, no en la que trae el label
+# `docker` (basada en node y sin Go): el runner no puede levantar
 # contenedores dentro del job (docker_host: "-"), asi que el contenedor del job
 # TIENE que ser ya el que trae las herramientas. Por eso aqui no se usa
 # ./test.sh, que monta un contenedor: eso es para el PC de cada cual, donde el
@@ -16,7 +16,7 @@
 # Los volumenes deckman-ci-* son las caches de Go (modulos y build): sin ellas
 # cada push descargaba las dependencias y recompilaba la stdlib entera, dos
 # veces (linux y windows). El runner solo admite volumenes con ese prefijo
-# (valid_volumes en su config, homelab/sops/forgejo/runner-config.yml.sops).
+# (`valid_volumes` en su configuracion, que vive fuera de este repositorio).
 #
 # Las pruebas de integracion no corren aqui: necesitan una Steam Deck de verdad
 # con SSH. Se saltan solas al no haber DECKMAN_TEST_HOST.

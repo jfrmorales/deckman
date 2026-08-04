@@ -13,6 +13,24 @@ bloque `<releases>` del metainfo. Los tres los sincroniza `scripts/release.sh`.
      versión nueva al publicar. Secciones: Añadido, Cambiado, Corregido,
      Eliminado. -->
 
+### Cambiado
+
+- **Fuera del repositorio los datos personales de quien lo mantiene.** Es
+  público: un correo en texto plano ahí es justo lo que rastrean los
+  recolectores de spam, y el dominio propio apuntaba a infraestructura que no
+  pinta nada aquí. Nada de esto cambia el programa — solo dónde escribir si
+  encuentras un fallo.
+  - `SECURITY.md` ya no da un correo: los fallos de seguridad se informan por
+    los **avisos privados de GitHub**, que además mantienen el informe
+    reservado hasta que hay arreglo sin depender de que nadie se acuerde de no
+    publicarlo.
+  - Los commits del bot de dependencias van con un dominio `.invalid`
+    (RFC 2606), que es lo que git pide y nadie lee.
+  - Los comentarios del CI ya no citan rutas de la máquina que lo hospeda.
+
+  La v0.6.0 salió con el correo dentro, así que en su etiqueta sigue estando;
+  quien lo necesite, esta versión.
+
 ## [0.6.0] — 2026-08-04
 
 ### Corregido

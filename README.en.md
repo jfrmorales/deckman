@@ -6,6 +6,9 @@ Manage your Steam Deck's games from your computer: see what is installed, send
 Windows games and ROMs, change artwork, move games between the internal SSD and
 the microSD, and free up space.
 
+![deckman's library: the games installed on the Deck, with their cover, their
+real size and where they live](docs/capturas/biblioteca.webp)
+
 It is **a single executable**. Double-click it and the interface opens in your
 browser. Nothing to install, neither on the PC nor on the Deck.
 
@@ -55,6 +58,43 @@ by default, and there is a selector in the top bar.
 | **ROM artwork** | Looks up box art, title screen and screenshot for each ROM on libretro-thumbnails and puts them where ES-DE looks for them. No key, no sign-up. |
 | **Move** | Moves a game between the internal drive and the microSD without downloading it again. Non-Steam games too: it takes the folder across and updates the shortcut. |
 | **Clean up** | Uninstalls games and deletes the Proton prefix or the shader cache separately. |
+
+---
+
+## What it looks like
+
+The first screen asks for the Deck's IP and the password, and only the first
+time: from then on it gets in with its own SSH key.
+
+![deckman's connection screen](docs/capturas/conexion.webp)
+
+When you pick a Windows game folder, deckman works out which game it is, which
+`.exe` starts it and which Proton version suits it:
+
+![Sending a game, with the folder already analysed](docs/capturas/enviar-juego.webp)
+
+Clicking the cover opens the SteamGridDB gallery — vertical cover, horizontal
+cover, hero, logo and icon. Applied instantly, without restarting Steam:
+
+![Choosing artwork in the SteamGridDB gallery](docs/capturas/anim-caratulas.webp)
+
+On the emulation side you see what is already in each EmuDeck system — only the
+systems that actually have ROMs — so you can rename or delete it:
+
+![The ROM collection manager](docs/capturas/emulacion-gestionar.webp)
+
+And there is an archive.org search narrowed to the chosen system. The Deck does
+the downloading, not the PC:
+
+![Searching archive.org for ROMs from deckman](docs/capturas/anim-emulacion.webp)
+
+The library filters by name, and can show only Steam games or only non-Steam
+ones:
+
+![Filtering the library](docs/capturas/anim-biblioteca.webp)
+
+The interface in the screenshots is in Spanish; it also speaks English and
+French, and follows your browser by default.
 
 ---
 

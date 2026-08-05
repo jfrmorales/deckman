@@ -13,6 +13,14 @@ bloque `<releases>` del metainfo. Los tres los sincroniza `scripts/release.sh`.
      versión nueva al publicar. Secciones: Añadido, Cambiado, Corregido,
      Eliminado. -->
 
+### Añadido
+
+- **Capturas de la interfaz en los tres READMEs** (`docs/capturas/`). Están
+  hechas contra una Deck de verdad, con la biblioteca real; la barra superior
+  lleva la IP de ejemplo del README y no la de nadie, porque el repositorio es
+  público. Van en **WebP**, fijas y animadas: el mismo recorrido en GIF pesaba
+  siete veces más y esto es un repositorio que la gente clona.
+
 ## [0.6.2] — 2026-08-04
 
 ### Añadido

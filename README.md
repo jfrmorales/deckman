@@ -6,6 +6,9 @@ Gestiona los juegos de tu Steam Deck desde el ordenador: ver qué hay instalado,
 enviar juegos de Windows y ROMs, cambiar carátulas, mover juegos entre el SSD
 interno y la microSD, y liberar espacio.
 
+![La biblioteca de deckman: los juegos instalados en la Deck, con su portada, su
+tamaño real y dónde están](docs/capturas/biblioteca.webp)
+
 Es **un solo ejecutable**. Doble clic y se abre la interfaz en el navegador.
 No hay que instalar nada, ni en el PC ni en la Deck.
 
@@ -55,6 +58,40 @@ navegador, y hay un selector en la barra superior.
 | **Carátulas de ROMs** | Busca carátula, pantalla de título y captura de cada ROM en libretro-thumbnails y las deja donde ES-DE las busca. Sin clave ni registro. |
 | **Mover** | Traslada un juego entre el interno y la microSD sin volver a descargarlo. También los no-Steam: se lleva la carpeta y actualiza el acceso directo. |
 | **Limpiar** | Desinstala juegos y borra por separado el prefijo de Proton o la caché de shaders. |
+
+---
+
+## Así se ve
+
+La primera pantalla pide la IP de la Deck y la contraseña, y solo la primera
+vez: a partir de ahí entra con su propia clave SSH.
+
+![Pantalla de conexión de deckman](docs/capturas/conexion.webp)
+
+Al elegir la carpeta de un juego de Windows, deckman deduce de qué juego se
+trata, cuál de los `.exe` lo arranca y qué versión de Proton conviene:
+
+![Enviar un juego, con la carpeta ya analizada](docs/capturas/enviar-juego.webp)
+
+Un clic en la portada abre la galería de SteamGridDB — portada vertical,
+horizontal, fondo, logo e icono. Se aplican al instante, sin reiniciar Steam:
+
+![Eligiendo carátula en la galería de SteamGridDB](docs/capturas/anim-caratulas.webp)
+
+De la emulación se ve lo que ya hay en cada sistema de EmuDeck, con solo los
+sistemas que tienen juegos, para renombrarlo o borrarlo:
+
+![Gestor de la colección de ROMs](docs/capturas/emulacion-gestionar.webp)
+
+Y hay un buscador de archive.org acotado al sistema elegido. La descarga la
+hace la Deck, no el PC:
+
+![Buscando ROMs en archive.org desde deckman](docs/capturas/anim-emulacion.webp)
+
+La biblioteca se filtra por nombre y se puede quedar solo con los juegos de
+Steam o solo con los no-Steam:
+
+![Filtrando la biblioteca](docs/capturas/anim-biblioteca.webp)
 
 ---
 

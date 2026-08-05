@@ -6,6 +6,9 @@ Gérez les jeux de votre Steam Deck depuis votre ordinateur : voir ce qui est
 installé, envoyer des jeux Windows et des ROMs, changer les jaquettes, déplacer
 les jeux entre le SSD interne et la microSD, et libérer de la place.
 
+![La bibliothèque de deckman : les jeux installés sur la Deck, avec leur
+jaquette, leur taille réelle et où ils se trouvent](docs/capturas/biblioteca.webp)
+
 C'est **un seul exécutable**. Un double-clic et l'interface s'ouvre dans le
 navigateur. Rien à installer, ni sur le PC ni sur la Deck.
 
@@ -56,6 +59,44 @@ par défaut, et un sélecteur se trouve dans la barre du haut.
 | **Jaquettes de ROMs** | Cherche la jaquette, l'écran-titre et une capture de chaque ROM sur libretro-thumbnails et les dépose là où ES-DE les cherche. Sans clé ni inscription. |
 | **Déplacer** | Déplace un jeu entre le disque interne et la microSD sans le retélécharger. Les jeux hors Steam aussi : le dossier suit et le raccourci est mis à jour. |
 | **Nettoyer** | Désinstalle des jeux et supprime séparément le préfixe Proton ou le cache de shaders. |
+
+---
+
+## À quoi ça ressemble
+
+Le premier écran demande l'IP de la Deck et le mot de passe, et seulement la
+première fois : ensuite il entre avec sa propre clé SSH.
+
+![L'écran de connexion de deckman](docs/capturas/conexion.webp)
+
+Au choix du dossier d'un jeu Windows, deckman devine de quel jeu il s'agit,
+quel `.exe` le lance et quelle version de Proton convient :
+
+![Envoyer un jeu, le dossier déjà analysé](docs/capturas/enviar-juego.webp)
+
+Un clic sur la jaquette ouvre la galerie SteamGridDB — jaquette verticale,
+horizontale, image de fond, logo et icône. Appliqué immédiatement, sans
+redémarrer Steam :
+
+![Choisir une jaquette dans la galerie SteamGridDB](docs/capturas/anim-caratulas.webp)
+
+Côté émulation, on voit ce que contient déjà chaque système EmuDeck — seulement
+ceux qui ont vraiment des ROMs — pour renommer ou supprimer :
+
+![Le gestionnaire de la collection de ROMs](docs/capturas/emulacion-gestionar.webp)
+
+Et une recherche archive.org limitée au système choisi. C'est la Deck qui
+télécharge, pas le PC :
+
+![Rechercher des ROMs sur archive.org depuis deckman](docs/capturas/anim-emulacion.webp)
+
+La bibliothèque se filtre par nom, et peut n'afficher que les jeux Steam ou que
+les jeux hors Steam :
+
+![Filtrer la bibliothèque](docs/capturas/anim-biblioteca.webp)
+
+L'interface des captures est en espagnol ; elle parle aussi anglais et
+français, et suit le navigateur par défaut.
 
 ---
 

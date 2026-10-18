@@ -214,6 +214,28 @@ el appid (y con él las carátulas y el Proton) y no perdió ninguno de los 9
 accesos directos. Detalle: Steam guarda ahí el `Exe` **sin comillas**, al revés
 que cuando lo escribe él solo; hay que aceptar las dos formas al leer.
 
+Para **mover un juego de Steam** de biblioteca con Steam abierto está
+`SteamClient.InstallFolder`, lo mismo que usa Ajustes > Almacenamiento:
+
+```js
+const folders = await SteamClient.InstallFolder.GetInstallFolders(); // nFolderIndex, strFolderPath…
+SteamClient.InstallFolder.RegisterForMoveContentProgress(p => …);    // appid, eError, strBytesMoved…
+SteamClient.InstallFolder.MoveInstallFolderForApp(appid, nFolderIndex);
+```
+
+La orden va por **índice** de biblioteca, no por ruta: hay que buscarlo en
+`GetInstallFolders` comparando rutas. deckman no se fía de que la promesa
+espere al final ni de los campos del progreso: da el juego por movido cuando
+`appmanifest_<id>.acf` está en el destino y ya no en el origen. **Sin probar
+contra una Deck** (2026-10-18): las firmas salen de los tipos que publica la
+comunidad de Decky. Si en una versión de Steam no existe, deckman lo dice y
+pide cerrar Steam.
+
+Es la única vía en **modo juego**: allí `steam-launcher.service` vuelve a
+levantar Steam en cuanto se cierra, así que exigir Steam cerrado dejaba la
+función inservible. Fue la queja de un usuario («no se pueden pasar los juegos
+a la SD»).
+
 Otros métodos vistos: `SetShortcutIcon`, `SetShortcutIsVR`,
 `SetShortcutSortAs`, `GetShortcutDataForPath`, `CreateDesktopShortcutForApp`,
 `InstallFlatpakAppAndCreateShortcut`, `GetAvailableCompatTools`.

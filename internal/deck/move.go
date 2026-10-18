@@ -69,21 +69,28 @@ func (c *Client) MoveGame(ctx context.Context, inv *Inventory, appID, targetLibP
 // moveSteamGame mueve un juego de Steam: la carpeta, el prefijo de Proton, la
 // cache de shaders y, al final, el manifiesto.
 //
-// Steam tiene que estar cerrado. Guarda su estado en memoria y al salir
-// reescribe los .acf, de modo que si movemos los ficheros con Steam abierto
-// deshace el cambio y deja el juego marcado como no instalado.
+// Con Steam abierto se le pide a el (moveSteamGameLive). Copiar por detras no
+// vale: guarda su estado en memoria y al salir reescribe los .acf, de modo que
+// deshace el cambio y deja el juego marcado como no instalado. Y exigir que se
+// cierre dejaba la funcion inservible en modo juego, que es donde vive casi
+// todo el mundo: alli steam-launcher lo vuelve a levantar en cuanto se cierra.
+// Fue la queja de un usuario: "no se pueden pasar juegos a la SD".
 func (c *Client) moveSteamGame(ctx context.Context, game *Game, target *Library, report ProgressFunc) error {
 	appID := game.AppID
 	targetLibPath := target.Path
-
-	if c.SteamRunning(ctx) {
-		return i18n.Errorf("Steam esta abierto en la Deck: cierralo antes de mover un juego, o deshara el cambio al salir")
-	}
 
 	needed := game.Size + game.CompatSize + game.ShaderSize
 	if target.Free > 0 && needed > 0 && needed+512<<20 > target.Free {
 		return i18n.Errorf("no cabe: %s ocupa %s y en %s quedan %s",
 			game.Name, humanBytes(needed), target.Label, humanBytes(target.Free))
+	}
+
+	// pgrep fresco: el inventario puede ser una foto de hace un rato.
+	if c.SteamRunning(ctx) {
+		if !c.CEFAvailable(ctx) {
+			return i18n.Errorf("Steam esta abierto pero no responde: espera a que cargue del todo y vuelve a intentarlo, o cierralo en la Deck (modo escritorio)")
+		}
+		return c.moveSteamGameLive(ctx, game, target, needed, report)
 	}
 
 	srcApps := path.Join(game.LibraryPath, "steamapps")
@@ -157,6 +164,106 @@ func (c *Client) moveSteamGame(ctx context.Context, game *Game, target *Library,
 	report(Progress{
 		Phase: "listo", Done: true, BytesDone: needed, BytesTotal: needed,
 		Message: fmt.Sprintf("%s movido a %s. Arranca Steam y, si el juego apareciera como no instalado, usa Propiedades > Archivos locales > Verificar.", game.Name, target.Label),
+	})
+	return nil
+}
+
+// Cada cuanto se pregunta a Steam y cuanto se le consiente sin avanzar. El
+// margen es amplio a proposito: antes de copiar, Steam puede pasarse un rato
+// calculando, y una microSD lenta con miles de ficheros pequenos va a tirones.
+const (
+	livePollEvery = 2 * time.Second
+	liveStallMax  = 15 * time.Minute
+)
+
+// moveSteamGameLive mueve un juego de Steam pidiendoselo a Steam, y sigue el
+// avance hasta que el manifiesto aparece en el destino.
+//
+// Lo que manda es el disco, no lo que diga la API: el juego esta movido cuando
+// appmanifest_<id>.acf esta en la biblioteca nueva y ya no en la vieja. Steam
+// mueve el manifiesto el ultimo, igual que hacemos nosotros con Steam cerrado.
+func (c *Client) moveSteamGameLive(ctx context.Context, game *Game, target *Library, needed uint64, report ProgressFunc) error {
+	id64, err := strconv.ParseUint(game.AppID, 10, 32)
+	if err != nil {
+		return i18n.Errorf("id de juego invalido: %s", game.AppID)
+	}
+	appID := uint32(id64)
+	acf := "appmanifest_" + game.AppID + ".acf"
+	srcACF := path.Join(game.LibraryPath, "steamapps", acf)
+	dstACF := path.Join(target.Path, "steamapps", acf)
+
+	report(Progress{Phase: "Steam esta moviendo el juego", File: game.Name, BytesTotal: needed})
+	if err := c.MoveAppLive(ctx, appID, target.Path); err != nil {
+		return err
+	}
+
+	var lastDone uint64
+	lastChange := time.Now()
+	var finishedAt time.Time
+	fallos := 0
+	for {
+		select {
+		case <-ctx.Done():
+			// Sin esto, cancelar en deckman dejaria a Steam moviendo por su
+			// cuenta mientras la interfaz dice que se ha parado.
+			cancelCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			c.CancelMoveLive(cancelCtx)
+			cancel()
+			return ctx.Err()
+		case <-time.After(livePollEvery):
+		}
+
+		if c.Exists(dstACF) && !c.Exists(srcACF) {
+			break
+		}
+
+		// Con limite propio: un Steam colgado dejaria la lectura esperando para
+		// siempre, y con ella la barra de progreso.
+		pollCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+		st, err := c.MoveStateLive(pollCtx, appID)
+		cancel()
+		if err != nil {
+			// Un tropiezo del canal no es un fallo del movimiento; muchos
+			// seguidos, si (Steam cerrado o reiniciado a medias).
+			if fallos++; fallos >= 5 {
+				return i18n.Errorf("se perdio el contacto con Steam mientras movia %s; mira en Ajustes > Almacenamiento como ha quedado: %w",
+					game.Name, err)
+			}
+			continue
+		}
+		fallos = 0
+		if st.Failed != "" {
+			return i18n.Errorf("Steam no pudo mover %s: %s", game.Name, st.Failed)
+		}
+		if st.Progress != nil && st.Progress.Error != 0 {
+			return i18n.Errorf("Steam no pudo mover %s (codigo %d); el juego sigue donde estaba", game.Name, st.Progress.Error)
+		}
+
+		done, total := st.bytes(needed)
+		if done != lastDone {
+			lastDone, lastChange = done, time.Now()
+		}
+		report(Progress{Phase: "Steam esta moviendo el juego", File: game.Name, BytesDone: done, BytesTotal: total})
+
+		// Steam dice que ha terminado pero el manifiesto no se ha movido: se le
+		// da un margen para escribirlo y, si no, se avisa en vez de esperar
+		// para siempre.
+		if st.Finished {
+			if finishedAt.IsZero() {
+				finishedAt = time.Now()
+			} else if time.Since(finishedAt) > 30*time.Second {
+				return i18n.Errorf("Steam dio por terminado el movimiento pero %s sigue en el origen; mira en Ajustes > Almacenamiento", game.Name)
+			}
+		}
+		if time.Since(lastChange) > liveStallMax {
+			return i18n.Errorf("Steam lleva %d minutos sin avanzar moviendo %s; mira en Ajustes > Almacenamiento si sigue en marcha",
+				int(liveStallMax.Minutes()), game.Name)
+		}
+	}
+
+	report(Progress{
+		Phase: "listo", Done: true, BytesDone: needed, BytesTotal: needed,
+		Message: fmt.Sprintf("%s movido a %s por el propio Steam, sin cerrarlo.", game.Name, target.Label),
 	})
 	return nil
 }

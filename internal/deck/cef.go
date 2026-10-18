@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"path"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -432,4 +433,145 @@ func (c *Client) SetCompatToolLive(ctx context.Context, appID uint32, tool strin
 		appID, jsString(tool))
 	_, err := c.cefEval(ctx, expr)
 	return err
+}
+
+// installFolder es una biblioteca tal como la ve Steam por dentro. Lo que
+// importa es el indice: MoveInstallFolderForApp no acepta rutas.
+type installFolder struct {
+	Index int    `json:"nFolderIndex"`
+	Path  string `json:"strFolderPath"`
+}
+
+// installFolderIndex busca la biblioteca de destino entre las de Steam. Se
+// compara por ruta limpia porque libraryfolders.vdf y la API no tienen por que
+// coincidir en la barra final.
+func installFolderIndex(folders []installFolder, target string) (int, bool) {
+	target = path.Clean(target)
+	for _, f := range folders {
+		if f.Path != "" && path.Clean(f.Path) == target {
+			return f.Index, true
+		}
+	}
+	return 0, false
+}
+
+// moveState es lo que el JavaScript de StartMoveLive va dejando apuntado en
+// globalThis para que lo recojamos sondeando.
+type moveState struct {
+	Progress *struct {
+		Error int     `json:"eError"`
+		Frac  float64 `json:"flProgress"`
+		Moved string  `json:"strBytesMoved"`
+		Total string  `json:"strTotalBytesToMove"`
+	} `json:"progress"`
+	Failed   string `json:"failed"`
+	Finished bool   `json:"finished"`
+}
+
+// bytes devuelve lo movido y el total. Steam los da como cadena (son uint64 y
+// en JavaScript no caben en un number); si no los da, se tira de la fraccion.
+func (m moveState) bytes(total uint64) (uint64, uint64) {
+	if m.Progress == nil {
+		return 0, total
+	}
+	done, err1 := strconv.ParseUint(m.Progress.Moved, 10, 64)
+	all, err2 := strconv.ParseUint(m.Progress.Total, 10, 64)
+	if err1 == nil && err2 == nil && all > 0 {
+		return done, all
+	}
+	if f := m.Progress.Frac; f > 0 && total > 0 {
+		if f > 1 { // por si algun dia la da en porcentaje
+			f /= 100
+		}
+		return uint64(f * float64(total)), total
+	}
+	return 0, total
+}
+
+// MoveAppLive le pide a Steam que mueva un juego suyo a otra biblioteca, igual
+// que Ajustes > Almacenamiento > Mover. Es la unica forma de moverlo con Steam
+// abierto: en modo juego no se puede cerrar (steam-launcher lo vuelve a
+// levantar), y copiar por detras lo deshace Steam al salir.
+//
+// La orden no se espera: Steam la lanza y sigue en segundo plano. El avance se
+// recoge con RegisterForMoveContentProgress, que lo apunta en
+// globalThis.__deckmanMove; quien llama lo sondea con MoveStateLive.
+//
+// Si la API no existe en esta version de Steam se dice claramente, para que el
+// usuario sepa que la salida es cerrar Steam y no reintentar.
+func (c *Client) MoveAppLive(ctx context.Context, appID uint32, targetLib string) error {
+	raw, err := c.cefEval(ctx, `(async () => {
+		const IF = SteamClient.InstallFolder;
+		if (!IF || typeof IF.GetInstallFolders !== "function" || typeof IF.MoveInstallFolderForApp !== "function") return null;
+		return (await IF.GetInstallFolders()).map(f => ({nFolderIndex: f.nFolderIndex, strFolderPath: f.strFolderPath}));
+	})()`)
+	if err != nil {
+		return err
+	}
+	var folders []installFolder
+	if string(raw) == "null" || json.Unmarshal(raw, &folders) != nil {
+		return i18n.Errorf("esta version de Steam no deja mover juegos desde fuera: cierra Steam en la Deck (modo escritorio) y vuelve a intentarlo, o muevelo desde Ajustes > Almacenamiento")
+	}
+	idx, ok := installFolderIndex(folders, targetLib)
+	if !ok {
+		return i18n.Errorf("Steam no reconoce %s como biblioteca; comprueba en Ajustes > Almacenamiento que la tarjeta esta montada", targetLib)
+	}
+
+	expr := fmt.Sprintf(`(() => {
+		const IF = SteamClient.InstallFolder;
+		const old = globalThis.__deckmanMove;
+		if (old && old.unreg && old.unreg.unregister) { try { old.unreg.unregister(); } catch (e) {} }
+		const s = {appid: %d, progress: null, failed: "", finished: false, unreg: null};
+		globalThis.__deckmanMove = s;
+		if (typeof IF.RegisterForMoveContentProgress === "function") {
+			s.unreg = IF.RegisterForMoveContentProgress(p => {
+				if (p && (p.appid === undefined || p.appid === s.appid)) {
+					s.progress = {eError: p.eError || 0, flProgress: p.flProgress || 0,
+						strBytesMoved: String(p.strBytesMoved || ""), strTotalBytesToMove: String(p.strTotalBytesToMove || "")};
+				}
+			});
+		}
+		Promise.resolve(IF.MoveInstallFolderForApp(s.appid, %d))
+			.then(() => { s.finished = true; })
+			.catch(e => { s.failed = String((e && e.message) || e); });
+		return "ok";
+	})()`, appID, idx)
+	got, err := c.cefEval(ctx, expr)
+	if err != nil {
+		return err
+	}
+	var s string
+	if err := json.Unmarshal(got, &s); err != nil || s != "ok" {
+		return i18n.Errorf("Steam no confirmo el cambio (respondio %s)", string(got))
+	}
+	return nil
+}
+
+// MoveStateLive lee lo que ha apuntado MoveAppLive. Devuelve un estado vacio
+// si no hay nada (Steam reiniciado, por ejemplo): quien sondea decide con el
+// disco, que es lo que manda.
+func (c *Client) MoveStateLive(ctx context.Context, appID uint32) (moveState, error) {
+	raw, err := c.cefEval(ctx, fmt.Sprintf(`(() => {
+		const s = globalThis.__deckmanMove;
+		if (!s || s.appid !== %d) return null;
+		return {progress: s.progress, failed: s.failed, finished: s.finished};
+	})()`, appID))
+	var m moveState
+	if err != nil {
+		return m, err
+	}
+	if string(raw) != "null" {
+		_ = json.Unmarshal(raw, &m)
+	}
+	return m, nil
+}
+
+// CancelMoveLive para el movimiento en curso. Best-effort: si Steam no lo
+// admite, el movimiento sigue y Steam lo termina solo.
+func (c *Client) CancelMoveLive(ctx context.Context) {
+	_, _ = c.cefEval(ctx, `(() => {
+		const IF = SteamClient.InstallFolder;
+		if (IF && typeof IF.CancelMove === "function") IF.CancelMove();
+		return "ok";
+	})()`)
 }

@@ -85,7 +85,10 @@ El usuario espera comprobación real, no "debería funcionar":
   `~/repositories/webwright-workspace/.venv`. Comprobar que no hay errores de
   JavaScript y **mirar la captura**, no solo contar elementos.
 - Si algo queda sin probar, **decirlo explícitamente**. Sigue pendiente:
-  **mover un juego de Steam** entre interno y microSD (necesita Steam cerrado),
+  **mover un juego de Steam** entre interno y microSD, por las dos vías: con
+  Steam cerrado (copia propia) y con Steam abierto (`MoveAppLive`, por
+  `SteamClient.InstallFolder`, añadida el 2026-10-18 sin Deck a mano; cómo
+  retomarlo en `docs/PENDIENTE-MOVER-SD.md`),
   **desinstalar**, la **ventana WebView2 en un Windows real** (compila, pero
   aquí no hay Windows donde abrirla), las vías en caliente de la revisión
   2026-08-03 (`RemoveShortcutLive`, `SetCompatToolLive`) y `RelocateShortcut`

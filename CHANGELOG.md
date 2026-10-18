@@ -13,6 +13,17 @@ bloque `<releases>` del metainfo. Los tres los sincroniza `scripts/release.sh`.
      versión nueva al publicar. Secciones: Añadido, Cambiado, Corregido,
      Eliminado. -->
 
+### Corregido
+
+- **Mover juegos de Steam a la microSD (o de vuelta) con Steam abierto.** Hasta
+  ahora deckman exigía cerrar Steam, y en modo juego eso no se puede: la Deck
+  lo vuelve a levantar sola. En la práctica no había forma de pasar un juego a
+  la tarjeta. Ahora, si Steam está abierto, se le pide a él que lo mueva (lo
+  mismo que Ajustes > Almacenamiento > Mover) y deckman sigue el avance. Con
+  Steam cerrado se copia como antes.
+- El botón de mover ya no ofrece como destino una unidad que no está montada
+  (la microSD sacada), y con ella delante tampoco tapa a la que sí lo está.
+
 ## [0.6.3] — 2026-08-05
 
 ### Añadido

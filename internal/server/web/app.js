@@ -349,7 +349,10 @@ function emptyLibText() {
 // nada.
 function moveTarget(g, libs) {
   if (!g.libraryPath) return null;
-  const target = libs.find((l) => l.path !== g.libraryPath);
+  // Una biblioteca sin tamaño es una unidad que no está montada (la microSD
+  // fuera, por ejemplo): libraryfolders.vdf la sigue listando, pero no se
+  // puede mover nada a ella, y si va primero tapaba a la que sí está.
+  const target = libs.find((l) => l.path !== g.libraryPath && l.total > 0);
   if (!target) return null;
   if (g.kind === 'steam') return target;
   if (!g.gameRoot || !g.exe) return null;
@@ -1309,11 +1312,13 @@ async function moveGame(appId, target) {
   const lib = (inventory.libraries || []).find((l) => l.path === target);
   if (!g) return;
 
-  // Los dos casos tienen letra pequeña distinta: un juego de Steam necesita
-  // Steam cerrado (al salir reescribe los .acf y deshace el cambio), mientras
-  // que en uno no-Steam lo que se toca es el acceso directo, y eso Steam sí
-  // sabe hacerlo en caliente.
-  let aviso = '\n\n' + t('Steam debe estar cerrado en la Deck.');
+  // Los dos casos tienen letra pequeña distinta. Un juego de Steam, con Steam
+  // abierto, lo mueve el propio Steam; con Steam cerrado lo copiamos nosotros,
+  // y abrirlo a medias desharía el cambio. En uno no-Steam lo que se toca es
+  // el acceso directo, y eso Steam también sabe hacerlo en caliente.
+  let aviso = '\n\n' + (inventory.steamRunning
+    ? t('Steam está abierto: lo moverá él mismo, como desde Ajustes > Almacenamiento.')
+    : t('Steam está cerrado: no lo abras en la Deck hasta que termine.'));
   if (g.kind === 'nonsteam') {
     aviso = '\n\n' + t('Se copia la carpeta a {0} y se actualiza el acceso directo.', lib ? lib.gamesDir : target)
       + (inventory.steamRunning

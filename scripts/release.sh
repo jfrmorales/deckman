@@ -328,20 +328,30 @@ if [ -n "$BUNDLE" ]; then
 		# release: la crea primero y sube los ficheros despues, y colarse en
 		# ese hueco dejaba el SHA256SUMS publicado sin la linea del bundle.
 		#
-		# Y se espera al ULTIMO fichero, que es el .exe. Antes se esperaba al
-		# SHA256SUMS creyendo que era el ultimo, y resulta que es el primero:
-		# publicar-release.sh sube lo que hay en la carpeta y el glob va en
-		# orden alfabetico, donde la S mayuscula va antes que la d minuscula.
-		# No llego a romper nada —el SHA256SUMS se genera antes de subir nada,
-		# asi que ya listaba todo— pero la espera no esperaba a lo que decia,
-		# y eso solo se sostiene mientras nadie toque el orden.
-		ULTIMO="deckman-$VERSION-windows-amd64.exe"
-		paso "esperando a que el CI termine de subir ($ULTIMO)"
+		# Y se espera a TODOS los binarios, no a "el ultimo". Antes se esperaba
+		# a uno solo creyendo que era el ultimo en subir, y fallo dos veces: el
+		# SHA256SUMS resulto ser el primero (en el glob la S mayuscula va antes
+		# que la d minuscula), y el .exe de amd64 dejo de ser el ultimo en
+		# cuanto llegaron arm64 y el SBOM. Fiarse del orden de subida solo
+		# aguanta mientras nadie toque la lista; esperar al conjunto, siempre.
+		# La lista es la de scripts/publicar-release.sh: si cambia alli,
+		# cambia aqui.
+		ESPERADOS=()
+		for obj in linux-amd64 linux-arm64 windows-amd64 windows-arm64 darwin-amd64 darwin-arm64; do
+			n="deckman-$VERSION-$obj"
+			case "$obj" in windows-*) n="$n.exe" ;; esac
+			ESPERADOS+=("$n")
+		done
+		paso "esperando a que el CI termine de subir los ${#ESPERADOS[@]} binarios"
 		encontrada=0
 		espera=2
 		for _ in $(seq 1 14); do   # ~5 minutos en total
-			if gh release view "$TAG" --json assets --jq '.assets[].name' 2>/dev/null \
-				| grep -qxF "$ULTIMO"; then
+			subidos="$(gh release view "$TAG" --json assets --jq '.assets[].name' 2>/dev/null || true)"
+			faltan=0
+			for n in "${ESPERADOS[@]}"; do
+				grep -qxF "$n" <<< "$subidos" || { faltan=1; break; }
+			done
+			if [ "$faltan" -eq 0 ]; then
 				encontrada=1
 				break
 			fi

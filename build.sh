@@ -2,27 +2,45 @@
 # Compila deckman para Linux y Windows dentro de un contenedor.
 # No requiere Go instalado en el sistema: solo podman (o docker).
 #
-# DECKMAN_OBJETIVOS elige que se compila ("linux", "windows" o ambos, que es
-# el defecto). Lo usa flatpak/build.sh, que solo necesita el binario de Linux
-# y pagaba el cruce a Windows para nada en cada `make flatpak` y `make release`.
+# DECKMAN_OBJETIVOS elige que se compila: "linux windows" por defecto, o
+# cualquier lista de objetivos de scripts/compilar.sh (linux-arm64,
+# darwin-arm64...), o "todos". Lo usa flatpak/build.sh, que solo necesita el
+# binario de Linux y pagaba el cruce a Windows para nada en cada `make flatpak`
+# y `make release`; y `make build-all`, que saca todo lo que se publica.
 set -euo pipefail
 cd "$(dirname "$0")"
 SRC="$PWD"
 VERSION="$(git describe --tags --always --dirty 2>/dev/null || echo dev)"
 OBJETIVOS="${DECKMAN_OBJETIVOS:-linux windows}"
+# La misma lista que publica scripts/publicar-release.sh.
+[ "$OBJETIVOS" = "todos" ] &&
+	OBJETIVOS="linux linux-arm64 windows windows-arm64 darwin-amd64 darwin-arm64"
 
 # shellcheck source=scripts/contenedor.sh
 . scripts/contenedor.sh
 detectar_runtime
 preparar_volumenes
 
-SALIDAS=()
-for os in $OBJETIVOS; do
-	case "$os" in
-		linux) SALIDAS+=(dist/deckman) ;;
-		windows) SALIDAS+=(dist/deckman.exe) ;;
-		*) echo "error: objetivo desconocido '$os' (vale: linux windows)" >&2; exit 1 ;;
+# Donde deja cada objetivo su binario. linux y windows conservan los nombres
+# de siempre (los usan flatpak/build.sh y quien ya tuviera un acceso directo);
+# el resto lleva el objetivo en el nombre para que no se pisen.
+salida_de() {
+	case "$1" in
+		linux) echo dist/deckman ;;
+		windows) echo dist/deckman.exe ;;
+		windows-*) echo "dist/deckman-$1.exe" ;;
+		linux-* | darwin-*) echo "dist/deckman-$1" ;;
+		*) return 1 ;;
 	esac
+}
+
+SALIDAS=()
+PARES=""
+for obj in $OBJETIVOS; do
+	s="$(salida_de "$obj")" ||
+		{ echo "error: objetivo desconocido '$obj' (vale: linux, windows, linux-arm64, windows-arm64, darwin-amd64, darwin-arm64 o todos)" >&2; exit 1; }
+	SALIDAS+=("$s")
+	PARES="$PARES $obj:$s"
 done
 
 echo ">> compilando: $OBJETIVOS"
@@ -43,15 +61,11 @@ $RUNTIME run --rm \
 	-w /src \
 	-e GOFLAGS=-buildvcs=false \
 	-e VERSION="$VERSION" \
-	-e OBJETIVOS="$OBJETIVOS" \
+	-e PARES="$PARES" \
 	"$GO_IMAGE" sh -c '
 		pids=""
-		for os in $OBJETIVOS; do
-			case "$os" in
-				linux) salida=dist/deckman ;;
-				windows) salida=dist/deckman.exe ;;
-			esac
-			scripts/compilar.sh "$os" "$salida" "$VERSION" & pids="$pids $!"
+		for par in $PARES; do
+			scripts/compilar.sh "${par%%:*}" "${par#*:}" "$VERSION" & pids="$pids $!"
 		done
 		rc=0
 		for p in $pids; do wait "$p" || rc=1; done

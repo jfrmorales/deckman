@@ -24,6 +24,7 @@ make check            # gofmt + vet + pruebas locales, SIN la Deck
 make audit            # golangci-lint + govulncheck
 make deck             # + las de integración contra la Deck
 make build            # linux + windows en dist/
+make build-all        # + arm64 y macOS: los seis que se publican
 make flatpak          # empaqueta e instala el Flatpak (usuario)
 make release V=0.2.0  # publica de principio a fin
 ```
@@ -90,9 +91,17 @@ El usuario espera comprobación real, no "debería funcionar":
   `SteamClient.InstallFolder`, añadida el 2026-10-18 sin Deck a mano; cómo
   retomarlo en `docs/PENDIENTE-MOVER-SD.md`),
   **desinstalar**, la **ventana WebView2 en un Windows real** (compila, pero
-  aquí no hay Windows donde abrirla), las vías en caliente de la revisión
+  aquí no hay Windows donde abrirla), **macOS** (la ventana con el Chrome de
+  `/Applications` y el apagado al cerrarla; compila y pasa `vet` con
+  `GOOS=darwin`, nada más), **Windows ARM64** (WebView2 trae cargador para
+  arm64, pero no se ha abierto), las vías en caliente de la revisión
   2026-08-03 (`RemoveShortcutLive`, `SetCompatToolLive`) y `RelocateShortcut`
   (mover un no-Steam con Steam **cerrado**: solo cubierto por pruebas unitarias).
+
+  **Linux ARM64** solo se ha arrancado bajo qemu (`podman run --platform
+  linux/arm64 ... -version`). El **apagado al cerrar la pestaña** (2026-10-19)
+  sí se probó con el binario: una conexión a `/api/events` abierta y cerrada
+  lo apaga a los 60 s, y sin ninguna conexión sigue vivo.
 
   La **verificación TOFU de la clave de host** (2026-08-04) se probó entera sin
   la Deck, y la forma merece quedar apuntada porque se reutiliza: un servidor

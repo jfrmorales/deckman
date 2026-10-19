@@ -12,15 +12,19 @@ real size and where they live](docs/capturas/biblioteca.webp)
 It is **a single executable**. Double-click it and the interface opens in your
 browser. Nothing to install, neither on the PC nor on the Deck.
 
-- `deckman.exe` — Windows
-- `deckman` — Linux (plain binary or **Flatpak**, see below)
+- **Windows** — `deckman-<version>-windows-amd64.exe` (or `-arm64.exe` on ARM
+  machines such as Snapdragon laptops)
+- **Linux** — `deckman-<version>-linux-amd64` (or `-arm64`), plain binary or
+  **Flatpak**, see below
+- **macOS** — `deckman-<version>-darwin-arm64` (Apple Silicon: M1 and later)
+  or `-darwin-amd64` (Intel Macs). See [macOS](#macos) below
 
 **[Download the latest version](https://github.com/jfrmorales/deckman/releases/latest)**
 — every release ships its binaries under *Releases*, with a `SHA256SUMS` to
 check them:
 
 ```sh
-sha256sum -c SHA256SUMS
+sha256sum -c --ignore-missing SHA256SUMS
 chmod +x deckman-*-linux-amd64
 ```
 
@@ -119,8 +123,14 @@ desktop application:
   Chromium, Brave, Edge, Vivaldi; Flatpak installs too). Closing the window
   quits deckman — unless a transfer is running, which finishes in the
   background before shutting down.
+- **macOS**: same as Linux, with whichever Chrome, Edge, Brave, Chromium or
+  Vivaldi lives in `/Applications` or `~/Applications`. There, closing the last
+  window does not quit the browser, so deckman watches the interface instead: a
+  minute after you close it, deckman shuts down and closes its browser window.
 - If none of that is available, it opens as a tab in your usual browser
-  (`http://127.0.0.1:8777`) and deckman is closed with the **Quit** button.
+  (`http://127.0.0.1:8777`). Once the tab is closed, deckman shuts itself down
+  after a minute (unless a job is running); the **Quit** button does it right
+  away.
 
 The first screen is the connection one: the Deck's IP, the password, and under
 **Advanced options** the user, the SSH port if they are not the defaults
@@ -155,11 +165,30 @@ deckman -version        # (on Windows it prints nothing: the .exe has no console
 If deckman is opened twice, the second one finds the first and opens another
 window against it, without duplicating the server.
 
-Settings are stored in `~/.config/deckman` (Linux) or `%AppData%\deckman`
-(Windows).
+Settings are stored in `~/.config/deckman` (Linux), `%AppData%\deckman`
+(Windows) or `~/Library/Application Support/deckman` (macOS).
 
 To quit, closing the window is enough; the **Quit** button in the top bar does
-the same and is the only way when the interface runs in a tab.
+the same without waiting.
+
+### macOS
+
+The binary is not signed with an Apple certificate (that costs $99 a year), so
+the first time Gatekeeper blocks it with "cannot be opened because the
+developer cannot be verified". Unblock it once, from Terminal:
+
+```sh
+chmod +x deckman-*-darwin-arm64
+xattr -d com.apple.quarantine deckman-*-darwin-arm64
+./deckman-*-darwin-arm64
+```
+
+Or: try to open it, then **System Settings → Privacy & Security → Open
+Anyway**. That the file is the published one is vouched for by `SHA256SUMS` and
+its signature, as on every other system.
+
+The macOS build **compiles and passes the checks, but has not been tried on a
+real Mac**. If something breaks, an *Issue* helps a lot.
 
 ---
 
@@ -348,7 +377,8 @@ You need podman or docker. **Go is not installed on the system**:
 
 ```sh
 make setup    # once: checks requirements and gets the clone ready
-make build    # both binaries in dist/
+make build    # the Linux and Windows binaries in dist/
+make build-all # plus ARM64 and macOS: everything that gets published
 ```
 
 Plain `make` lists everything you can do.

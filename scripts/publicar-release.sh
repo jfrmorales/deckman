@@ -39,13 +39,19 @@ mkdir -p "$SALIDA"
 # ademas queda garantizado que el binario dice exactamente lo que dice el tag.
 
 paso "compilando $TAG"
-LIN="deckman-$VERSION-linux-amd64"
-WIN="deckman-$VERSION-windows-amd64.exe"
-
 # La receta (flags incluidos) vive en scripts/compilar.sh, compartida con
 # build.sh y pruebas.yml: asi lo que se publica es lo mismo que se prueba.
-scripts/compilar.sh linux "$SALIDA/$LIN" "$TAG"
-scripts/compilar.sh windows "$SALIDA/$WIN" "$TAG"
+#
+# Los nombres de amd64 no cambian al haber llegado ARM y macOS: hay enlaces y
+# scripts por ahi que apuntan a deckman-X.Y.Z-linux-amd64, y romperlos por
+# ordenar no compensa.
+FICHEROS=()
+for obj in linux-amd64 linux-arm64 windows-amd64 windows-arm64 darwin-amd64 darwin-arm64; do
+	nombre="deckman-$VERSION-$obj"
+	case "$obj" in windows-*) nombre="$nombre.exe" ;; esac
+	scripts/compilar.sh "$obj" "$SALIDA/$nombre" "$TAG"
+	FICHEROS+=("$nombre")
+done
 
 # --- inventario de dependencias (SBOM) --------------------------------------
 #
@@ -60,7 +66,6 @@ scripts/compilar.sh windows "$SALIDA/$WIN" "$TAG"
 
 paso "generando el SBOM"
 SBOM="deckman-$VERSION.cdx.json"
-FICHEROS=("$LIN" "$WIN")
 # `app` y no `mod`: interesa lo que acaba DENTRO del binario, que no es todo lo
 # que aparece en go.mod (ahi hay dependencias que solo usan las pruebas).
 if go install github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@latest >/dev/null 2>&1 &&

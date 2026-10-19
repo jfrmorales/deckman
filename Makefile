@@ -7,7 +7,7 @@
 # Requisitos: podman o docker. Go NO se instala en el sistema.
 
 .DEFAULT_GOAL := help
-.PHONY: help setup check audit build deck flatpak release clean
+.PHONY: help setup check audit build build-all deck flatpak release clean
 
 help:
 	@echo 'deckman — gestiona una Steam Deck desde el PC'
@@ -17,6 +17,7 @@ help:
 	@echo '  make check        gofmt + vet + pruebas locales (lo mismo que el CI)'
 	@echo '  make audit        analisis estatico y vulnerabilidades conocidas'
 	@echo '  make build        binarios de Linux y Windows en dist/'
+	@echo '  make build-all    ademas ARM64 y macOS: todo lo que se publica'
 	@echo '  make deck         check + pruebas contra tu Steam Deck de verdad'
 	@echo '  make flatpak      empaqueta e instala el Flatpak (usuario)'
 	@echo '  make clean        borra dist/ y lo que deja el empaquetado'
@@ -42,6 +43,9 @@ audit:
 
 build:
 	@./build.sh
+
+build-all:
+	@DECKMAN_OBJETIVOS=todos ./build.sh
 
 # Las de integracion necesitan una Deck con SSH: los datos salen de
 # deck.local.env (make setup lo crea a partir del ejemplo).

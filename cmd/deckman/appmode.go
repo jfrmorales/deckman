@@ -54,6 +54,31 @@ func chromiumBins() []string {
 			filepath.Join(pf86, `Google\Chrome\Application\chrome.exe`),
 			filepath.Join(local, `Google\Chrome\Application\chrome.exe`),
 		}
+	case "darwin":
+		// En macOS los navegadores no estan en el PATH: viven dentro de su
+		// paquete .app. Se lanza el ejecutable de dentro y no `open -a`,
+		// porque `open` vuelve al momento y entonces no quedaria proceso que
+		// cerrar al salir. Primero las instalaciones del sistema y luego las
+		// del usuario (~/Applications, que es donde acaban sin permisos de
+		// administrador).
+		apps := []struct{ paquete, bin string }{
+			{"Google Chrome.app", "Google Chrome"},
+			{"Microsoft Edge.app", "Microsoft Edge"},
+			{"Brave Browser.app", "Brave Browser"},
+			{"Chromium.app", "Chromium"},
+			{"Vivaldi.app", "Vivaldi"},
+		}
+		var out []string
+		raices := []string{"/Applications"}
+		if home, err := os.UserHomeDir(); err == nil {
+			raices = append(raices, filepath.Join(home, "Applications"))
+		}
+		for _, raiz := range raices {
+			for _, a := range apps {
+				out = append(out, filepath.Join(raiz, a.paquete, "Contents", "MacOS", a.bin))
+			}
+		}
+		return out
 	default:
 		return []string{
 			"google-chrome", "google-chrome-stable", "chromium", "chromium-browser",

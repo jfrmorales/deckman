@@ -13,6 +13,26 @@ bloque `<releases>` del metainfo. Los tres los sincroniza `scripts/release.sh`.
      versión nueva al publicar. Secciones: Añadido, Cambiado, Corregido,
      Eliminado. -->
 
+### Añadido
+
+- **Binarios para macOS y ARM.** Cada versión publica ahora seis: Linux,
+  Windows y macOS, en amd64 y arm64 (Apple Silicon, portátiles Snapdragon,
+  Raspberry Pi). Los nombres de amd64 no cambian. En macOS la ventana se abre
+  con el Chrome, Edge, Brave, Chromium o Vivaldi de `/Applications`, y el
+  explorador de carpetas enseña los discos de `/Volumes`. El README explica
+  cómo pasar Gatekeeper, porque el binario no va firmado por Apple. **La
+  versión de macOS y las de ARM compilan y pasan las comprobaciones, pero no se
+  han probado en un equipo de verdad.**
+- `make build-all` compila todo lo que se publica; `make build` sigue sacando
+  solo Linux y Windows, que es lo rápido.
+
+### Cambiado
+
+- **Con la interfaz en una pestaña, deckman se apaga solo** al minuto de
+  cerrarla, si no hay un trabajo en marcha. Antes se quedaba vivo en segundo
+  plano hasta reiniciar, y lanzado desde el menú no había ni consola donde
+  pulsar Ctrl+C. Una recarga o una suspensión corta no cuentan como cerrar.
+
 ### Corregido
 
 - **Mover juegos de Steam a la microSD (o de vuelta) con Steam abierto.** Hasta

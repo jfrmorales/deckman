@@ -12,15 +12,19 @@ tamaño real y dónde están](docs/capturas/biblioteca.webp)
 Es **un solo ejecutable**. Doble clic y se abre la interfaz en el navegador.
 No hay que instalar nada, ni en el PC ni en la Deck.
 
-- `deckman.exe` — Windows
-- `deckman` — Linux (binario suelto o **Flatpak**, ver abajo)
+- **Windows** — `deckman-<versión>-windows-amd64.exe` (o `-arm64.exe` en
+  equipos ARM como los Snapdragon)
+- **Linux** — `deckman-<versión>-linux-amd64` (o `-arm64`), binario suelto o
+  **Flatpak**, ver abajo
+- **macOS** — `deckman-<versión>-darwin-arm64` (Apple Silicon: M1 y
+  posteriores) o `-darwin-amd64` (Mac con Intel). Ver [macOS](#macos) abajo
 
 **[Descargar la última versión](https://github.com/jfrmorales/deckman/releases/latest)**
 — los binarios de cada versión están en *Releases*, con un `SHA256SUMS` para
 comprobarlos:
 
 ```sh
-sha256sum -c SHA256SUMS
+sha256sum -c --ignore-missing SHA256SUMS
 chmod +x deckman-*-linux-amd64
 ```
 
@@ -116,8 +120,14 @@ cualquier aplicación de escritorio:
   Chromium, Brave, Edge, Vivaldi; también instalados como Flatpak). Cerrar la
   ventana cierra deckman — salvo que haya una transferencia en marcha, que se
   termina en segundo plano antes de apagarse.
+- **macOS**: igual que en Linux, con el Chrome, Edge, Brave, Chromium o
+  Vivaldi que haya en `/Applications` o `~/Applications`. Allí cerrar la última
+  ventana no cierra el navegador, así que deckman se fija en la interfaz: al
+  minuto de cerrarla se apaga, y cierra esa ventana suya del navegador.
 - Si no hay nada de eso, se abre como pestaña en el navegador de siempre
-  (`http://127.0.0.1:8777`) y deckman se cierra con el botón **Salir**.
+  (`http://127.0.0.1:8777`). Al cerrar la pestaña, deckman se apaga solo pasado
+  un minuto (si no hay un trabajo en marcha); el botón **Salir** lo hace al
+  momento.
 
 La primera pantalla es la de conexión: la IP de la Deck, la contraseña, y en
 **Opciones avanzadas** el usuario, el puerto SSH si no son los de serie
@@ -152,11 +162,31 @@ deckman -version        # (en Windows no imprime: el .exe va sin consola)
 Si se abre deckman dos veces, la segunda detecta a la primera y abre otra
 ventana contra ella, sin duplicar el servidor.
 
-La configuración se guarda en `~/.config/deckman` (Linux) o
-`%AppData%\deckman` (Windows).
+La configuración se guarda en `~/.config/deckman` (Linux),
+`%AppData%\deckman` (Windows) o `~/Library/Application Support/deckman`
+(macOS).
 
 Para salir vale con cerrar la ventana; el botón **Salir** de la barra superior
-hace lo mismo y es la única vía cuando la interfaz va en una pestaña.
+hace lo mismo sin esperar.
+
+### macOS
+
+El binario no va firmado con un certificado de Apple (cuesta 99 € al año), así
+que la primera vez Gatekeeper lo bloquea con un «no se puede abrir porque no se
+puede verificar el desarrollador». Se desbloquea una vez, desde la Terminal:
+
+```sh
+chmod +x deckman-*-darwin-arm64
+xattr -d com.apple.quarantine deckman-*-darwin-arm64
+./deckman-*-darwin-arm64
+```
+
+O bien: intentar abrirlo, y luego **Ajustes del Sistema → Privacidad y
+seguridad → Abrir igualmente**. Que el fichero es el publicado lo dicen el
+`SHA256SUMS` y su firma, como en el resto de sistemas.
+
+La versión de macOS **compila y pasa las comprobaciones, pero no se ha probado
+en un Mac de verdad**. Si algo falla, un aviso en *Issues* ayuda mucho.
 
 ---
 
@@ -345,7 +375,8 @@ Hace falta podman o docker. **No se instala Go en el sistema**:
 
 ```sh
 make setup    # una vez: comprueba requisitos y deja el clon listo
-make build    # los dos binarios en dist/
+make build    # los binarios de Linux y Windows en dist/
+make build-all # además ARM64 y macOS: todo lo que se publica
 ```
 
 `make` a secas lista todo lo que se puede hacer.

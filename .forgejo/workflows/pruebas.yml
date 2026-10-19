@@ -1,5 +1,5 @@
 # Comprueba cada push y cada pull request: formato, vet, pruebas y que compila
-# para Windows.
+# para todo lo que se publica (Linux, Windows y macOS; amd64 y arm64).
 #
 # Corre en el Forgejo propio y no en GitHub a proposito: el CI no tiene por que
 # depender de un servicio de terceros. El repositorio de GitHub sigue siendo la
@@ -97,10 +97,22 @@ jobs:
       - name: vet y pruebas
         run: go test -vet=all ./... -timeout 15m
 
-      # Solo Windows: el build de Linux ya lo hace go test al enlazar las
-      # pruebas. El cruce a Windows es lo unico que no valida nadie mas (la
-      # rama window_windows.go con go-webview2), y se compila con la receta
-      # real de release: antes iba sin flags y un fallo de enlazado por
+      # Linux amd64 ya lo compila go test al enlazar las pruebas. El resto de
+      # lo que se publica no lo valida nadie mas (la rama window_windows.go
+      # con go-webview2, las rutas de macOS), y se compila con la receta real
+      # de release: antes iba sin flags y un fallo de enlazado por
       # -H windowsgui no se habria visto hasta publicar.
-      - name: compilar windows
-        run: scripts/compilar.sh windows /dev/null v0.0.0-ci
+      - name: compilar el resto de sistemas
+        run: |
+          set -e
+          for obj in windows windows-arm64 linux-arm64 darwin-amd64 darwin-arm64; do
+            echo ">> $obj"
+            scripts/compilar.sh "$obj" /dev/null v0.0.0-ci
+          done
+
+      # go vet solo mira el sistema en el que corre: las ramas por GOOS de
+      # macOS y Windows (appmode.go, window_windows.go) no las veria nunca.
+      - name: vet de macos y windows
+        run: |
+          GOOS=darwin GOARCH=arm64 go vet ./...
+          GOOS=windows GOARCH=amd64 go vet ./...

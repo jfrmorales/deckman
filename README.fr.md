@@ -12,15 +12,19 @@ jaquette, leur taille réelle et où ils se trouvent](docs/capturas/biblioteca.w
 C'est **un seul exécutable**. Un double-clic et l'interface s'ouvre dans le
 navigateur. Rien à installer, ni sur le PC ni sur la Deck.
 
-- `deckman.exe` — Windows
-- `deckman` — Linux (binaire seul ou **Flatpak**, voir plus bas)
+- **Windows** — `deckman-<version>-windows-amd64.exe` (ou `-arm64.exe` sur les
+  machines ARM comme les portables Snapdragon)
+- **Linux** — `deckman-<version>-linux-amd64` (ou `-arm64`), binaire seul ou
+  **Flatpak**, voir plus bas
+- **macOS** — `deckman-<version>-darwin-arm64` (Apple Silicon : M1 et
+  suivants) ou `-darwin-amd64` (Mac Intel). Voir [macOS](#macos) plus bas
 
 **[Télécharger la dernière version](https://github.com/jfrmorales/deckman/releases/latest)**
 — chaque version publie ses binaires dans *Releases*, avec un `SHA256SUMS` pour
 les vérifier :
 
 ```sh
-sha256sum -c SHA256SUMS
+sha256sum -c --ignore-missing SHA256SUMS
 chmod +x deckman-*-linux-amd64
 ```
 
@@ -122,9 +126,15 @@ n'importe quelle application de bureau :
   Chromium, Brave, Edge, Vivaldi ; installations Flatpak comprises). Fermer la
   fenêtre quitte deckman — sauf si un transfert est en cours, qui se termine en
   arrière-plan avant l'arrêt.
+- **macOS** : comme sous Linux, avec le Chrome, Edge, Brave, Chromium ou
+  Vivaldi présent dans `/Applications` ou `~/Applications`. Là, fermer la
+  dernière fenêtre ne quitte pas le navigateur ; deckman surveille donc
+  l'interface : une minute après sa fermeture, il s'arrête et ferme sa fenêtre
+  de navigateur.
 - Si rien de tout cela n'est disponible, il s'ouvre dans un onglet du
-  navigateur habituel (`http://127.0.0.1:8777`) et deckman se ferme avec le
-  bouton **Quitter**.
+  navigateur habituel (`http://127.0.0.1:8777`). Une fois l'onglet fermé,
+  deckman s'arrête seul au bout d'une minute (sauf tâche en cours) ; le bouton
+  **Quitter** le fait tout de suite.
 
 Le premier écran est celui de la connexion : l'IP de la Deck, le mot de passe,
 et sous **Options avancées** l'utilisateur, le port SSH s'ils ne sont pas ceux
@@ -161,12 +171,32 @@ deckman -version        # (sous Windows n'affiche rien : le .exe n'a pas de cons
 Si deckman est ouvert deux fois, le second détecte le premier et ouvre une
 autre fenêtre vers lui, sans dupliquer le serveur.
 
-La configuration est enregistrée dans `~/.config/deckman` (Linux) ou
-`%AppData%\deckman` (Windows).
+La configuration est enregistrée dans `~/.config/deckman` (Linux),
+`%AppData%\deckman` (Windows) ou `~/Library/Application Support/deckman`
+(macOS).
 
 Pour quitter, fermer la fenêtre suffit ; le bouton **Quitter** de la barre du
-haut fait la même chose et c'est la seule voie quand l'interface est dans un
-onglet.
+haut fait la même chose sans attendre.
+
+### macOS
+
+Le binaire n'est pas signé avec un certificat Apple (99 € par an), donc la
+première fois Gatekeeper le bloque avec « impossible d'ouvrir car le
+développeur ne peut pas être vérifié ». On le débloque une fois, depuis le
+Terminal :
+
+```sh
+chmod +x deckman-*-darwin-arm64
+xattr -d com.apple.quarantine deckman-*-darwin-arm64
+./deckman-*-darwin-arm64
+```
+
+Ou bien : tenter de l'ouvrir, puis **Réglages Système → Confidentialité et
+sécurité → Ouvrir quand même**. Que le fichier soit bien celui publié, c'est
+`SHA256SUMS` et sa signature qui le garantissent, comme partout ailleurs.
+
+La version macOS **compile et passe les vérifications, mais n'a pas été essayée
+sur un vrai Mac**. Si quelque chose casse, une *Issue* aide beaucoup.
 
 ---
 
@@ -367,7 +397,8 @@ Il faut podman ou docker. **Go n'est pas installé sur le système** :
 
 ```sh
 make setup    # une fois : vérifie les prérequis et prépare le clone
-make build    # les deux binaires dans dist/
+make build    # les binaires Linux et Windows dans dist/
+make build-all # plus ARM64 et macOS : tout ce qui est publié
 ```
 
 `make` tout court liste tout ce qui est possible.

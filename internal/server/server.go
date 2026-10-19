@@ -97,6 +97,17 @@ func (s *Server) QuitRequested() <-chan struct{} {
 	return s.quit
 }
 
+// Clientes cuenta las interfaces abiertas ahora mismo: cada pestana o ventana
+// mantiene una conexion a /api/events mientras vive. Sirve para saber que el
+// usuario ha cerrado la interfaz cuando el proceso del navegador no lo dice
+// (en macOS Chrome sigue vivo sin ventanas; con una pestana normal no hay
+// proceso propio que vigilar).
+func (s *Server) Clientes() int {
+	s.listMu.Lock()
+	defer s.listMu.Unlock()
+	return len(s.listeners)
+}
+
 // Busy dice si hay una operacion larga en marcha. Un trabajo terminado se
 // queda en s.job para conservar su resumen, asi que "hay job" no es "ocupado".
 func (s *Server) Busy() bool {
@@ -759,7 +770,10 @@ func (s *Server) handlePlaces(w http.ResponseWriter, r *http.Request) {
 	// Unidades externas montadas. Solo si tienen algo dentro: en Linux
 	// /media y /run/media existen siempre, y /run/media/<usuario> aparece
 	// aunque no haya ningun disco conectado. Listarlos vacios es solo ruido.
-	for _, base := range []string{"/run/media", "/media", "/mnt"} {
+	// /Volumes es el sitio de macOS; ahi el disco de arranque aparece como
+	// un enlace a / que mountedUnder se salta (no es carpeta), y ya esta
+	// listado arriba como "Sistema de ficheros".
+	for _, base := range []string{"/run/media", "/media", "/mnt", "/Volumes"} {
 		for _, p := range mountedUnder(base) {
 			add(filepath.Base(p), p, "drive")
 		}
@@ -821,7 +835,7 @@ func listRoots() []browseEntry {
 	if home, err := os.UserHomeDir(); err == nil {
 		roots = append(roots, browseEntry{Name: "Carpeta personal", Path: home, IsDir: true})
 	}
-	for _, m := range []string{"/mnt", "/media", "/run/media"} {
+	for _, m := range []string{"/mnt", "/media", "/run/media", "/Volumes"} {
 		if _, err := os.Stat(m); err == nil {
 			roots = append(roots, browseEntry{Name: m, Path: m, IsDir: true})
 		}

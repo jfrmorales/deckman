@@ -28,6 +28,21 @@ bloque `<releases>` del metainfo. Los tres los sincroniza `scripts/release.sh`.
 
 ### Cambiado
 
+- **Clave de firma nueva.** La privada con la que se firmaron la 0.6.2 y la
+  0.6.3 se perdió: no había copia fuera del PC donde se creó. Desde esta
+  versión el `SHA256SUMS` va firmado con otra, y el `cosign.pub` de la release
+  es distinto. Si guardaste la pública anterior, la verificación con ella
+  fallará a partir de aquí: es esto y no una manipulación. Compruébalo con la
+  huella de la nueva:
+
+  ```sh
+  sha256sum cosign.pub
+  # 29e5cbe2bbd71402bdea9db4a6d4cf4fc99dab59dd4c9cb58a010f6801520544
+  ```
+
+  Las releases 0.6.2 y 0.6.3 siguen verificando con la pública que llevan
+  dentro (huella `69b07175…55da`). La nueva tiene copia en Vaultwarden, y
+  `scripts/crear-clave-firma.sh` ahora dice cómo guardarla allí.
 - **Con la interfaz en una pestaña, deckman se apaga solo** al minuto de
   cerrarla, si no hay un trabajo en marcha. Antes se quedaba vivo en segundo
   plano hasta reiniciar, y lanzado desde el menú no había ni consola donde

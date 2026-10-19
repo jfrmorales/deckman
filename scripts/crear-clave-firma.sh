@@ -65,3 +65,15 @@ echo "Huella de la publica, por si quieres apuntarla en algun sitio:"
 sha256sum "$DIR/$PREFIJO.pub" | cut -d' ' -f1
 echo
 echo "La proxima  make release  ya firmara."
+echo
+# La anterior se perdio sin copia (2026-10-20): vivia solo en el PC donde se
+# creo, y al no estar en ningun otro sitio hubo que cambiarla y avisar a quien
+# hubiera guardado la publica. Una clave que firma lo que la gente se baja no
+# puede depender de un unico disco.
+echo "GUARDALA YA FUERA DE ESTE PC (Vaultwarden). Sin copia, perderla obliga a"
+echo "cambiar de clave y a avisar a todo el que haya guardado la publica:"
+echo
+echo "  ( umask 077; printf 'DECKMAN_COSIGN_KEY_B64=%s\\n' \"\$(base64 -w0 '$DESTINO')\" \\"
+echo "      > ~/.config/credentials/deckman-cosign.env )"
+echo "  vw-secret store \"deckman - clave de firma cosign\" \\"
+echo "      --env-file ~/.config/credentials/deckman-cosign.env DECKMAN_COSIGN_KEY_B64"

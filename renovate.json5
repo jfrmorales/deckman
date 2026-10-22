@@ -18,11 +18,15 @@
 // dice. Es el mismo criterio que en el resto del repositorio.
 {
   $schema: 'https://docs.renovatebot.com/renovate-schema.json',
-  extends: ['config:recommended'],
+  extends: ['local>jfrmorales/homelab//renovate-presets/base-ci'],
 
   timezone: 'Europe/Madrid',
   labels: ['dependencias'],
 
+  // Politica comun del homelab (renovate-presets/base-ci): fixes de seguridad
+  // inmediatos y agrupacion. EL AUTOMERGE DEL PRESET SE APAGA AQUI A PROPOSITO
+  // (primera regla de packageRules): ver el comentario siguiente.
+  //
   // Nada se fusiona solo. Este binario habla por SSH con la Deck de alguien y
   // borra ficheros suyos: una dependencia entra cuando el CI ha pasado Y
   // alguien la ha mirado, no porque los tests esten verdes.
@@ -40,6 +44,12 @@
   prHourlyLimit: 2,
 
   packageRules: [
+    {
+      // Anula el automerge del preset. Va en un packageRule y no en el nivel raiz
+      // porque las reglas del preset ganan al `automerge: false` de arriba.
+      matchUpdateTypes: ['minor', 'patch', 'digest', 'pin', 'pinDigest'],
+      automerge: false,
+    },
     {
       // Las x/... de Go se publican a la vez y se pisan entre ellas: subir
       // x/crypto sin x/sys deja un go.sum que el CI tiene que resolver solo.

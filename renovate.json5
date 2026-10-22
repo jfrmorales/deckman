@@ -37,6 +37,8 @@
     enabled: true,
     schedule: ['at any time'],
     labels: ['dependencias', 'seguridad'],
+    // Tampoco los fixes de seguridad se fusionan solos aqui (el preset si los automergea).
+    automerge: false,
   },
 
   // Tres PR abiertos como mucho: mas que eso deja de leerse.

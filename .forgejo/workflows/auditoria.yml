@@ -31,7 +31,7 @@ jobs:
     runs-on: docker
     timeout-minutes: 30
     container:
-      image: docker.io/library/golang:1.26.5
+      image: docker.io/library/golang:1.27.3
       # Las mismas caches que pruebas.yml, mas deckman-ci-gobin: golangci-lint
       # tarda varios minutos en compilarse y sin el volumen se recompila en
       # cada push. El runner solo admite volumenes que casen con deckman-ci-*

@@ -139,7 +139,7 @@ que hagamos corrompe la configuración del usuario.
 ## Compilar
 
 `./build.sh` compila para Linux y Windows dentro de un contenedor
-(`golang:1.26.5`). **No hace falta Go instalado**, solo podman o docker. Fue una
+(`golang:1.27.3`). **No hace falta Go instalado**, solo podman o docker. Fue una
 petición explícita: no ensuciar el sistema.
 
 `flatpak/build.sh` empaqueta el binario de Linux como Flatpak

@@ -5,7 +5,7 @@ go 1.27.4
 require (
 	github.com/coder/websocket v1.8.15
 	github.com/jchv/go-webview2 v0.0.0-20260205173254-56598839c808
-	github.com/pkg/sftp v1.13.11
+	github.com/pkg/sftp v1.13.12
 	golang.org/x/crypto v0.59.0
 )
 

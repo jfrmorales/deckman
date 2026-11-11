@@ -39,7 +39,7 @@ jobs:
     # El -timeout de Go solo cubre las pruebas; esto cubre el resto del job.
     timeout-minutes: 30
     container:
-      image: docker.io/library/golang:1.27.3
+      image: docker.io/library/golang:1.27.4
       options: >-
         -v deckman-ci-gomod:/go/pkg/mod
         -v deckman-ci-gocache:/root/.cache/go-build

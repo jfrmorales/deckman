@@ -7,7 +7,7 @@
 
 # La misma version que pide go.mod; el CI comprueba que no se separen
 # (.forgejo/workflows/pruebas.yml, paso "version de go").
-GO_IMAGE="docker.io/library/golang:1.27.3"
+GO_IMAGE="docker.io/library/golang:1.27.4"
 
 # Herramientas de auditoria (scripts/auditar.sh y el trabajo del mismo nombre
 # en el CI). Las versiones viven aqui para que el PC y el CI analicen con lo

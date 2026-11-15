@@ -13,6 +13,8 @@ bloque `<releases>` del metainfo. Los tres los sincroniza `scripts/release.sh`.
      versión nueva al publicar. Secciones: Añadido, Cambiado, Corregido,
      Eliminado. -->
 
+## [0.6.5] — 2026-11-15
+
 ### Añadido
 
 - **Historial permanente de operaciones** guardado en disco (`operations` en `config.json`), visible en la propia biblioteca con resumen de estados (`en curso`, `en cola`, `completado`, `interrumpido`, `error`), progreso, marcas temporales y botón `Limpiar historial`.
@@ -548,7 +550,8 @@ interno y microSD, desinstalar, la ventana WebView2 en un Windows real,
 `RemoveShortcutLive`, `SetCompatToolLive` y `RelocateShortcut`. Están recogidas
 en `CLAUDE.md`. Por eso 0.1.0 y no 1.0.0.
 
-[No publicado]: https://github.com/jfrmorales/deckman/compare/v0.6.4...HEAD
+[No publicado]: https://github.com/jfrmorales/deckman/compare/v0.6.5...HEAD
+[0.6.5]: https://github.com/jfrmorales/deckman/compare/v0.6.4...v0.6.5
 [0.6.4]: https://github.com/jfrmorales/deckman/compare/v0.6.3...v0.6.4
 [0.6.3]: https://github.com/jfrmorales/deckman/compare/v0.6.2...v0.6.3
 [0.6.2]: https://github.com/jfrmorales/deckman/compare/v0.6.1...v0.6.2

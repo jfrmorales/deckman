@@ -15,12 +15,21 @@ cd "$(dirname "$0")/.."
 export GOBIN="${GOBIN:-/go/bin}"
 export PATH="$GOBIN:$PATH"
 
-# Se instalan solo si faltan: con el volumen deckman-gobin puesto, la segunda
-# vez esto no cuesta nada. En el CI el volumen es el mismo que el de las
-# pruebas, asi que tampoco se recompilan en cada push.
+# Se instalan solo si faltan, o si se compilaron con otro Go que el de la
+# imagen: con el volumen deckman-gobin puesto, la segunda vez esto no cuesta
+# nada. En el CI el volumen es el mismo que el de las pruebas, asi que tampoco
+# se recompilan en cada push. Lo de la version del Go no es un detalle: un
+# binario viejo en el volumen se queda ahi para siempre y, tras subir de Go,
+# falla con «application built with go1.26» sin que nada lo recompile.
 instalar_si_falta() {
-	local binario="$1" paquete="$2"
-	if ! command -v "$binario" >/dev/null 2>&1; then
+	local binario="$1" paquete="$2" ruta
+	ruta="$(command -v "$binario" 2>/dev/null || true)"
+	if [ -n "$ruta" ] && ! go version -m "$ruta" | head -1 | grep -qF "$(go env GOVERSION)"; then
+		echo ">> $binario esta compilado con otro Go: se recompila"
+		rm -f "$ruta"
+		ruta=""
+	fi
+	if [ -z "$ruta" ]; then
 		echo ">> instalando $binario"
 		go install "$paquete"
 	fi

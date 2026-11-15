@@ -7,7 +7,7 @@
 
 # La misma version que pide go.mod; el CI comprueba que no se separen
 # (.forgejo/workflows/pruebas.yml, paso "version de go").
-GO_IMAGE="docker.io/library/golang:1.26.5"
+GO_IMAGE="docker.io/library/golang:1.27.3"
 
 # Herramientas de auditoria (scripts/auditar.sh y el trabajo del mismo nombre
 # en el CI). Las versiones viven aqui para que el PC y el CI analicen con lo
@@ -17,7 +17,7 @@ GO_IMAGE="docker.io/library/golang:1.26.5"
 # push cualquiera en una tarde de arreglar avisos que ayer no existian.
 # govulncheck va suelto a proposito, que es justo lo contrario de lo que uno
 # esperaria: lo que quiero de el es la base de vulnerabilidades de HOY.
-GOLANGCI_VERSION="v2.12.2"
+GOLANGCI_VERSION="v2.15.0"
 GOVULNCHECK_VERSION="latest"
 
 # cosign firma el SHA256SUMS de cada release (ver scripts/release.sh). Va en

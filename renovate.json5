@@ -18,11 +18,15 @@
 // dice. Es el mismo criterio que en el resto del repositorio.
 {
   $schema: 'https://docs.renovatebot.com/renovate-schema.json',
-  extends: ['config:recommended'],
+  extends: ['local>jfrmorales/homelab//renovate-presets/base-ci'],
 
   timezone: 'Europe/Madrid',
   labels: ['dependencias'],
 
+  // Politica comun del homelab (renovate-presets/base-ci): fixes de seguridad
+  // inmediatos y agrupacion. EL AUTOMERGE DEL PRESET SE APAGA AQUI A PROPOSITO
+  // (primera regla de packageRules): ver el comentario siguiente.
+  //
   // Nada se fusiona solo. Este binario habla por SSH con la Deck de alguien y
   // borra ficheros suyos: una dependencia entra cuando el CI ha pasado Y
   // alguien la ha mirado, no porque los tests esten verdes.
@@ -33,13 +37,33 @@
     enabled: true,
     schedule: ['at any time'],
     labels: ['dependencias', 'seguridad'],
+    // Tampoco los fixes de seguridad se fusionan solos aqui (el preset si los automergea).
+    automerge: false,
   },
 
   // Tres PR abiertos como mucho: mas que eso deja de leerse.
   prConcurrentLimit: 3,
   prHourlyLimit: 2,
 
+  // scripts/contenedor.sh clava la imagen de Go para el PC (GO_IMAGE) y
+  // ningun gestor de Renovate lee un .sh. Sin esto, ese era el sitio que se
+  // quedaba atras cuando subian los workflows.
+  customManagers: [
+    {
+      customType: 'regex',
+      managerFilePatterns: ['/^scripts/contenedor\\.sh$/'],
+      matchStrings: ['GO_IMAGE="(?<depName>[^:"]+):(?<currentValue>[^"]+)"'],
+      datasourceTemplate: 'docker',
+    },
+  ],
+
   packageRules: [
+    {
+      // Anula el automerge del preset. Va en un packageRule y no en el nivel raiz
+      // porque las reglas del preset ganan al `automerge: false` de arriba.
+      matchUpdateTypes: ['minor', 'patch', 'digest', 'pin', 'pinDigest'],
+      automerge: false,
+    },
     {
       // Las x/... de Go se publican a la vez y se pisan entre ellas: subir
       // x/crypto sin x/sys deja un go.sum que el CI tiene que resolver solo.
@@ -49,13 +73,19 @@
       groupName: 'bibliotecas x de Go',
     },
     {
-      // La version de Go esta clavada en cuatro sitios (go.mod, los dos
-      // workflows y scripts/contenedor.sh) y hay un paso del CI que comprueba
-      // que no se separen. Un PR que toque solo go.mod falla siempre, asi que
-      // ese cambio se hace a mano.
-      matchManagers: ['gomod'],
-      matchDepTypes: ['golang'],
-      enabled: false,
+      // La version de Go esta clavada en cuatro sitios (la directiva `go` de
+      // go.mod, las imagenes de los tres workflows y GO_IMAGE en
+      // scripts/contenedor.sh) y un paso del CI comprueba que no se separen.
+      // Un PR que toque solo uno falla siempre, y subir Go ademas obliga a
+      // subir las herramientas de auditoria. Por eso antes se hacia a mano; ahora
+      // los cuatro se mueven juntos en un solo PR, que se mira una vez.
+      // `go` es el nombre de la dependencia en go.mod (datasource
+      // golang-version) y la imagen se llama como en los workflows.
+      matchPackageNames: ['go', 'docker.io/library/golang'],
+      groupName: 'toolchain de Go',
+      // Lo que NO se mueve solo: la version de golangci-lint en
+      // scripts/contenedor.sh. Si el PR de Go falla en la auditoria, falta
+      // subirla a mano a una que soporte esa version de Go.
     },
   ],
 }

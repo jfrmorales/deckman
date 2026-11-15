@@ -13,6 +13,8 @@ bloque `<releases>` del metainfo. Los tres los sincroniza `scripts/release.sh`.
      versión nueva al publicar. Secciones: Añadido, Cambiado, Corregido,
      Eliminado. -->
 
+## [0.6.4] — 2026-11-15
+
 ### Añadido
 
 - **Binarios para macOS y ARM.** Cada versión publica ahora seis: Linux,
@@ -535,7 +537,8 @@ interno y microSD, desinstalar, la ventana WebView2 en un Windows real,
 `RemoveShortcutLive`, `SetCompatToolLive` y `RelocateShortcut`. Están recogidas
 en `CLAUDE.md`. Por eso 0.1.0 y no 1.0.0.
 
-[No publicado]: https://github.com/jfrmorales/deckman/compare/v0.6.3...HEAD
+[No publicado]: https://github.com/jfrmorales/deckman/compare/v0.6.4...HEAD
+[0.6.4]: https://github.com/jfrmorales/deckman/compare/v0.6.3...v0.6.4
 [0.6.3]: https://github.com/jfrmorales/deckman/compare/v0.6.2...v0.6.3
 [0.6.2]: https://github.com/jfrmorales/deckman/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/jfrmorales/deckman/compare/v0.6.0...v0.6.1

@@ -59,6 +59,9 @@ func (c *Client) MoveGame(ctx context.Context, inv *Inventory, appID, targetLibP
 	if game.LibraryPath == targetLibPath {
 		return i18n.Errorf("%s ya esta en %s", game.Name, target.Label)
 	}
+	if target.Total == 0 {
+		return i18n.Errorf("Steam no reconoce %s como biblioteca; comprueba en Ajustes > Almacenamiento que la tarjeta esta montada", targetLibPath)
+	}
 
 	if game.Kind == "nonsteam" {
 		return c.moveNonSteamGame(ctx, game, target, report)
@@ -174,7 +177,15 @@ func (c *Client) moveSteamGame(ctx context.Context, game *Game, target *Library,
 const (
 	livePollEvery = 2 * time.Second
 	liveStallMax  = 15 * time.Minute
+	// En RegisterForMoveContentProgress de Steam, eError == 20 indica que el
+	// traslado sigue en marcha y eError == 0 que ha terminado; cualquier otro
+	// valor distinto de 0 y 20 es un fallo real (comprobado en el JS de Steam).
+	moveInProgressCode = 20
 )
+
+func isMoveError(code int) bool {
+	return code != 0 && code != moveInProgressCode
+}
 
 // moveSteamGameLive mueve un juego de Steam pidiendoselo a Steam, y sigue el
 // avance hasta que el manifiesto aparece en el destino.
@@ -235,7 +246,7 @@ func (c *Client) moveSteamGameLive(ctx context.Context, game *Game, target *Libr
 		if st.Failed != "" {
 			return i18n.Errorf("Steam no pudo mover %s: %s", game.Name, st.Failed)
 		}
-		if st.Progress != nil && st.Progress.Error != 0 {
+		if st.Progress != nil && isMoveError(st.Progress.Error) {
 			return i18n.Errorf("Steam no pudo mover %s (codigo %d); el juego sigue donde estaba", game.Name, st.Progress.Error)
 		}
 
@@ -542,7 +553,7 @@ func (c *Client) Delete(ctx context.Context, inv *Inventory, appID string, t Del
 			// otros 11 GB en el disco. Es el mismo tamano que se ensena en la
 			// biblioteca y en el dialogo, asi que lo que se borra y lo que se
 			// promete coinciden.
-			dir := nonSteamDir(game)
+			dir := c.nonSteamDir(game)
 			if dir == "" {
 				return 0, i18n.Errorf("el acceso directo no apunta a ninguna carpeta; borra los ficheros a mano")
 			}
@@ -608,11 +619,26 @@ func (c *Client) safeToDelete(p string) bool {
 		c.Home, "/home", "/usr", "/etc", "/var", "/run", "/boot",
 		path.Join(c.Home, ".steam"), path.Join(c.Home, ".local"),
 		path.Join(c.Home, ".local/share/Steam"),
-		path.Join(c.Home, "Games"), path.Join(c.Home, "Emulation"),
+		path.Join(c.Home, "Games"), path.Join(c.Home, "Juegos"),
+		path.Join(c.Home, "Emulation"), path.Join(c.Home, "Applications"),
+		path.Join(c.Home, "Desktop"), path.Join(c.Home, "Downloads"),
+		path.Join(c.Home, "Documents"), path.Join(c.Home, ".config"),
 	}
 	for _, f := range forbidden {
 		if p == path.Clean(f) {
 			return false
+		}
+	}
+	if p == "/run/media" || strings.HasPrefix(p, "/run/media/") {
+		parts := strings.Split(strings.Trim(p, "/"), "/")
+		if len(parts) <= 4 {
+			return false
+		}
+		if len(parts) == 5 {
+			switch parts[4] {
+			case "Games", "Juegos", "Emulation", "steamapps", "SteamLibrary":
+				return false
+			}
 		}
 	}
 	// Al menos dos niveles por debajo de la raiz.

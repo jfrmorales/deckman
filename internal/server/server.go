@@ -989,6 +989,7 @@ func (s *Server) installArtwork(ctx context.Context, c *deck.Client, shortcutID 
 		return "SteamGridDB no tiene imagenes de este juego."
 	}
 
+	enCaliente := c.SteamRunning(ctx) && c.CEFAvailable(ctx)
 	var ok int
 	var failed []string
 	for _, a := range art {
@@ -1004,6 +1005,12 @@ func (s *Server) installArtwork(ctx context.Context, c *deck.Client, shortcutID 
 		if err != nil {
 			failed = append(failed, a.Kind)
 			continue
+		}
+		if enCaliente && deck.SupportsLiveArtwork(a.Kind) {
+			if err := c.ApplyArtworkLive(ctx, shortcutID, a.Kind, a.Ext, data); err == nil {
+				ok++
+				continue
+			}
 		}
 		if _, err := c.WriteArtwork(ctx, shortcutID, a.Kind, a.Ext, data); err != nil {
 			failed = append(failed, a.Kind)

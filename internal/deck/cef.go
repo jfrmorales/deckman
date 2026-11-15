@@ -503,7 +503,7 @@ func (c *Client) MoveAppLive(ctx context.Context, appID uint32, targetLib string
 	raw, err := c.cefEval(ctx, `(async () => {
 		const IF = SteamClient.InstallFolder;
 		if (!IF || typeof IF.GetInstallFolders !== "function" || typeof IF.MoveInstallFolderForApp !== "function") return null;
-		return (await IF.GetInstallFolders()).map(f => ({nFolderIndex: f.nFolderIndex, strFolderPath: f.strFolderPath}));
+		return (await IF.GetInstallFolders()).filter(f => f.bIsMounted !== false).map(f => ({nFolderIndex: f.nFolderIndex, strFolderPath: f.strFolderPath}));
 	})()`)
 	if err != nil {
 		return err
@@ -521,18 +521,26 @@ func (c *Client) MoveAppLive(ctx context.Context, appID uint32, targetLib string
 		const IF = SteamClient.InstallFolder;
 		const old = globalThis.__deckmanMove;
 		if (old && old.unreg && old.unreg.unregister) { try { old.unreg.unregister(); } catch (e) {} }
-		const s = {appid: %d, progress: null, failed: "", finished: false, unreg: null};
+		const s = {appid: %d, started: false, progress: null, failed: "", finished: false, unreg: null};
 		globalThis.__deckmanMove = s;
 		if (typeof IF.RegisterForMoveContentProgress === "function") {
 			s.unreg = IF.RegisterForMoveContentProgress(p => {
-				if (p && (p.appid === undefined || p.appid === s.appid)) {
-					s.progress = {eError: p.eError || 0, flProgress: p.flProgress || 0,
-						strBytesMoved: String(p.strBytesMoved || ""), strTotalBytesToMove: String(p.strTotalBytesToMove || "")};
+				if (!p || p.appid !== s.appid) return;
+				const err = p.eError || 0;
+				if (err === 20) {
+					s.started = true;
+				} else if (err === 0) {
+					if (!s.started) return;
+					s.finished = true;
+				} else {
+					s.started = true;
 				}
+				s.progress = {eError: err, flProgress: p.flProgress || 0,
+					strBytesMoved: String(p.strBytesMoved || ""), strTotalBytesToMove: String(p.strTotalBytesToMove || "")};
 			});
 		}
 		Promise.resolve(IF.MoveInstallFolderForApp(s.appid, %d))
-			.then(() => { s.finished = true; })
+			.then(() => { s.started = true; })
 			.catch(e => { s.failed = String((e && e.message) || e); });
 		return "ok";
 	})()`, appID, idx)

@@ -130,7 +130,7 @@ func (c *Client) UploadTree(ctx context.Context, localPath, remoteDir string, on
 			continue // recien creado o ilegible: se subira todo, que es lo seguro
 		}
 		for _, e := range entries {
-			if e.Mode().IsRegular() {
+			if e.Mode().IsRegular() && !strings.HasSuffix(e.Name(), ".deckman.part") {
 				existentes[path.Join(d, e.Name())] = uint64(e.Size())
 			}
 		}
@@ -228,19 +228,30 @@ func (c *Client) uploadOne(ctx context.Context, f localFile, dst string) (bool, 
 	}
 	defer in.Close()
 
-	out, err := c.sftp.Create(dst)
+	tmp := dst + ".deckman.part"
+	out, err := c.sftp.Create(tmp)
 	if err != nil {
 		return false, err
 	}
 	// ReadFrom aprovecha la escritura concurrente de SFTP; va bastante mas
-	// rapido que un io.Copy normal en ficheros grandes.
+	// rapido que un io.Copy normal en ficheros grandes. Se escribe a .part y se
+	// renombra al final para que un corte nunca deje un fichero corrupto con el
+	// tamano definitivo que el siguiente intento se saltaria.
 	if _, err := out.ReadFrom(&ctxReader{ctx: ctx, f: in}); err != nil {
 		out.Close()
-		_ = c.sftp.Remove(dst) // limpia el fichero a medias; si no se puede, el error que importa es el de arriba
+		_ = c.sftp.Remove(tmp) // limpia el fichero a medias; si no se puede, el error que importa es el de arriba
 		return false, err
 	}
 	if err := out.Close(); err != nil {
+		_ = c.sftp.Remove(tmp)
 		return false, err
+	}
+	if err := c.sftp.PosixRename(tmp, dst); err != nil {
+		_ = c.sftp.Remove(dst)
+		if err := c.sftp.Rename(tmp, dst); err != nil {
+			_ = c.sftp.Remove(tmp)
+			return false, err
+		}
 	}
 	return true, nil
 }

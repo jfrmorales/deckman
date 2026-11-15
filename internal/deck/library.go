@@ -155,8 +155,11 @@ func (c *Client) UserID(ctx context.Context, steamRoot string) (string, error) {
 			return uid, nil
 		}
 	}
+	// Steam crea a veces userdata/0 (pseudo-cuenta anonima sin shortcuts.vdf):
+	// la ignoramos y preferimos la cuenta modificada mas recientemente que tenga
+	// subcarpeta config/.
 	out, err := c.Run(ctx, fmt.Sprintf(
-		`ls -1t %s 2>/dev/null | grep -E '^[0-9]+$' | head -1`,
+		`cd %s 2>/dev/null && ls -1dt [1-9]* 2>/dev/null | grep -E '^[1-9][0-9]*$' | { first=""; while read -r d; do [ -z "$first" ] && first="$d"; [ -d "$d/config" ] && { first="$d"; break; }; done; [ -n "$first" ] && echo "$first"; }`,
 		ShellQuote(path.Join(steamRoot, "userdata"))))
 	if err != nil || out == "" {
 		return "", i18n.Errorf("no se encontro ninguna cuenta de Steam en userdata")
@@ -347,11 +350,18 @@ func libraryForPath(libs []Library, p string) string {
 }
 
 // nonSteamDir devuelve la carpeta con la que hay que contar para un juego
-// no-Steam: la del juego si se ha podido averiguar, y si no la del ejecutable,
-// que es lo unico que hay.
-func nonSteamDir(g *Game) string {
+// no-Steam: la del juego si cuelga de un Games/Juegos conocido, o StartDir
+// solo cuando el ejecutable vive dentro y la carpeta no es del sistema. En caso
+// contrario devuelve vacio para no atribuirle ~/Applications o borrarla.
+func (c *Client) nonSteamDir(g *Game) string {
 	if g.GameRoot != "" {
 		return g.GameRoot
+	}
+	if g.StartDir == "" || !c.safeToDelete(g.StartDir) {
+		return ""
+	}
+	if g.Exe == "" || !withinDir(path.Clean(g.StartDir), path.Clean(g.Exe)) {
+		return ""
 	}
 	return g.StartDir
 }
@@ -363,21 +373,29 @@ func nonSteamDir(g *Game) string {
 // System/Win32_x86, 16 MB de un juego de 11 GB. Mover o borrar eso rompe el
 // juego y no libera nada.
 //
-// La unica frontera fiable es el Games de cada unidad: lo que cuelga de el, el
-// primer tramo ES el juego. Un acceso directo a un emulador o a un plugin no
-// esta ahi, y entonces se devuelve vacio: mejor no ofrecer moverlo que mover lo
-// que no es.
+// La unica frontera fiable es el Games (o Juegos) de cada unidad: lo que
+// cuelga de el, el primer tramo ES el juego. Un acceso directo a un emulador o
+// a un plugin no esta ahi, y entonces se devuelve vacio: mejor no ofrecer
+// moverlo que mover lo que no es.
 func gameRootFor(libs []Library, startDir string) string {
 	for _, l := range libs {
 		if l.GamesDir == "" {
 			continue
 		}
-		rest, ok := strings.CutPrefix(startDir, l.GamesDir+"/")
-		if !ok {
-			continue
+		roots := []string{l.GamesDir, path.Join(path.Dir(l.GamesDir), "Juegos")}
+		if l.Path != "" {
+			if j := path.Join(l.Path, "Juegos"); j != roots[1] {
+				roots = append(roots, j)
+			}
 		}
-		if first, _, _ := strings.Cut(rest, "/"); first != "" {
-			return path.Join(l.GamesDir, first)
+		for _, root := range roots {
+			rest, ok := strings.CutPrefix(startDir, root+"/")
+			if !ok {
+				continue
+			}
+			if first, _, _ := strings.Cut(rest, "/"); first != "" {
+				return path.Join(root, first)
+			}
 		}
 	}
 	return ""
@@ -680,7 +698,7 @@ func (c *Client) annotateExtraSizes(ctx context.Context, inv *Inventory) {
 	var dirs []string
 	vistos := map[string]bool{}
 	for _, g := range inv.Games {
-		d := nonSteamDir(&g)
+		d := c.nonSteamDir(&g)
 		if g.Kind == "nonsteam" && d != "" && !vistos[d] {
 			vistos[d] = true
 			dirs = append(dirs, ShellQuote(d))
@@ -714,7 +732,7 @@ func (c *Client) annotateExtraSizes(ctx context.Context, inv *Inventory) {
 			g.ShaderSize, g.HasShaders = v, true
 		}
 		if g.Kind == "nonsteam" {
-			if v, ok := sizes[nonSteamDir(g)]; ok {
+			if v, ok := sizes[c.nonSteamDir(g)]; ok {
 				g.Size = v
 			}
 		}

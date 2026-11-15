@@ -291,7 +291,9 @@ async function loadInventory() {
 function renderStorage() {
   const el = $('storage');
   el.innerHTML = '';
-  for (const lib of inventory.libraries || []) {
+  const allLibs = inventory.libraries || [];
+  const libs = allLibs.some((l) => l.total > 0) ? allLibs.filter((l) => l.total > 0) : allLibs;
+  for (const lib of libs) {
     const pct = lib.total ? (lib.used / lib.total) * 100 : 0;
     const div = document.createElement('div');
     div.className = 'disk';
@@ -679,6 +681,9 @@ async function browseTo(path) {
     $('brPathInput').value = r.path === '@roots' ? '' : r.path;
     renderEntries();
   } catch (e) {
+    br.entries = [];
+    br.selected = null;
+    updateFooter();
     $('brList').innerHTML = `<li class="empty">${escapeHtml(e.message)}</li>`;
   }
 }
@@ -1347,7 +1352,9 @@ function openDelete(appId) {
   $('delCompat').parentElement.classList.toggle('hidden', !g.hasCompat);
   $('delShader').parentElement.classList.toggle('hidden', !g.hasShaders);
   $('delShortcutRow').classList.toggle('hidden', g.kind !== 'nonsteam');
-  $('delGame').checked = true;
+  const sinCarpeta = g.kind === 'nonsteam' && !g.gameRoot && !g.size;
+  $('delGame').parentElement.classList.toggle('hidden', sinCarpeta);
+  $('delGame').checked = !sinCarpeta;
   $('delCompat').checked = false;
   $('delShader').checked = false;
   // También el acceso directo: si no se repone, queda como lo dejara el

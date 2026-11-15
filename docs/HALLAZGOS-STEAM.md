@@ -138,11 +138,19 @@ Confundirlas cuesta caro: mover solo `System/Win32_x86` rompe el juego y deja
 ocupando disco. El propio deckman guarda ahí la carpeta del `.exe` al enviar un
 juego, así que se lo hace a sí mismo.
 
-La única frontera fiable es el `Games` de cada unidad: si el juego cuelga de
-uno, el **primer tramo** es el juego. Lo que no está ahí (emuladores, plugins,
-lanzadores de Heroic) no se sabe dónde empieza, así que no se ofrece moverlo.
+La única frontera fiable es el `Games` (o `Juegos`) de cada unidad: si el juego
+cuelga de uno, el **primer tramo** es el juego. Lo que no está ahí —o cuyo
+ejecutable ni siquiera vive dentro de `StartDir`, como `EmulationStationDE`
+en una Deck real (`Exe = /run/media/deck/LX512/Emulation/tools/launchers/es-de/es-de.sh`,
+`StartDir = /home/deck/Applications/`)— no es la carpeta del juego: atribuirle
+`StartDir` lo mostraría con el tamaño de todos los AppImages juntos y borraría
+`~/Applications` al desinstalar el acceso directo.
 
-> Código: `deck.gameRootFor`, `deck.nonSteamDir`.
+En `userdata/` Steam crea a veces una carpeta `0` sin cuenta real junto a la del
+usuario: `UserID` la ignora (`[1-9][0-9]*`) y prefiere la carpeta más reciente
+que tenga `config/`.
+
+> Código: `deck.gameRootFor`, `Client.nonSteamDir`, `Client.UserID`.
 
 ---
 
@@ -224,12 +232,30 @@ SteamClient.InstallFolder.MoveInstallFolderForApp(appid, nFolderIndex);
 ```
 
 La orden va por **índice** de biblioteca, no por ruta: hay que buscarlo en
-`GetInstallFolders` comparando rutas. deckman no se fía de que la promesa
-espere al final ni de los campos del progreso: da el juego por movido cuando
-`appmanifest_<id>.acf` está en el destino y ya no en el origen. **Sin probar
-contra una Deck** (2026-10-18): las firmas salen de los tipos que publica la
-comunidad de Decky. Si en una versión de Steam no existe, deckman lo dice y
-pide cerrar Steam.
+`GetInstallFolders` comparando rutas (filtrando `bIsMounted !== false`, porque
+Steam devuelve también tarjetas antiguas desmontadas).
+
+Comprobado contra una Deck real en modo juego el 2026-11-15:
+
+- `MoveInstallFolderForApp(appid, nFolderIndex)` resuelve su promesa con `0` **al
+  empezar** el traslado, no al terminar.
+- `RegisterForMoveContentProgress(p => …)` dispara de inmediato un primer
+  evento residual (`appid: 0`, `eError: 0`) y, durante el movimiento real de
+  `appid`, va emitiendo **`eError: 20`** ("ocupado" en localización de Steam,
+  pero en `OnMoveContentProgress` de `steamui` significa **en curso**).
+- Al acabar con éxito emite **`eError: 0`**; cualquier código distinto de `0` y
+  `20` es un error real (por ejemplo `19` actualización necesaria, `22` no se
+  puede mover, `39` fichero bloqueado al sobrescribir). deckman sigue dando el
+  juego por movido cuando `appmanifest_<id>.acf` está en el destino y ya no en
+  el origen.
+- Nada más terminar el traslado, Steam deja el juego unos segundos en estado
+  `Update Required` / `Files Missing` para revalidarlo automáticamente; mientras
+  dura esa verificación rechaza un traslado inmediato de vuelta con `eError: 19`.
+- Trampa observada con `SteamWorld Dig` (`252410`): al moverlo de vuelta desde la
+  microSD al almacenamiento interno, su script de desinstalación con Proton
+  (`iscriptevaluator.exe`) creó `steamapps/compatdata/252410/config_info` en la
+  biblioteca principal antes de copiar el `compatdata` desde la tarjeta y Steam
+  abortó con `eError: 39` al no poder sobrescribir ese fichero.
 
 Es la única vía en **modo juego**: allí `steam-launcher.service` vuelve a
 levantar Steam en cuanto se cierra, así que exigir Steam cerrado dejaba la

@@ -179,7 +179,10 @@ func TestGameRootFor(t *testing.T) {
 		{"/home/deck/Games/Riddick/System/Win32_x86", "/home/deck/Games/Riddick"},
 		{"/home/deck/Games/Meltopia", "/home/deck/Games/Meltopia"},
 		{"/run/media/deck/USD00/Games/X/bin", "/run/media/deck/USD00/Games/X"},
-		// Fuera de un Games no se sabe donde empieza el juego: mejor no tocarlo.
+		{"/run/media/deck/USD00/Juegos/Spyro Reignited Trilogy/Falcon", "/run/media/deck/USD00/Juegos/Spyro Reignited Trilogy"},
+		{"/home/deck/Juegos/MiJuego/bin", "/home/deck/Juegos/MiJuego"},
+		// Fuera de un Games/Juegos no se sabe donde empieza el juego: mejor no tocarlo.
+		{"/home/deck/Applications/", ""},
 		{"/home/deck/homebrew/plugins/moondeck/python", ""},
 		{"/run/media/deck/USD00/Emulation/tools/launchers", ""},
 		{"/home/deck/Games", ""},
@@ -189,6 +192,56 @@ func TestGameRootFor(t *testing.T) {
 		if got := gameRootFor(libs, c.startDir); got != c.quiere {
 			t.Errorf("gameRootFor(%q) = %q, se esperaba %q", c.startDir, got, c.quiere)
 		}
+	}
+}
+
+func TestNonSteamDir(t *testing.T) {
+	c := &Client{Home: "/home/deck"}
+	casos := []struct {
+		nombre string
+		g      Game
+		quiere string
+	}{
+		{
+			nombre: "con GameRoot usa GameRoot",
+			g: Game{
+				Exe:      "/run/media/deck/LX512/Juegos/Spyro/Falcon.exe",
+				StartDir: "/run/media/deck/LX512/Juegos/Spyro/Falcon",
+				GameRoot: "/run/media/deck/LX512/Juegos/Spyro",
+			},
+			quiere: "/run/media/deck/LX512/Juegos/Spyro",
+		},
+		{
+			nombre: "EmulationStationDE con StartDir en ~/Applications",
+			g: Game{
+				Exe:      "/run/media/deck/LX512/Emulation/tools/launchers/es-de/es-de.sh",
+				StartDir: "/home/deck/Applications/",
+			},
+			quiere: "",
+		},
+		{
+			nombre: "lanzador flatpak fuera de StartDir",
+			g: Game{
+				Exe:      "flatpak",
+				StartDir: "/home/deck/OtroSitio/Juego",
+			},
+			quiere: "",
+		},
+		{
+			nombre: "juego suelto valido fuera de Games",
+			g: Game{
+				Exe:      "/home/deck/OtroSitio/Juego/juego.exe",
+				StartDir: "/home/deck/OtroSitio/Juego",
+			},
+			quiere: "/home/deck/OtroSitio/Juego",
+		},
+	}
+	for _, tc := range casos {
+		t.Run(tc.nombre, func(t *testing.T) {
+			if got := c.nonSteamDir(&tc.g); got != tc.quiere {
+				t.Errorf("nonSteamDir = %q, se esperaba %q", got, tc.quiere)
+			}
+		})
 	}
 }
 

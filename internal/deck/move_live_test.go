@@ -60,3 +60,24 @@ func TestMoveStateBytes(t *testing.T) {
 		}
 	}
 }
+
+// En el depurador de Steam, eError == 20 significa «moviendo» y 0 «terminado».
+// Cualquier otro codigo distinto de ambos si es un fallo del traslado.
+func TestIsMoveError(t *testing.T) {
+	casos := []struct {
+		code  int
+		error bool
+	}{
+		{0, false},  // terminado con exito
+		{20, false}, // traslado en curso
+		{7, true},   // contenido compartido / fallo real
+		{15, true},  // ruta invalida
+		{22, true},  // no se puede mover
+		{39, true},  // fichero bloqueado / destino existente
+	}
+	for _, tc := range casos {
+		if got := isMoveError(tc.code); got != tc.error {
+			t.Errorf("isMoveError(%d) = %v, quiero %v", tc.code, got, tc.error)
+		}
+	}
+}

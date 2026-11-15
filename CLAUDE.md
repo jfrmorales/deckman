@@ -86,17 +86,23 @@ El usuario espera comprobación real, no "debería funcionar":
   `~/repositories/webwright-workspace/.venv`. Comprobar que no hay errores de
   JavaScript y **mirar la captura**, no solo contar elementos.
 - Si algo queda sin probar, **decirlo explícitamente**. Sigue pendiente:
-  **mover un juego de Steam** entre interno y microSD, por las dos vías: con
-  Steam cerrado (copia propia) y con Steam abierto (`MoveAppLive`, por
-  `SteamClient.InstallFolder`, añadida el 2026-10-18 sin Deck a mano; cómo
-  retomarlo en `docs/PENDIENTE-MOVER-SD.md`),
+  **mover un juego de Steam con Steam cerrado** (copia propia en modo
+  escritorio) y **cancelar** a medias `MoveAppLive` (`CancelMoveLive`),
   **desinstalar**, la **ventana WebView2 en un Windows real** (compila, pero
   aquí no hay Windows donde abrirla), **macOS** (la ventana con el Chrome de
   `/Applications` y el apagado al cerrarla; compila y pasa `vet` con
   `GOOS=darwin`, nada más), **Windows ARM64** (WebView2 trae cargador para
   arm64, pero no se ha abierto), las vías en caliente de la revisión
-  2026-08-03 (`RemoveShortcutLive`, `SetCompatToolLive`) y `RelocateShortcut`
+  2026-08-03 (`RemoveShortcutLive`, `SetCompatToolLive`), aplicar carátulas en
+  caliente durante `installArtwork` (con clave SteamGridDB real) y `RelocateShortcut`
   (mover un no-Steam con Steam **cerrado**: solo cubierto por pruebas unitarias).
+
+  Sí probado contra la Deck en modo juego el **2026-11-15**: **mover un juego
+  de Steam con Steam abierto** (`MoveAppLive` / `SteamClient.InstallFolder`) en
+  `TestIntegrationMoveAppLiveRoundTrip` (ida del SSD interno a la microSD y
+  vuelta a interno), y **rechazo al intentar mover a una biblioteca desmontada
+  o inexistente** (`TestIntegrationMoveRefusesUnmountedOrMissing`). Detalles en
+  `docs/HALLAZGOS-STEAM.md` §4 y `docs/PENDIENTE-MOVER-SD.md`.
 
   **Linux ARM64** solo se ha arrancado bajo qemu (`podman run --platform
   linux/arm64 ... -version`). El **apagado al cerrar la pestaña** (2026-10-19)

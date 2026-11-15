@@ -55,9 +55,36 @@ bloque `<releases>` del metainfo. Los tres los sincroniza `scripts/release.sh`.
   lo vuelve a levantar sola. En la práctica no había forma de pasar un juego a
   la tarjeta. Ahora, si Steam está abierto, se le pide a él que lo mueva (lo
   mismo que Ajustes > Almacenamiento > Mover) y deckman sigue el avance. Con
-  Steam cerrado se copia como antes.
+  Steam cerrado se copia como antes. Probado contra una Steam Deck real en modo
+  juego (ida a microSD y vuelta a interno), corrigiendo además lo descubierto al
+  probarlo en hardware real:
+  - En `RegisterForMoveContentProgress`, `eError == 20` indica traslado en curso
+    (no error) y `eError == 0` indica fin sin error; `MoveInstallFolderForApp`
+    resuelve su promesa al empezar y no al terminar.
+  - Descarta bibliotecas desmontadas (`bIsMounted: false` / `total == 0`) tanto
+    al mover (`MoveGame` / `MoveAppLive`) como en las tarjetas de almacenamiento
+    de la interfaz (`renderStorage`).
 - El botón de mover ya no ofrece como destino una unidad que no está montada
   (la microSD sacada), y con ella delante tampoco tapa a la que sí lo está.
+- **Juegos no-Steam fuera de `Games` y protección al borrar/medir:**
+  - Reconoce carpetas `Juegos` además de `Games` en cualquier unidad
+    (`gameRootFor`).
+  - No atribuye ni permite borrar `~/Applications`, `~/Juegos`, `~/Desktop`,
+    `~/Downloads`, `~/Documents`, `~/.config`, puntos de montaje bajo
+    `/run/media/` ni sus carpetas contenedoras cuando un acceso directo apunta
+    fuera de su `StartDir` (como `EmulationStationDE`); el diálogo de borrado
+    oculta y desmarca «Ficheros del juego» en esos casos.
+- **Detección de cuenta en `userdata`:** ignora la pseudo-cuenta `userdata/0`
+  y prefiere carpetas numéricas que contengan `config/`.
+- **Subida reanudable más segura:** `UploadTree` sube a `.deckman.part` y
+  renombra al terminar para que un corte en escrituras concurrentes de SFTP no
+  deje un fichero corrupto con el tamaño final que el reintento se saltaría.
+- **Carátulas al enviar juego con Steam abierto:** `installArtwork` intenta
+  aplicarlas primero en caliente con `ApplyArtworkLive` cuando el tipo lo
+  admite.
+- **Migración a Flatpak y explorador:** `migrateFromLegacy` migra también
+  `known_hosts` al sandbox, y `browseTo` limpia la lista y el pie del
+  explorador si falla al abrir una ruta.
 
 ## [0.6.3] — 2026-08-05
 

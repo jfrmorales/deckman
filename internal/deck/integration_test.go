@@ -67,7 +67,7 @@ func setupSandbox(t *testing.T, c *Client, ctx context.Context) (*Client, string
 set -e
 rm -rf %[1]s
 mkdir -p %[3]s/steamapps/common %[3]s/config %[3]s/userdata/33150357/config %[1]s/Games
-cp %[2]s/userdata/*/config/shortcuts.vdf %[3]s/userdata/33150357/config/shortcuts.vdf 2>/dev/null || true
+for f in %[2]s/userdata/[1-9]*/config/shortcuts.vdf; do if [ -f "$f" ]; then cp "$f" %[3]s/userdata/33150357/config/shortcuts.vdf; break; fi; done
 cp %[2]s/config/config.vdf %[3]s/config/config.vdf
 cp %[2]s/steamapps/libraryfolders.vdf %[3]s/steamapps/libraryfolders.vdf
 `, ShellQuote(sandbox), ShellQuote(path.Join(realHome, ".local/share/Steam")), ShellQuote(fake))
@@ -295,20 +295,189 @@ func TestIntegrationUploadTree(t *testing.T) {
 	t.Logf("reanudacion: %s", second.Message)
 }
 
-// Mover un juego con Steam abierto tiene que negarse, no romper nada.
-func TestIntegrationMoveRefusesWithSteamRunning(t *testing.T) {
+// Mover un juego a una biblioteca inexistente o desmontada tiene que negarse, no tocar nada.
+func TestIntegrationMoveRefusesUnmountedOrMissing(t *testing.T) {
 	c, ctx := integrationClient(t)
-	if !c.SteamRunning(ctx) {
-		t.Skip("Steam no esta arrancado en la Deck; no se puede comprobar la negativa")
+	inv, err := c.Scan(ctx)
+	if err != nil {
+		t.Fatal(err)
 	}
-	err := c.MoveGame(ctx, nil, "252950", "/run/media/deck/USD00", nil)
+	var game *Game
+	for i := range inv.Games {
+		if inv.Games[i].Kind == "steam" {
+			game = &inv.Games[i]
+			break
+		}
+	}
+	if game == nil {
+		t.Skip("no hay juegos de Steam instalados en la Deck")
+	}
+
+	err = c.MoveGame(ctx, inv, game.AppID, "/run/media/deck/NOEXISTE_DECKMAN", nil)
 	if err == nil {
-		t.Fatal("MoveGame deberia haberse negado con Steam abierto")
+		t.Fatal("MoveGame deberia haberse negado con una biblioteca inexistente")
 	}
-	if !strings.Contains(err.Error(), "Steam esta abierto") {
+	if !strings.Contains(err.Error(), "no esta registrada") {
 		t.Errorf("el error no explica el motivo real: %v", err)
 	}
-	t.Logf("se nego correctamente: %v", err)
+
+	for _, l := range inv.Libraries {
+		if l.Total == 0 && l.Path != game.LibraryPath {
+			err := c.MoveGame(ctx, inv, game.AppID, l.Path, nil)
+			if err == nil {
+				t.Fatalf("MoveGame deberia haberse negado con la biblioteca desmontada %s", l.Path)
+			}
+			if !strings.Contains(err.Error(), "montada") {
+				t.Errorf("el error no explica que falta montar la tarjeta: %v", err)
+			}
+			t.Logf("se nego correctamente en desmontada (%s): %v", l.Path, err)
+			break
+		}
+	}
+}
+
+// Prueba real de ida y vuelta de MoveGame en caliente (Steam abierto) con un juego pequeno.
+func TestIntegrationMoveAppLiveRoundTrip(t *testing.T) {
+	c, ctx := integrationClient(t)
+	if !c.SteamRunning(ctx) {
+		t.Skip("Steam no esta arrancado; se omite el movimiento en caliente")
+	}
+	if !c.CEFAvailable(ctx) {
+		t.Skip("CEF no esta disponible; se omite el movimiento en caliente")
+	}
+
+	inv, err := c.Scan(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var origLib, dstLib *Library
+	for i := range inv.Libraries {
+		l := &inv.Libraries[i]
+		if l.Total == 0 {
+			continue
+		}
+		if l.IsDefault && origLib == nil {
+			origLib = l
+		} else if l.Removable && l.Free > 2<<30 && dstLib == nil {
+			dstLib = l
+		}
+	}
+	if origLib == nil || dstLib == nil {
+		t.Skip("hacen falta la biblioteca interna y una microSD montada con >2 GB libres")
+	}
+
+	// Si SteamWorld Dig (252410) quedo en la tarjeta tras un intento previo
+	// interrumpido, lo devolvemos primero a Interno (incluyendo su compatdata).
+	if dstLib.Path == "/run/media/deck/LX512" && c.Exists(path.Join(dstLib.Path, "steamapps", "appmanifest_252410.acf")) {
+		t.Logf("restaurando SteamWorld Dig (252410) a %s", origLib.Label)
+		if err := c.MoveGame(ctx, inv, "252410", origLib.Path, nil); err != nil {
+			if strings.Contains(err.Error(), "codigo 39") {
+				compatSD := path.Join(dstLib.Path, "steamapps", "compatdata", "252410")
+				compatBak := compatSD + ".deckman-bak"
+				compatInt := path.Join(origLib.Path, "steamapps", "compatdata", "252410")
+				if c.Exists(compatSD) {
+					if _, rerr := c.Run(ctx, fmt.Sprintf("rm -rf %s && mv %s %s",
+						ShellQuote(compatBak), ShellQuote(compatSD), ShellQuote(compatBak))); rerr != nil {
+						t.Fatalf("no se pudo apartar compatdata/252410: %v", rerr)
+					}
+					if merr := c.MoveGame(ctx, nil, "252410", origLib.Path, nil); merr != nil {
+						_, _ = c.Run(ctx, fmt.Sprintf("mv %s %s", ShellQuote(compatBak), ShellQuote(compatSD)))
+						t.Fatalf("no se pudo devolver 252410 tras apartar compatdata: %v", merr)
+					}
+					if _, rerr := c.Run(ctx, fmt.Sprintf("mkdir -p %s && cp -a %s/. %s/ && rm -rf %s",
+						ShellQuote(compatInt), ShellQuote(compatBak), ShellQuote(compatInt), ShellQuote(compatBak))); rerr != nil {
+						t.Fatalf("no se pudo restaurar compatdata/252410 en Interno: %v", rerr)
+					}
+				} else {
+					t.Fatalf("no se pudo restaurar 252410: %v", err)
+				}
+			} else {
+				t.Fatalf("no se pudo restaurar 252410: %v", err)
+			}
+		}
+		if inv, err = c.Scan(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	var game *Game
+	for i := range inv.Games {
+		g := &inv.Games[i]
+		if g.Kind == "steam" && g.LibraryPath == origLib.Path && g.StateFlags == 4 && g.Size > 0 && g.Size < 500<<20 {
+			// Preferimos juegos sin compatdata para no disparar scripts de
+			// desinstalacion de Proton que chocan consigo mismos al volver.
+			if game == nil || (game.HasCompat && !g.HasCompat) || (game.HasCompat == g.HasCompat && g.Size < game.Size) {
+				game = g
+			}
+		}
+	}
+	if game == nil {
+		t.Skip("no hay ningun juego de Steam <500 MB en el interno para probar")
+	}
+
+	acf := "appmanifest_" + game.AppID + ".acf"
+	srcACF := path.Join(origLib.Path, "steamapps", acf)
+	dstACF := path.Join(dstLib.Path, "steamapps", acf)
+
+	t.Cleanup(func() {
+		cleanCtx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		defer cancel()
+		if !c.Exists(srcACF) && c.Exists(dstACF) {
+			if err := c.MoveGame(cleanCtx, nil, game.AppID, origLib.Path, nil); err != nil {
+				t.Errorf("cleanup: no se pudo devolver %s a %s: %v", game.Name, origLib.Label, err)
+			}
+		}
+	})
+
+	t.Logf("moviendo %s (%s, %d MB) de %s a %s", game.Name, game.AppID, game.Size>>20, origLib.Label, dstLib.Label)
+	var updates int
+	var last Progress
+	if err := c.MoveGame(ctx, inv, game.AppID, dstLib.Path, func(p Progress) {
+		updates++
+		last = p
+		t.Logf("ida: phase=%q done=%v bytes=%d/%d msg=%q", p.Phase, p.Done, p.BytesDone, p.BytesTotal, p.Message)
+	}); err != nil {
+		t.Fatalf("MoveGame ida fallo: %v", err)
+	}
+	if !last.Done || updates == 0 {
+		t.Errorf("progreso incompleto en ida: updates=%d last=%+v", updates, last)
+	}
+	if !c.Exists(dstACF) || c.Exists(srcACF) {
+		t.Fatalf("estado incoherente tras ida: srcACF=%v dstACF=%v", c.Exists(srcACF), c.Exists(dstACF))
+	}
+
+	// Steam lanza una verificacion automatica unos segundos despues de terminar
+	// un traslado (durante la cual rechaza otro traslado inmediato con error 19).
+	// Esperamos a que el juego vuelva a StateFlags == 4 antes de traerlo de vuelta.
+	time.Sleep(5 * time.Second)
+	readyDeadline := time.Now().Add(90 * time.Second)
+	for time.Now().Before(readyDeadline) {
+		if raw, rerr := c.ReadFile(dstACF); rerr == nil {
+			if root, perr := ParseVDF(raw); perr == nil {
+				if st := root.Get("AppState"); st != nil && st.GetString("StateFlags") == "4" {
+					break
+				}
+			}
+		}
+		time.Sleep(1 * time.Second)
+	}
+
+	// De vuelta a la biblioteca original.
+	updates = 0
+	last = Progress{}
+	if err := c.MoveGame(ctx, nil, game.AppID, origLib.Path, func(p Progress) {
+		updates++
+		last = p
+		t.Logf("vuelta: phase=%q done=%v bytes=%d/%d msg=%q", p.Phase, p.Done, p.BytesDone, p.BytesTotal, p.Message)
+	}); err != nil {
+		t.Fatalf("MoveGame vuelta fallo: %v", err)
+	}
+	if !last.Done || updates == 0 {
+		t.Errorf("progreso incompleto en vuelta: updates=%d last=%+v", updates, last)
+	}
+	if !c.Exists(srcACF) || c.Exists(dstACF) {
+		t.Fatalf("estado incoherente tras vuelta: srcACF=%v dstACF=%v", c.Exists(srcACF), c.Exists(dstACF))
+	}
 }
 
 // La red de seguridad contra borrados catastroficos.
@@ -316,7 +485,13 @@ func TestSafeToDelete(t *testing.T) {
 	c := &Client{Home: "/home/deck"}
 	nope := []string{
 		"/", "/home", "/home/deck", "/usr", "/etc",
-		"/home/deck/Games", "/home/deck/.local/share/Steam", "/home/deck/Emulation",
+		"/home/deck/Games", "/home/deck/Juegos",
+		"/home/deck/.local/share/Steam", "/home/deck/Emulation",
+		"/home/deck/Applications",
+		"/run/media/deck/LX512",
+		"/run/media/deck/LX512/Games",
+		"/run/media/deck/LX512/Juegos",
+		"/run/media/deck/LX512/Emulation",
 	}
 	for _, p := range nope {
 		if c.safeToDelete(p) {
@@ -326,6 +501,8 @@ func TestSafeToDelete(t *testing.T) {
 	ok := []string{
 		"/home/deck/Games/Mi Juego",
 		"/run/media/deck/USD00/Emulation/roms/nes",
+		"/run/media/deck/LX512/Games/Mi Juego",
+		"/run/media/deck/LX512/Juegos/Mi Juego",
 	}
 	for _, p := range ok {
 		if !c.safeToDelete(p) {

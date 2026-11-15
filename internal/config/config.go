@@ -219,7 +219,7 @@ func migrateFromLegacy(dir string) {
 		return
 	}
 	migrated := false
-	for _, name := range []string{"config.json", "id_ed25519", "id_ed25519.pub"} {
+	for _, name := range []string{"config.json", "id_ed25519", "id_ed25519.pub", "known_hosts"} {
 		data, err := os.ReadFile(filepath.Join(legacy, name))
 		if err != nil {
 			continue

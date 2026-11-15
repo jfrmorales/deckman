@@ -186,6 +186,11 @@ DOM no lo alcanza el traductor y se queda en el idioma anterior.
 Cada cambio se anota en **`CHANGELOG.md`**, bajo `## [No publicado]`. No es
 opcional: `scripts/release.sh` se niega a publicar si esa sección está vacía.
 
+Además, **`NOVEDADES.md`** recoge las novedades escritas para usuarios (formato
+`## dd/mm/aaaa · Título`): `forocoches-bumper` lo lee desde Forgejo
+(`changelog_repo: utils/deckman/NOVEDADES.md`, `mode: news`) y anuncia cada
+entrada nueva en el hilo de Forocoches (`t=10767169`, Videojuegos).
+
 Publicar es `make release V=X.Y.Z`. Es el único sitio donde se toca la
 versión: sincroniza el changelog, el `<releases>` del metainfo del Flatpak (de
 ahí sale lo que muestra `flatpak list`) y el tag de git (de ahí sale lo que

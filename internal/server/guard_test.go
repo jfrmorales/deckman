@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jfrmorales/deckman/internal/config"
+	"github.com/jfrmorales/deckman/internal/deck"
 	"github.com/jfrmorales/deckman/internal/i18n"
 )
 
@@ -311,5 +313,96 @@ func TestConectarSinHostEs400(t *testing.T) {
 	h.ServeHTTP(w, req)
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("connect sin host = %d, se esperaba 400", w.Code)
+	}
+}
+
+func TestLimpiarOperacionesYRecuperarInterrumpidas(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+
+	// Guardamos un historial con una operacion en curso y otra en cola de la
+	// sesion anterior: al arrancar New(), deben quedar como "interrumpido".
+	prev := &config.Config{Active: -1}
+	prev.UpsertOperation(config.Operation{
+		ID: "op-1", Kind: "move", Title: "Moviendo Portal", Status: "completado",
+		AppID: "400", GameName: "Portal", TargetPath: "/run/media/deck/SD", TargetLabel: "SD", CurrentLocation: "SD",
+	})
+	prev.UpsertOperation(config.Operation{
+		ID: "op-2", Kind: "move", Title: "Moviendo Hades", Status: "en_curso",
+		AppID: "1145360", GameName: "Hades", TargetPath: "/run/media/deck/SD", TargetLabel: "SD", CurrentLocation: "Interno",
+	})
+	prev.UpsertOperation(config.Operation{
+		ID: "op-3", Kind: "move", Title: "Moviendo Celeste", Status: "en_cola",
+		AppID: "504230", GameName: "Celeste", TargetPath: "/run/media/deck/SD", TargetLabel: "SD", CurrentLocation: "Interno",
+	})
+	if err := prev.Save(); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	s := New()
+	h := s.Handler()
+
+	// Simular una foto real de la Deck en la que op-2 termino por su cuenta y
+	// op-3 sigue en el SSD interno.
+	inv := &deck.Inventory{
+		Libraries: []deck.Library{
+			{Path: "/home/deck/.local/share/Steam", Label: "Interno", IsDefault: true},
+			{Path: "/run/media/deck/SD", Label: "SD", Removable: true},
+		},
+		Games: []deck.Game{
+			{AppID: "1145360", Name: "Hades", LibraryPath: "/run/media/deck/SD"},
+			{AppID: "504230", Name: "Celeste", LibraryPath: "/home/deck/.local/share/Steam"},
+		},
+	}
+	s.reconcileOperations(inv, "")
+
+	req := httptest.NewRequest(http.MethodGet, "/api/state", nil)
+	req.Host = "127.0.0.1:8777"
+	req.Header.Set("X-Deckman", "1")
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("/api/state = %d", w.Code)
+	}
+	var st struct {
+		Operations []config.Operation `json:"operations"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &st); err != nil {
+		t.Fatal(err)
+	}
+	porID := map[string]config.Operation{}
+	for _, op := range st.Operations {
+		porID[op.ID] = op
+	}
+	if porID["op-2"].Status != "completado" || porID["op-2"].CurrentLocation != "SD" {
+		t.Errorf("op-2 deberia haberse reconciliado como completado en SD: %+v", porID["op-2"])
+	}
+	if porID["op-3"].Status != "interrumpido" || porID["op-3"].CurrentLocation != "Interno" {
+		t.Errorf("op-3 deberia seguir interrumpido en Interno: %+v", porID["op-3"])
+	}
+
+	// Borrar una sola entrada y luego limpiar el resto.
+	reqDel := httptest.NewRequest(http.MethodPost, "/api/operations/clear", strings.NewReader(`{"id":"op-1"}`))
+	reqDel.Host = "127.0.0.1:8777"
+	reqDel.Header.Set("X-Deckman", "1")
+	wDel := httptest.NewRecorder()
+	h.ServeHTTP(wDel, reqDel)
+	if wDel.Code != http.StatusOK {
+		t.Fatalf("clear id = %d (%s)", wDel.Code, wDel.Body.String())
+	}
+	if len(s.cfg.Snapshot().Operations) != 2 {
+		t.Fatalf("esperaba 2 operaciones tras borrar op-1, hay %d", len(s.cfg.Snapshot().Operations))
+	}
+
+	reqAll := httptest.NewRequest(http.MethodPost, "/api/operations/clear", strings.NewReader(`{}`))
+	reqAll.Host = "127.0.0.1:8777"
+	reqAll.Header.Set("X-Deckman", "1")
+	wAll := httptest.NewRecorder()
+	h.ServeHTTP(wAll, reqAll)
+	if wAll.Code != http.StatusOK {
+		t.Fatalf("clear all = %d (%s)", wAll.Code, wAll.Body.String())
+	}
+	if len(s.cfg.Snapshot().Operations) != 0 {
+		t.Fatalf("esperaba 0 operaciones tras limpiar terminadas, hay %+v", s.cfg.Snapshot().Operations)
 	}
 }

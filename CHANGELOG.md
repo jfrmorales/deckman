@@ -13,6 +13,17 @@ bloque `<releases>` del metainfo. Los tres los sincroniza `scripts/release.sh`.
      versión nueva al publicar. Secciones: Añadido, Cambiado, Corregido,
      Eliminado. -->
 
+### Añadido
+
+- **Historial permanente de operaciones** guardado en disco (`operations` en `config.json`), visible en la propia biblioteca con resumen de estados (`en curso`, `en cola`, `completado`, `interrumpido`, `error`), progreso, marcas temporales y botón `Limpiar historial`.
+- **Cola automática de movimientos (`En cola`)** en orden de llegada (FIFO) para encadenar varios traslados seguidos, con botón `Quitar` en cada pendiente y comprobación de espacio previo en el destino.
+- **Recuperación tras cortes y reconciliación con la Deck**: al arrancar de nuevo, los trabajos previos activos o en cola se marcan como `interrumpido`; al cargar la biblioteca, se comprueba dónde está cada juego (`Está en: Interno` / `microSD`), se marcan como `completado` los movimientos ya terminados en la Deck y se ofrecen los botones `Reanudar pendientes` y `Reintentar`.
+
+### Cambiado
+
+- Seguimiento persistente para movimientos entre almacenamiento interno y microSD, envío de juegos, envío y descarga de ROMs, y búsqueda de carátulas, reflejando también la cola de movimientos en el modal de progreso y las filas de la biblioteca.
+- Traducciones al español, inglés y francés para el historial de operaciones, la cola y la recuperación.
+
 ## [0.6.4] — 2026-11-15
 
 ### Añadido

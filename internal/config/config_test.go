@@ -203,3 +203,89 @@ func TestKnownHostsPathEstaEnLaCarpetaDeConfiguracion(t *testing.T) {
 		t.Errorf("KnownHostsPath = %q", got)
 	}
 }
+
+func TestOperacionesPersistenYRecuperanInterrumpidas(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+
+	c := &Config{Active: -1}
+	c.UpsertOperation(Operation{
+		ID:          "op-ok",
+		Kind:        "move",
+		Title:       "Moviendo Portal",
+		Status:      "completado",
+		AppID:       "400",
+		GameName:    "Portal",
+		TargetLabel: "microSD",
+	})
+	c.UpsertOperation(Operation{
+		ID:       "op-run",
+		Kind:     "move",
+		Title:    "Moviendo Hades",
+		Status:   "en_curso",
+		AppID:    "1145360",
+		GameName: "Hades",
+	})
+	c.UpsertOperation(Operation{
+		ID:       "op-queue",
+		Kind:     "move",
+		Title:    "Moviendo Celeste",
+		Status:   "en_cola",
+		AppID:    "504230",
+		GameName: "Celeste",
+	})
+
+	// Actualizar por ID no duplica entradas.
+	c.UpsertOperation(Operation{
+		ID:          "op-ok",
+		Kind:        "move",
+		Title:       "Moviendo Portal",
+		Status:      "completado",
+		AppID:       "400",
+		GameName:    "Portal",
+		TargetLabel: "LX512",
+	})
+	if len(c.Operations) != 3 {
+		t.Fatalf("esperaba 3 operaciones tras upsert, hay %d", len(c.Operations))
+	}
+
+	if err := c.Save(); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	cargada := Load()
+	if len(cargada.Operations) != 3 {
+		t.Fatalf("esperaba 3 operaciones cargadas, hay %d", len(cargada.Operations))
+	}
+	if !cargada.RecoverInterrupted(1700000000) {
+		t.Fatal("RecoverInterrupted deberia haber marcado operaciones pendientes")
+	}
+	if cargada.RecoverInterrupted(1700000001) {
+		t.Fatal("una segunda llamada sin en_curso/en_cola deberia devolver false")
+	}
+
+	estados := map[string]string{}
+	for _, op := range cargada.Operations {
+		estados[op.ID] = op.Status
+	}
+	if estados["op-ok"] != "completado" {
+		t.Errorf("op-ok = %q, esperaba completado", estados["op-ok"])
+	}
+	if estados["op-run"] != "interrumpido" || estados["op-queue"] != "interrumpido" {
+		t.Errorf("estados tras recuperar = %+v, esperaba op-run y op-queue interrumpidos", estados)
+	}
+
+	// Si hay una nueva operacion en curso, ClearFinishedOperations la conserva.
+	cargada.UpsertOperation(Operation{ID: "op-nueva", Kind: "move", Status: "en_curso"})
+	cargada.ClearFinishedOperations()
+	if len(cargada.Operations) != 1 || cargada.Operations[0].ID != "op-nueva" {
+		t.Fatalf("ClearFinishedOperations dejo %+v, esperaba solo op-nueva", cargada.Operations)
+	}
+
+	if !cargada.RemoveOperation("op-nueva") || len(cargada.Operations) != 0 {
+		t.Fatalf("RemoveOperation no vacio las operaciones: %+v", cargada.Operations)
+	}
+	if cargada.RemoveOperation("inexistente") {
+		t.Error("RemoveOperation deberia devolver false para ID inexistente")
+	}
+}

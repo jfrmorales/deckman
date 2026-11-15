@@ -97,6 +97,10 @@ Steam o solo con los no-Steam:
 
 ![Filtrando la biblioteca](docs/capturas/anim-biblioteca.webp)
 
+Cada envío o movimiento queda registrado en el historial permanente de operaciones, con cola automática para encadenar varios seguidos, recuperación tras cortes y la ubicación actual de cada juego:
+
+![Cola de movimientos e historial de operaciones](docs/capturas/historial-operaciones.webp)
+
 ---
 
 ## Antes de empezar

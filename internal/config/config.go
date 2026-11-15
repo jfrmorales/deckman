@@ -40,6 +40,35 @@ func (d Deck) Same(o Deck) bool {
 	return d.Host == o.Host && d.Port == o.Port
 }
 
+// MaxOperations limita cuantas entradas se guardan en el historial para que
+// config.json no crezca sin fin. Las operaciones activas o en cola nunca se
+// descartan al podar.
+const MaxOperations = 40
+
+// Operation guarda en disco el estado de una operacion larga (mover juego,
+// enviar carpeta, subir ROM, descargar o scrapear ROMs) para que el usuario
+// pueda consultar que se ha completado, que sigue en cola y que quedo
+// interrumpido aunque cierre deckman o se corte la conexion.
+type Operation struct {
+	ID              string `json:"id"`
+	DeckHost        string `json:"deckHost,omitempty"`
+	Kind            string `json:"kind"`   // "move", "send-game", "send-rom", "download-rom", "scrape"
+	Title           string `json:"title"`  // titulo legible de la operacion
+	Status          string `json:"status"` // "en_cola", "en_curso", "completado", "interrumpido", "error"
+	StartedAt       int64  `json:"startedAt,omitempty"`
+	FinishedAt      int64  `json:"finishedAt,omitempty"`
+	Message         string `json:"message,omitempty"`
+	BytesDone       uint64 `json:"bytesDone,omitempty"`
+	BytesTotal      uint64 `json:"bytesTotal,omitempty"`
+	AppID           string `json:"appId,omitempty"`
+	GameName        string `json:"gameName,omitempty"`
+	FromLabel       string `json:"fromLabel,omitempty"`
+	TargetPath      string `json:"targetPath,omitempty"`
+	TargetLabel     string `json:"targetLabel,omitempty"`
+	CurrentLocation string `json:"currentLocation,omitempty"`
+	LocalPath       string `json:"localPath,omitempty"`
+}
+
 // Config es lo que deckman recuerda entre ejecuciones.
 //
 // A proposito no guardamos la contrasena: en cuanto la conexion funciona
@@ -53,6 +82,9 @@ type Config struct {
 	KeyPath   string `json:"keyPath,omitempty"`
 	LastLocal string `json:"lastLocal,omitempty"` // ultima carpeta usada al enviar
 	GridKey   string `json:"gridKey,omitempty"`   // clave de SteamGridDB (caratulas)
+
+	// Historial persistente de operaciones (movimientos, envios, descargas).
+	Operations []Operation `json:"operations,omitempty"`
 
 	// Idioma de la interfaz: "es", "en", "fr" o "" para seguir al navegador.
 	// Vive aqui y no en el navegador porque tambien decide en que idioma
@@ -76,7 +108,81 @@ type Config struct {
 func (c *Config) Snapshot() Config {
 	cp := *c
 	cp.Decks = append([]Deck(nil), c.Decks...)
+	cp.Operations = append([]Operation(nil), c.Operations...)
 	return cp
+}
+
+// RecoverInterrupted marca como "interrumpido" cualquier trabajo que quedase en
+// curso o en cola en la sesion anterior tras un cierre o corte de red.
+func (c *Config) RecoverInterrupted(nowUnix int64) bool {
+	changed := false
+	for i := range c.Operations {
+		op := &c.Operations[i]
+		switch op.Status {
+		case "en_curso":
+			op.Status = "interrumpido"
+			if op.FinishedAt == 0 {
+				op.FinishedAt = nowUnix
+			}
+			if op.Message == "" || strings.HasPrefix(op.Message, "En cola") {
+				op.Message = "Se interrumpio al cerrarse deckman o cortarse la conexion."
+			}
+			changed = true
+		case "en_cola":
+			op.Status = "interrumpido"
+			if op.FinishedAt == 0 {
+				op.FinishedAt = nowUnix
+			}
+			op.Message = "Quedo pendiente en la cola de la sesion anterior."
+			changed = true
+		}
+	}
+	return changed
+}
+
+// UpsertOperation actualiza una operacion existente por ID o la inserta al
+// principio del historial, podando entradas terminadas si se supera MaxOperations.
+func (c *Config) UpsertOperation(op Operation) {
+	for i := range c.Operations {
+		if c.Operations[i].ID == op.ID {
+			c.Operations[i] = op
+			return
+		}
+	}
+	c.Operations = append([]Operation{op}, c.Operations...)
+	for i := len(c.Operations) - 1; len(c.Operations) > MaxOperations && i >= 0; i-- {
+		st := c.Operations[i].Status
+		if st != "en_cola" && st != "en_curso" {
+			c.Operations = append(c.Operations[:i], c.Operations[i+1:]...)
+		}
+	}
+}
+
+// RemoveOperation elimina una operacion del historial por su ID.
+func (c *Config) RemoveOperation(id string) bool {
+	for i := range c.Operations {
+		if c.Operations[i].ID == id {
+			c.Operations = append(c.Operations[:i], c.Operations[i+1:]...)
+			return true
+		}
+	}
+	return false
+}
+
+// ClearFinishedOperations borra del historial las operaciones ya terminadas o
+// interrumpidas, dejando intactas las que estan en curso o en cola.
+func (c *Config) ClearFinishedOperations() {
+	kept := c.Operations[:0]
+	for _, op := range c.Operations {
+		if op.Status == "en_cola" || op.Status == "en_curso" {
+			kept = append(kept, op)
+		}
+	}
+	if len(kept) == 0 {
+		c.Operations = nil
+		return
+	}
+	c.Operations = append([]Operation(nil), kept...)
 }
 
 // ActiveDeck devuelve la Deck en uso. Si no hay ninguna guardada devuelve una

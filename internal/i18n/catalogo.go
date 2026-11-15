@@ -19,7 +19,8 @@ package i18n
 // a buscar tal cual.
 var catalogo = map[string]map[string]string{
 	EN: {
-		"%s devolvio HTTP %d: %s": "%s returned HTTP %d: %s",
+		"'%s' ya esta en curso o en la cola de movimientos":                               "'%s' is already running or queued to move",
+		"%s devolvio HTTP %d: %s":                                                         "%s returned HTTP %d: %s",
 		"%s se lanza desde fuera de su carpeta (%s), asi que moverlo no serviria de nada": "%s launches from outside its own folder (%s), so moving it would achieve nothing",
 		"%s ya esta en %s": "%s is already on %s",
 		"%s ya esta en %s y el acceso directo apunta alli, pero no se pudo borrar la copia vieja de %s: %w": "%s is already on %s and the shortcut points there, but the old copy in %s could not be deleted: %w",
@@ -192,7 +193,8 @@ var catalogo = map[string]map[string]string{
 	},
 
 	FR: {
-		"%s devolvio HTTP %d: %s": "%s a repondu HTTP %d : %s",
+		"'%s' ya esta en curso o en la cola de movimientos":                               "« %s » est deja en cours ou dans la file de deplacement",
+		"%s devolvio HTTP %d: %s":                                                         "%s a repondu HTTP %d : %s",
 		"%s se lanza desde fuera de su carpeta (%s), asi que moverlo no serviria de nada": "%s se lance depuis l'exterieur de son dossier (%s), le deplacer ne servirait donc a rien",
 		"%s ya esta en %s": "%s est deja sur %s",
 		"%s ya esta en %s y el acceso directo apunta alli, pero no se pudo borrar la copia vieja de %s: %w": "%s est deja sur %s et le raccourci y pointe, mais l'ancienne copie dans %s n'a pas pu etre supprimee : %w",

@@ -20,6 +20,21 @@ Cómo se mantiene este fichero:
   «Arreglos». Sin emoji: el foro no los aguanta.
 -->
 
+## 15/11/2026 · Cola de movimientos e historial permanente de operaciones
+
+### Novedades
+
+- **Historial permanente de operaciones**: cada movimiento entre el almacenamiento interno y la microSD, envío de juego, envío/descarga de ROM o descarga de carátulas queda guardado en disco. Aunque cierres deckman o se corte la conexión y vuelvas otro día, el panel sigue ahí con un resumen claro de qué terminó, qué falló, qué quedó pendiente y en qué unidad está ahora cada juego.
+- **Cola automática de movimientos (FIFO)**: ya puedes pulsar **Mover** en varios juegos seguidos; el primero empieza al instante y los demás quedan en espera (**En cola**) para ejecutarse automáticamente uno detrás de otro (con botón **Quitar** por si cambias de idea antes de que empiece).
+- **Recuperación inteligente tras cortes**: al abrir deckman después de una interrupción, los movimientos sin terminar quedan marcados como **interrumpido**. En cuanto cargas la biblioteca de la Deck, comprueba automáticamente si Steam terminó alguno por su cuenta para marcarlo como completado, te indica dónde está cada juego y te deja relanzar todo lo pendiente con un clic (**Reanudar pendientes**) o fila a fila (**Reintentar**).
+
+### Mejoras
+
+- Comprobación de espacio libre en el destino también al poner juegos en cola y contador de pendientes visible en el modal de progreso.
+- Botón **Limpiar historial** para despejar operaciones terminadas cuando ya no necesites consultarlas.
+
+[IMG]https://raw.githubusercontent.com/jfrmorales/deckman/main/docs/capturas/historial-operaciones.webp[/IMG]
+
 ## 15/11/2026 · Mover juegos a la microSD sin cerrar Steam, y versión para macOS y ARM
 
 ### Novedades

@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -84,12 +85,16 @@ type job struct {
 
 // New crea el servidor.
 func New() *Server {
-	return &Server{
+	s := &Server{
 		cfg:       config.Load(),
 		listeners: map[chan []byte]bool{},
 		quit:      make(chan struct{}),
 		covers:    newCoverStore(),
 	}
+	if s.cfg.RecoverInterrupted(time.Now().Unix()) {
+		s.guardar(s.cfg.Snapshot())
+	}
+	return s
 }
 
 // QuitRequested se cierra cuando el usuario pide salir desde la interfaz.
@@ -145,6 +150,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/send-game", s.guard(s.handleSendGame))
 	mux.HandleFunc("/api/send-rom", s.guard(s.handleSendROM))
 	mux.HandleFunc("/api/move", s.guard(s.handleMove))
+	mux.HandleFunc("/api/operations/clear", s.guard(s.handleClearOperations))
 	mux.HandleFunc("/api/delete", s.guard(s.handleDelete))
 	mux.HandleFunc("/api/compat", s.guard(s.handleCompat))
 	mux.HandleFunc("/api/restart-steam", s.guard(s.handleRestartSteam))
@@ -318,6 +324,7 @@ func (s *Server) handleState(w http.ResponseWriter, r *http.Request) {
 		"hasKey":     cfg.KeyPath != "",
 		"lastLocal":  cfg.LastLocal,
 		"job":        cur,
+		"operations": cfg.Operations,
 		"os":         runtime.GOOS,
 		"hasGridKey": cfg.GridKey != "",
 		// "idioma" es lo elegido a mano ("" = automatico) y "idiomaEfectivo" el
@@ -610,6 +617,7 @@ func (s *Server) handleInventory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.storeInventory(c, inv)
+	s.reconcileOperations(inv, s.deckHost())
 	// Las portadas se resuelven aqui y no dentro de Scan: es una consulta mas a
 	// la Deck que solo le hace falta a la biblioteca, no a mover ni a borrar.
 	s.covers.setIndex(c.AnnotateCovers(ctx, inv))
@@ -1257,44 +1265,158 @@ func (s *Server) handleArtworkRemove(w http.ResponseWriter, r *http.Request) {
 
 // startJob arranca una operacion larga si no hay otra en curso.
 func (s *Server) startJob(kind, title string, fn func(ctx context.Context, report deck.ProgressFunc) error) (*job, error) {
-	s.jobMu.Lock()
-	defer s.jobMu.Unlock()
-	if s.job != nil && !s.job.Prog.Done && s.job.Prog.Error == "" {
-		return nil, i18n.Errorf("ya hay una operacion en curso: %s", s.job.Title)
+	return s.startJobOp(config.Operation{Kind: kind, Title: title}, fn)
+}
+
+func (s *Server) deckHost() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.cfg.ActiveDeck().Host
+}
+
+func (s *Server) broadcastOperations(ops []config.Operation) {
+	s.broadcast(map[string]any{"type": "operations", "operations": ops})
+}
+
+// startJobOp arranca una operacion larga registrandola en el historial persistente.
+func (s *Server) startJobOp(op config.Operation, fn func(ctx context.Context, report deck.ProgressFunc) error) (*job, error) {
+	if op.DeckHost == "" {
+		op.DeckHost = s.deckHost()
 	}
 
+	s.jobMu.Lock()
+	if s.job != nil && !s.job.Prog.Done && s.job.Prog.Error == "" {
+		title := s.job.Title
+		s.jobMu.Unlock()
+		return nil, i18n.Errorf("ya hay una operacion en curso: %s", title)
+	}
+
+	if op.ID == "" {
+		op.ID = strconv.FormatInt(time.Now().UnixNano(), 36)
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	j := &job{
-		ID:     strconv.FormatInt(time.Now().UnixNano(), 36),
-		Kind:   kind,
-		Title:  title,
+		ID:     op.ID,
+		Kind:   op.Kind,
+		Title:  op.Title,
 		Prog:   deck.Progress{Phase: "empezando"},
 		cancel: cancel,
 	}
 	s.job = j
+	s.jobMu.Unlock()
 
+	op.Status = "en_curso"
+	op.StartedAt = time.Now().Unix()
+	op.FinishedAt = 0
+	op.Message = ""
+	s.mu.Lock()
+	s.cfg.UpsertOperation(op)
+	snapStart := s.cfg.Snapshot()
+	s.mu.Unlock()
+	s.guardar(snapStart)
+	s.broadcastOperations(snapStart.Operations)
+
+	var lastMu sync.Mutex
+	var lastMsg string
 	report := func(p deck.Progress) {
+		if p.Message != "" {
+			lastMu.Lock()
+			lastMsg = p.Message
+			lastMu.Unlock()
+		}
+		// Done se marca solo cuando fn ha retornado y el historial se ha guardado,
+		// para evitar huecos entre el fin de un trabajo y el arranque del siguiente en cola.
+		running := p
+		running.Done = false
 		s.jobMu.Lock()
-		j.Prog = p
+		j.Prog = running
 		s.jobMu.Unlock()
-		s.broadcast(map[string]any{"type": "progress", "job": j.ID, "title": j.Title, "kind": j.Kind, "progress": p})
+		s.broadcast(map[string]any{"type": "progress", "job": j.ID, "title": j.Title, "kind": j.Kind, "progress": running})
 	}
 
 	go func() {
 		defer cancel()
 		err := fn(ctx, report)
+
+		lastMu.Lock()
+		msg := lastMsg
+		lastMu.Unlock()
+
 		s.jobMu.Lock()
 		final := j.Prog
+		s.jobMu.Unlock()
+
 		final.Done = true
+		final.Speed = 0
+		if final.Message == "" {
+			final.Message = msg
+		}
 		if err != nil {
 			final.Error = err.Error()
 			final.Phase = "error"
 		} else if final.Phase != "listo" {
 			final.Phase = "listo"
 		}
+
+		op.FinishedAt = time.Now().Unix()
+		if final.BytesTotal > 0 {
+			op.BytesTotal = final.BytesTotal
+		}
+		op.BytesDone = final.BytesDone
+		canceled := errors.Is(err, context.Canceled)
+		if err != nil {
+			if canceled {
+				op.Status = "interrumpido"
+				op.Message = "Cancelado por el usuario."
+			} else {
+				op.Status = "error"
+				op.Message = err.Error()
+			}
+			if op.Kind == "move" && op.CurrentLocation == "" {
+				op.CurrentLocation = op.FromLabel
+			}
+		} else {
+			op.Status = "completado"
+			if final.Message != "" {
+				op.Message = final.Message
+			} else if op.Kind == "move" && op.TargetLabel != "" {
+				op.Message = fmt.Sprintf("Movido a %s.", op.TargetLabel)
+			}
+			if op.Kind == "move" && op.TargetLabel != "" {
+				op.CurrentLocation = op.TargetLabel
+			}
+			if op.BytesTotal > 0 && op.BytesDone < op.BytesTotal {
+				op.BytesDone = op.BytesTotal
+			}
+		}
+
+		s.mu.Lock()
+		s.cfg.UpsertOperation(op)
+		if canceled && op.Kind == "move" {
+			now := time.Now().Unix()
+			for i := range s.cfg.Operations {
+				q := &s.cfg.Operations[i]
+				if q.Status == "en_cola" && (q.DeckHost == "" || q.DeckHost == op.DeckHost) {
+					q.Status = "interrumpido"
+					q.FinishedAt = now
+					q.Message = "Cola detenida al cancelar el movimiento en curso."
+				}
+			}
+		}
+		snap := s.cfg.Snapshot()
+		s.mu.Unlock()
+		s.guardar(snap)
+
+		s.jobMu.Lock()
 		j.Prog = final
 		s.jobMu.Unlock()
+
+		s.broadcastOperations(snap.Operations)
 		s.broadcast(map[string]any{"type": "progress", "job": j.ID, "title": j.Title, "kind": j.Kind, "progress": final})
+
+		if !canceled {
+			go s.advanceQueue()
+		}
 	}()
 
 	return j, nil
@@ -1459,7 +1581,14 @@ func (s *Server) handleSendGame(w http.ResponseWriter, r *http.Request) {
 	folderName := filepath.Base(filepath.Clean(req.LocalPath))
 	remoteBase := gamesDir + "/" + folderName
 
-	j, err := s.startJob("send-game", "Enviando "+req.Name, func(ctx context.Context, report deck.ProgressFunc) error {
+	j, err := s.startJobOp(config.Operation{
+		Kind:            "send-game",
+		Title:           "Enviando " + req.Name,
+		GameName:        req.Name,
+		TargetLabel:     "Interno",
+		CurrentLocation: "Interno",
+		LocalPath:       req.LocalPath,
+	}, func(ctx context.Context, report deck.ProgressFunc) error {
 		tr := &progressTracker{report: report}
 		if err := c.MkdirAll(gamesDir); err != nil {
 			return err
@@ -1552,7 +1681,14 @@ func (s *Server) handleSendROM(w http.ResponseWriter, r *http.Request) {
 	s.mu.Unlock()
 	s.guardar(cfg)
 
-	j, err := s.startJob("send-rom", "Enviando ROM a "+req.System, func(ctx context.Context, report deck.ProgressFunc) error {
+	j, err := s.startJobOp(config.Operation{
+		Kind:            "send-rom",
+		Title:           "Enviando ROM a " + req.System,
+		GameName:        filepath.Base(req.LocalPath),
+		TargetLabel:     req.System,
+		CurrentLocation: req.System,
+		LocalPath:       req.LocalPath,
+	}, func(ctx context.Context, report deck.ProgressFunc) error {
 		return c.UploadROM(ctx, req.LocalPath, req.RomsDir, req.System, report)
 	})
 	if err != nil {
@@ -1560,6 +1696,29 @@ func (s *Server) handleSendROM(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]any{"ok": true, "job": j.ID})
+}
+
+func libraryLabel(l deck.Library) string {
+	if l.Label != "" {
+		return l.Label
+	}
+	if l.IsDefault {
+		return "Interno"
+	}
+	return path.Base(l.Path)
+}
+
+func humanBytes(b uint64) string {
+	const unit = 1024
+	if b < unit {
+		return fmt.Sprintf("%d B", b)
+	}
+	div, exp := uint64(unit), 0
+	for n := b / unit; n >= unit && exp < 4; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(b)/float64(div), "KMGTP"[exp])
 }
 
 func (s *Server) handleMove(w http.ResponseWriter, r *http.Request) {
@@ -1576,20 +1735,265 @@ func (s *Server) handleMove(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, err, http.StatusConflict)
 		return
 	}
-	j, err := s.startJob("move", "Moviendo juego", func(ctx context.Context, report deck.ProgressFunc) error {
+	ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
+	defer cancel()
+
+	inv, err := s.inventory(ctx, c)
+	if err != nil {
+		writeErr(w, err, http.StatusBadGateway)
+		return
+	}
+
+	var game *deck.Game
+	for i := range inv.Games {
+		if inv.Games[i].AppID == req.AppID {
+			game = &inv.Games[i]
+			break
+		}
+	}
+	if game == nil {
+		writeErr(w, i18n.Errorf("no se encontro el juego con id %s", req.AppID), http.StatusNotFound)
+		return
+	}
+
+	libsByPath := make(map[string]string, len(inv.Libraries))
+	var target *deck.Library
+	for i := range inv.Libraries {
+		libsByPath[inv.Libraries[i].Path] = libraryLabel(inv.Libraries[i])
+		if inv.Libraries[i].Path == req.Target {
+			target = &inv.Libraries[i]
+		}
+	}
+	if target == nil {
+		writeErr(w, i18n.Errorf("la unidad de destino %s no esta registrada en Steam", req.Target), http.StatusBadRequest)
+		return
+	}
+
+	targetLabel := libraryLabel(*target)
+	if game.LibraryPath == target.Path {
+		writeErr(w, i18n.Errorf("%s ya esta en %s", game.Name, targetLabel), http.StatusConflict)
+		return
+	}
+	needed := game.Size + game.CompatSize + game.ShaderSize
+	if target.Free > 0 && needed > 0 && needed+512<<20 > target.Free {
+		writeErr(w, i18n.Errorf("no cabe: %s ocupa %s y en %s quedan %s",
+			game.Name, humanBytes(needed), targetLabel, humanBytes(target.Free)), http.StatusConflict)
+		return
+	}
+
+	fromLabel := libsByPath[game.LibraryPath]
+	if fromLabel == "" {
+		fromLabel = "Interno"
+	}
+
+	host := s.deckHost()
+	s.mu.RLock()
+	cfg := s.cfg.Snapshot()
+	s.mu.RUnlock()
+	for _, existing := range cfg.Operations {
+		if existing.Kind == "move" && existing.AppID == game.AppID &&
+			(existing.DeckHost == "" || existing.DeckHost == host) &&
+			(existing.Status == "en_curso" || existing.Status == "en_cola") {
+			writeErr(w, i18n.Errorf("'%s' ya esta en curso o en la cola de movimientos", game.Name), http.StatusConflict)
+			return
+		}
+	}
+
+	op := config.Operation{
+		ID:              strconv.FormatInt(time.Now().UnixNano(), 36),
+		DeckHost:        host,
+		Kind:            "move",
+		Title:           "Moviendo " + game.Name,
+		AppID:           game.AppID,
+		GameName:        game.Name,
+		FromLabel:       fromLabel,
+		TargetPath:      target.Path,
+		TargetLabel:     targetLabel,
+		CurrentLocation: fromLabel,
+		BytesTotal:      needed,
+	}
+
+	enqueue := func() {
+		op.Status = "en_cola"
+		op.StartedAt = time.Now().Unix()
+		op.Message = fmt.Sprintf("En cola: %s -> %s", fromLabel, targetLabel)
+		s.mu.Lock()
+		s.cfg.UpsertOperation(op)
+		snap := s.cfg.Snapshot()
+		s.mu.Unlock()
+		s.guardar(snap)
+		s.broadcastOperations(snap.Operations)
+		writeJSON(w, map[string]any{"ok": true, "job": op.ID, "queued": true, "operations": snap.Operations})
+	}
+
+	if s.Busy() {
+		enqueue()
+		return
+	}
+
+	j, err := s.startMoveOperation(op)
+	if err != nil {
+		if s.Busy() {
+			enqueue()
+			return
+		}
+		writeErr(w, err, http.StatusConflict)
+		return
+	}
+	writeJSON(w, map[string]any{"ok": true, "job": j.ID, "queued": false})
+}
+
+func (s *Server) startMoveOperation(op config.Operation) (*job, error) {
+	if op.Title == "" {
+		if op.GameName != "" {
+			op.Title = "Moviendo " + op.GameName
+		} else {
+			op.Title = "Moviendo juego"
+		}
+	}
+	return s.startJobOp(op, func(ctx context.Context, report deck.ProgressFunc) error {
+		c, err := s.conn()
+		if err != nil {
+			return err
+		}
 		inv, err := s.inventory(ctx, c)
 		if err != nil {
 			return err
 		}
+		// Si estaba en cola y mientras tanto ya llego al destino en la Deck,
+		// lo damos por completado sin repetir la copia.
+		for _, g := range inv.Games {
+			if g.AppID == op.AppID && g.LibraryPath == op.TargetPath {
+				report(deck.Progress{
+					Phase:      "listo",
+					Done:       true,
+					BytesDone:  op.BytesTotal,
+					BytesTotal: op.BytesTotal,
+					Message:    fmt.Sprintf("%s ya esta en %s.", op.GameName, op.TargetLabel),
+				})
+				return nil
+			}
+		}
 		// Tras mover, la foto guardada miente (rutas y espacio libre): fuera.
 		defer s.dropInventory()
-		return c.MoveGame(ctx, inv, req.AppID, req.Target, report)
+		return c.MoveGame(ctx, inv, op.AppID, op.TargetPath, report)
 	})
-	if err != nil {
-		writeErr(w, err, http.StatusConflict)
+}
+
+// advanceQueue arranca el siguiente movimiento en cola en orden FIFO para la Deck conectada.
+func (s *Server) advanceQueue() {
+	if _, err := s.conn(); err != nil {
 		return
 	}
-	writeJSON(w, map[string]any{"ok": true, "job": j.ID})
+	if s.Busy() {
+		return
+	}
+	host := s.deckHost()
+	s.mu.RLock()
+	cfg := s.cfg.Snapshot()
+	s.mu.RUnlock()
+
+	for i := len(cfg.Operations) - 1; i >= 0; i-- {
+		op := cfg.Operations[i]
+		if op.Status == "en_cola" && op.Kind == "move" && (op.DeckHost == "" || op.DeckHost == host) {
+			_, _ = s.startMoveOperation(op)
+			return
+		}
+	}
+}
+
+// reconcileOperations actualiza donde esta cada juego segun la foto real de
+// la Deck y marca como completado cualquier movimiento interrumpido que Steam
+// terminase por su cuenta mientras deckman no estaba conectado.
+func (s *Server) reconcileOperations(inv *deck.Inventory, deckHost string) {
+	if inv == nil {
+		return
+	}
+	libsByPath := make(map[string]string, len(inv.Libraries))
+	for _, lib := range inv.Libraries {
+		libsByPath[lib.Path] = libraryLabel(lib)
+	}
+	gamesByID := make(map[string]deck.Game, len(inv.Games))
+	for _, g := range inv.Games {
+		gamesByID[g.AppID] = g
+	}
+
+	s.mu.Lock()
+	changed := false
+	for i := range s.cfg.Operations {
+		op := &s.cfg.Operations[i]
+		if op.DeckHost != "" && deckHost != "" && op.DeckHost != deckHost {
+			continue
+		}
+		if op.Kind != "move" || op.AppID == "" {
+			continue
+		}
+		g, ok := gamesByID[op.AppID]
+		if !ok {
+			continue
+		}
+		loc := libsByPath[g.LibraryPath]
+		if loc == "" && g.LibraryPath != "" {
+			loc = path.Base(g.LibraryPath)
+		}
+		if loc != "" && op.CurrentLocation != loc {
+			op.CurrentLocation = loc
+			changed = true
+		}
+		if (op.Status == "interrumpido" || op.Status == "error") && op.TargetPath != "" && g.LibraryPath == op.TargetPath {
+			op.Status = "completado"
+			if op.FinishedAt == 0 {
+				op.FinishedAt = time.Now().Unix()
+			}
+			if op.BytesTotal > 0 {
+				op.BytesDone = op.BytesTotal
+			}
+			op.Message = fmt.Sprintf("Completado en la Deck (%s).", loc)
+			changed = true
+		}
+	}
+	var snap config.Config
+	if changed {
+		snap = s.cfg.Snapshot()
+	}
+	s.mu.Unlock()
+
+	if changed {
+		s.guardar(snap)
+		s.broadcastOperations(snap.Operations)
+	}
+}
+
+func (s *Server) handleClearOperations(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "solo POST", http.StatusMethodNotAllowed)
+		return
+	}
+	var req struct {
+		ID string `json:"id"`
+	}
+	if r.Body != nil {
+		_ = decode(r, &req)
+	}
+
+	s.mu.Lock()
+	if req.ID != "" {
+		for _, op := range s.cfg.Operations {
+			if op.ID == req.ID && op.Status == "en_curso" {
+				s.mu.Unlock()
+				writeErr(w, i18n.Errorf("hay una operacion en curso; cancelala o espera a que termine"), http.StatusConflict)
+				return
+			}
+		}
+		s.cfg.RemoveOperation(req.ID)
+	} else {
+		s.cfg.ClearFinishedOperations()
+	}
+	snap := s.cfg.Snapshot()
+	s.mu.Unlock()
+	s.guardar(snap)
+	s.broadcastOperations(snap.Operations)
+	writeJSON(w, map[string]any{"ok": true, "operations": snap.Operations})
 }
 
 func (s *Server) handleDelete(w http.ResponseWriter, r *http.Request) {

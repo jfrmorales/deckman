@@ -13,6 +13,8 @@ bloque `<releases>` del metainfo. Los tres los sincroniza `scripts/release.sh`.
      versión nueva al publicar. Secciones: Añadido, Cambiado, Corregido,
      Eliminado. -->
 
+## [0.6.6] — 2026-11-16
+
 ### Añadido
 
 - **Vista previa de cambios (`#previewModal`)** antes de aplicar acciones que modifican ficheros o configuración en SteamOS (enviar juego, cambiar Proton, aplicar/quitar carátula, mover juego, copiar/descargar/renombrar/borrar ROMs y buscar carátulas de ROMs), mostrando las rutas afectadas y si se conserva el resto con copia `.deckman.bak`.
@@ -559,7 +561,8 @@ interno y microSD, desinstalar, la ventana WebView2 en un Windows real,
 `RemoveShortcutLive`, `SetCompatToolLive` y `RelocateShortcut`. Están recogidas
 en `CLAUDE.md`. Por eso 0.1.0 y no 1.0.0.
 
-[No publicado]: https://github.com/jfrmorales/deckman/compare/v0.6.5...HEAD
+[No publicado]: https://github.com/jfrmorales/deckman/compare/v0.6.6...HEAD
+[0.6.6]: https://github.com/jfrmorales/deckman/compare/v0.6.5...v0.6.6
 [0.6.5]: https://github.com/jfrmorales/deckman/compare/v0.6.4...v0.6.5
 [0.6.4]: https://github.com/jfrmorales/deckman/compare/v0.6.3...v0.6.4
 [0.6.3]: https://github.com/jfrmorales/deckman/compare/v0.6.2...v0.6.3

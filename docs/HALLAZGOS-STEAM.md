@@ -346,6 +346,39 @@ como `_Redist`, `_CommonRedist` o `_Bonus Content`.
 
 > Código: `internal/detect/detect.go`.
 
+### Juegos nativos de Linux (sin Proton)
+
+Un acceso directo sin herramienta de compatibilidad hace que Steam ejecute el
+fichero tal cual, así que cuentan cosas que con un `.exe` dan igual:
+
+- **El permiso de ejecución.** SFTP crea los ficheros con `0644` y no copia el
+  modo del origen. `UploadTree` marca como ejecutable lo que lo era en el PC y
+  lo que lo es por contenido (cabecera ELF o `#!`), porque una carpeta
+  descomprimida en Windows o pasada por NTFS llega sin permisos. Va por lo
+  ancho —también bibliotecas—: marcar de más no rompe nada.
+- **Los enlaces simbólicos.** Las bibliotecas vienen como
+  `libfoo.so.0 → libfoo.so.0.18.2` y el binario pide el nombre del enlace. Se
+  recrean los relativos que no salen de la carpeta; un zip abierto en Windows
+  ya los habrá perdido o convertido en copias, y eso no tiene arreglo aquí.
+- **No hay extensión que mirar.** `Zelda64Recompiled`, `juego.x86_64`,
+  `start.sh`: se reconocen por la cabecera. Un PIE y una biblioteca llevan el
+  mismo `e_type` (3), así que las bibliotecas solo se apartan por el nombre
+  (`.so`, `.so.N`). Solo se proponen x86 y x86-64: un binario de aarch64 no
+  arranca en una Deck.
+- **Con las dos versiones en la carpeta se propone la de Windows.** Un juego
+  no-Steam nativo depende de las bibliotecas que haya en SteamOS, que es un
+  sistema mínimo; con Proton lleva consigo lo que necesita.
+- **Directorio de trabajo y opciones de lanzamiento** funcionan igual que con
+  Proton: `StartDir` es la carpeta del ejecutable y `%command%` es el
+  ejecutable entrecomillado, así que `VARIABLE=valor %command% --opcion` vale
+  tal cual. Las variables `PROTON_*` y `WINEDLLOVERRIDES` no hacen nada.
+
+**Sin comprobar contra una Deck** (2026-11-16, no había credenciales a mano):
+todo lo anterior está probado con un servidor SFTP local y pruebas unitarias,
+no lanzando un juego nativo desde Steam.
+
+> Código: `internal/detect/nativo.go`, `UploadTree` en `internal/deck/transfer.go`.
+
 ---
 
 ## 8. Servicios externos: qué funciona hoy

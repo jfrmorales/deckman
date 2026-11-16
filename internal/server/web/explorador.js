@@ -94,7 +94,10 @@ function renderCrumbs(path) {
 
 async function browseTo(path) {
   try {
-    const r = await api('/api/browse?path=' + encodeURIComponent(path || ''));
+    // Al elegir el ejecutable se pide además que el servidor marque los
+    // nativos de Linux: no llevan extensión y solo se reconocen por dentro.
+    const r = await api('/api/browse?path=' + encodeURIComponent(path || '') +
+      (br.mode === 'rel' ? '&exes=1' : ''));
     br.path = r.path;
     br.parent = r.parent;
     br.entries = r.entries || [];
@@ -133,10 +136,11 @@ function renderEntries() {
     // no se puedan elegir (modo ejecutable), sí se puede entrar en ellas, y
     // pintarlas grises haría pensar lo contrario.
     const dim = (selectable(e) || e.isDir) ? '' : ' dim';
-    const exe = br.mode === 'rel' && /\.exe$/i.test(e.name) ? ' exe' : '';
+    const exe = br.mode === 'rel' && !e.isDir && (e.native || /\.exe$/i.test(e.name)) ? ' exe' : '';
+    const tipo = !exe ? '' : `<span class="kind">${escapeHtml(e.native ? 'Linux' : 'Windows')}</span>`;
     return `<li class="brrow${dim}${exe}" data-i="${i}">
-      <span class="ic">${e.isDir ? '📁' : (exe ? '⚙️' : '📄')}</span>
-      <span class="nm">${escapeHtml(e.name)}</span>
+      <span class="ic">${e.isDir ? '📁' : (exe ? (e.native ? '🐧' : '⚙️') : '📄')}</span>
+      <span class="nm">${escapeHtml(e.name)}</span>${tipo}
       ${e.isDir ? `<span class="enter" title="${escapeHtml(t('Entrar'))}">›</span>` : `<span class="sz">${fmtBytes(e.size)}</span>`}
     </li>`;
   }).join('');
@@ -191,14 +195,17 @@ function confirmPick(entry) {
     return;
   }
   if (!selectable(e)) return;
-  applyPick(e.path, e.name);
+  applyPick(e.path, e.name, e);
 }
 
-function applyPick(fullPath, name) {
+function applyPick(fullPath, name, entry) {
   if (br.mode === 'rel') {
     let rel = fullPath;
     if (fullPath.startsWith(br.base)) rel = fullPath.slice(br.base.length).replace(/^[\\/]+/, '');
     $(br.target).value = rel;
+    // Elegir un nativo de Linux con Proton puesto (o un .exe sin él) deja un
+    // acceso directo que no arranca: el desplegable acompaña a la elección.
+    if (entry) protonSegunEjecutable(!!entry.native, /\.exe$/i.test(name));
   } else {
     $(br.target).value = fullPath;
   }

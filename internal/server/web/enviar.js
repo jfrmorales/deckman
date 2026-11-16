@@ -1,7 +1,7 @@
 'use strict';
 
-// Enviar un juego de Windows a la Deck: opciones del formulario,
-// autodetección de la carpeta y el envío.
+// Enviar un juego a la Deck (de Windows con Proton, o nativo de Linux sin
+// él): opciones del formulario, autodetección de la carpeta y el envío.
 
 function renderSendOptions() {
   $('gamesDirLabel').textContent = inventory.gamesDir || '~/Games';
@@ -54,6 +54,16 @@ function protonFor(family) {
   }
   const exp = tools.find((t) => t.name === 'proton_experimental');
   return exp ? exp.name : '';
+}
+
+// protonSegunEjecutable ajusta el desplegable de Proton al ejecutable elegido.
+// Un nativo de Linux va sin Proton; un .exe lo necesita, así que si estaba en
+// «Ninguno» vuelve al de por defecto. Lo que no es ni una cosa ni otra no se
+// toca: el usuario sabrá por qué lo ha elegido.
+function protonSegunEjecutable(nativo, esExe) {
+  const sel = $('sendProton');
+  if (nativo) sel.value = '';
+  else if (esExe && !sel.value) sel.value = protonFor('');
 }
 
 async function runDetect(overrideAppId) {
@@ -110,12 +120,25 @@ function renderDetection() {
       detail += ' · ' + t('descartados: {0}', escapeHtml(local.skipped.slice(0, 4).join(', ')));
     }
     rows.push(['ok', `<code>${escapeHtml(best.rel)}</code>`, detail]);
+    protonSegunEjecutable(!!best.native, /\.exe$/i.test(best.rel));
+    if (best.native) {
+      rows.push(['info', t('Es un ejecutable nativo de Linux'), t('se lanzará sin Proton')]);
+    } else {
+      // La carpeta trae las dos versiones: se propone la de Windows porque con
+      // Proton no depende de las bibliotecas de SteamOS, y se dice que la otra
+      // existe.
+      const nativa = exes.find((e) => e.native);
+      if (nativa) {
+        rows.push(['info', t('También trae versión nativa de Linux: {0}', `<code>${escapeHtml(nativa.rel)}</code>`),
+          t('para usarla, elígela abajo como ejecutable; Proton pasará a «Ninguno»')]);
+      }
+    }
     if (exes.length > 1) {
       rows.push(['info', t('Hay {0} ejecutables candidatos', exes.length),
         t('si no arranca, cámbialo abajo: {0}', escapeHtml(exes.slice(1, 4).map((e) => e.rel).join(', ')))]);
     }
   } else {
-    rows.push(['bad', t('No se encontró ningún .exe'), t('tendrás que indicarlo a mano')]);
+    rows.push(['bad', t('No se encontró ningún ejecutable'), t('tendrás que indicarlo a mano')]);
   }
 
   // Proton
@@ -127,7 +150,10 @@ function renderDetection() {
     rows.push([kind, `ProtonDB: <strong>${escapeHtml(p.tier || '?')}</strong>` +
       (p.bestTier && p.bestTier !== p.tier ? ' ' + t('(mejor reportado: {0})', escapeHtml(p.bestTier)) : ''),
       escapeHtml(p.advice || '')]);
-    if (tool) {
+    // ProtonDB habla de la versión de Windows: si lo propuesto es nativo de
+    // Linux, su sugerencia de Proton no se aplica.
+    const nativo = exes.length && exes[0].native;
+    if (tool && !nativo) {
       $('sendProton').value = tool;
       const label = (inventory.compatTools.find((t) => t.name === tool) || {}).displayName || tool;
       rows.push(['info', t('Proton sugerido: {0}', `<strong>${escapeHtml(label)}</strong>`), t('puedes cambiarlo abajo')]);

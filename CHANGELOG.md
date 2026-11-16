@@ -13,6 +13,17 @@ bloque `<releases>` del metainfo. Los tres los sincroniza `scripts/release.sh`.
      versión nueva al publicar. Secciones: Añadido, Cambiado, Corregido,
      Eliminado. -->
 
+### Añadido
+
+- **Enviar juegos nativos de Linux.** «Enviar juego» ya no es solo para Windows: reconoce los ejecutables nativos por su contenido (binarios ELF de x86 y x86-64, AppImage y scripts de arranque), aunque no lleven extensión, y propone «Ninguno (ejecutable nativo de Linux)» como versión de Proton. Antes, una carpeta así contestaba «No se encontró ningún .exe».
+- **El explorador de «Elegir el ejecutable» marca también los nativos**, con una etiqueta Windows o Linux en cada uno. Al elegir uno, el desplegable de Proton le acompaña: «Ninguno» para un nativo, y de vuelta a Proton para un `.exe`.
+- **Carpetas con las dos versiones**: se propone la de Windows, porque con Proton el juego no depende de las bibliotecas que traiga SteamOS, y se avisa de que la nativa existe y de cómo usarla.
+
+### Corregido
+
+- **Un ejecutable nativo llegaba a la Deck sin permiso de ejecución** y Steam no conseguía lanzarlo: la copia por SFTP deja todo a `0644`. Ahora quedan ejecutables los binarios ELF, las AppImage, los scripts con `#!` y lo que ya lo fuera en el PC de origen, también cuando la carpeta viene de Windows (donde ese permiso no existe). Reenviar un juego ya copiado lo arregla sin volver a subirlo.
+- **Los enlaces simbólicos de dentro de la carpeta se copian.** Se saltaban todos, y los juegos nativos traen así sus bibliotecas (`libSDL2-2.0.so.0` → `libSDL2-2.0.so.0.18.2`). Los que apuntan fuera de la carpeta se siguen dejando fuera.
+
 ## [0.7.0] — 2026-11-16
 
 ### Cambiado

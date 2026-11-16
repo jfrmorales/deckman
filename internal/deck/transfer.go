@@ -3,6 +3,7 @@ package deck
 import (
 	"context"
 	"fmt"
+	"github.com/jfrmorales/deckman/internal/detect"
 	"github.com/jfrmorales/deckman/internal/i18n"
 	"os"
 	"path"
@@ -36,7 +37,47 @@ type localFile struct {
 	abs  string
 	rel  string // ruta relativa con '/' como separador
 	size uint64
+	exec bool // hay que dejarlo con permiso de ejecucion en la Deck
 }
+
+// enlace es un enlace simbolico del origen que se recrea en la Deck.
+type enlace struct {
+	rel     string // donde va, relativo a la carpeta copiada
+	destino string // a que apunta, tal cual (siempre relativo)
+}
+
+// debeSerEjecutable decide si un fichero tiene que quedar con permiso de
+// ejecucion en la Deck.
+//
+// SFTP crea los ficheros con 0644 y no copia el modo del origen. Para un .exe
+// da igual (lo lanza Proton), pero un binario nativo de Linux sin el bit no
+// arranca: Steam enseña un momento "Iniciando" y vuelve a la biblioteca sin
+// decir nada. Dos senales, y basta una:
+//
+//   - el permiso del origen, que es lo exacto cuando el PC es Linux o macOS;
+//   - el contenido (cabecera ELF o "#!"), que es lo unico que hay cuando el PC
+//     es Windows o la carpeta paso por un NTFS o un zip sin permisos.
+func debeSerEjecutable(abs string, modo os.FileMode) bool {
+	if modo&0o111 != 0 && !sinPermisosUnix {
+		return true
+	}
+	return detect.Olfatear(abs).Ejecutable()
+}
+
+// enlaceSeguro dice si un enlace simbolico se puede recrear en la Deck: tiene
+// que ser relativo y no salirse de la carpeta que se copia. Uno absoluto
+// apuntaria a una ruta de ESTE PC, y uno que escapa con ".." a lo que haya
+// casualmente en la Deck en ese sitio.
+func enlaceSeguro(rel, destino string) bool {
+	if destino == "" || path.IsAbs(destino) || strings.Contains(destino, `\`) {
+		return false
+	}
+	final := path.Join(path.Dir(rel), destino)
+	return final != ".." && !strings.HasPrefix(final, "../")
+}
+
+// modoEjecutable es con lo que queda un ejecutable en la Deck.
+const modoEjecutable = 0o755
 
 // uploadConcurrency: 4 ficheros a la vez llena el wifi de la Deck sin
 // atragantar el canal SSH, que es de por si el cuello de botella.
@@ -55,6 +96,7 @@ func (c *Client) UploadTree(ctx context.Context, localPath, remoteDir string, on
 	report(Progress{Phase: "indexando", Message: "calculando el tamano del origen"})
 
 	var files []localFile
+	var enlaces []enlace
 	var total uint64
 
 	if info.IsDir() {
@@ -70,14 +112,30 @@ func (c *Client) UploadTree(ctx context.Context, localPath, remoteDir string, on
 			if err != nil {
 				return err
 			}
-			if !fi.Mode().IsRegular() {
-				return nil // enlaces simbolicos y demas: fuera
-			}
 			rel, err := filepath.Rel(base, p)
 			if err != nil {
 				return err
 			}
-			files = append(files, localFile{abs: p, rel: filepath.ToSlash(rel), size: uint64(fi.Size())})
+			if fi.Mode()&os.ModeSymlink != 0 {
+				// Los juegos nativos de Linux traen sus bibliotecas con enlaces
+				// ("libSDL2-2.0.so.0" -> "libSDL2-2.0.so.0.18.2") y el binario
+				// pide el nombre del enlace: sin el, no arranca. Se recrean los
+				// que se quedan dentro de la carpeta; el resto, fuera como antes.
+				if destino, err := os.Readlink(p); err == nil {
+					destino = filepath.ToSlash(destino)
+					if enlaceSeguro(filepath.ToSlash(rel), destino) {
+						enlaces = append(enlaces, enlace{rel: filepath.ToSlash(rel), destino: destino})
+					}
+				}
+				return nil
+			}
+			if !fi.Mode().IsRegular() {
+				return nil // tuberias, dispositivos y demas: fuera
+			}
+			files = append(files, localFile{
+				abs: p, rel: filepath.ToSlash(rel), size: uint64(fi.Size()),
+				exec: debeSerEjecutable(p, fi.Mode()),
+			})
 			total += uint64(fi.Size())
 			return nil
 		})
@@ -86,7 +144,10 @@ func (c *Client) UploadTree(ctx context.Context, localPath, remoteDir string, on
 		}
 		remoteDir = path.Join(remoteDir, filepath.Base(base))
 	} else {
-		files = append(files, localFile{abs: localPath, rel: filepath.Base(localPath), size: uint64(info.Size())})
+		files = append(files, localFile{
+			abs: localPath, rel: filepath.Base(localPath), size: uint64(info.Size()),
+			exec: debeSerEjecutable(localPath, info.Mode()),
+		})
 		total = uint64(info.Size())
 	}
 
@@ -105,6 +166,11 @@ func (c *Client) UploadTree(ctx context.Context, localPath, remoteDir string, on
 			dirs[path.Join(remoteDir, d)] = true
 		}
 	}
+	for _, l := range enlaces {
+		if d := path.Dir(l.rel); d != "." {
+			dirs[path.Join(remoteDir, d)] = true
+		}
+	}
 	dirList := make([]string, 0, len(dirs))
 	for d := range dirs {
 		dirList = append(dirList, d)
@@ -120,7 +186,7 @@ func (c *Client) UploadTree(ctx context.Context, localPath, remoteDir string, on
 	// vez de un Stat por fichero: en una retransmision (que es cuando el "ya
 	// estaba, me lo salto" trabaja) el Stat de cada fichero ERA la operacion, y
 	// con veinte mil ficheros pequenos eso son veinte mil idas y vueltas.
-	existentes := make(map[string]uint64, len(files))
+	existentes := make(map[string]os.FileInfo, len(files))
 	for _, d := range dirList {
 		if ctx.Err() != nil {
 			return ctx.Err()
@@ -131,7 +197,7 @@ func (c *Client) UploadTree(ctx context.Context, localPath, remoteDir string, on
 		}
 		for _, e := range entries {
 			if e.Mode().IsRegular() && !strings.HasSuffix(e.Name(), ".deckman.part") {
-				existentes[path.Join(d, e.Name())] = uint64(e.Size())
+				existentes[path.Join(d, e.Name())] = e
 			}
 		}
 	}
@@ -163,11 +229,24 @@ func (c *Client) UploadTree(ctx context.Context, localPath, remoteDir string, on
 				dst := path.Join(remoteDir, f.rel)
 				copied := false
 				// El mapa es de solo lectura desde que se construyo: sin cerrojo.
-				if sz, ok := existentes[dst]; !ok || sz != f.size {
+				ya, ok := existentes[dst]
+				if !ok || uint64(ya.Size()) != f.size {
 					var err error
 					copied, err = c.uploadOne(ctx, f, dst)
 					if err != nil {
 						errOnce.Do(func() { firstErr = i18n.Errorf("%s: %w", f.rel, err); cancel() })
+						return
+					}
+				}
+				// El permiso se pone tambien a lo que ya estaba: reenviar el
+				// juego tiene que arreglar una copia hecha por una version que
+				// no lo ponia. Si ya lo tiene, se ahorra la ida y vuelta.
+				if f.exec && (copied || ya.Mode()&0o100 == 0) {
+					if err := c.sftp.Chmod(dst, modoEjecutable); err != nil {
+						errOnce.Do(func() {
+							firstErr = i18n.Errorf("no se pudo dar permiso de ejecucion a %s: %w", f.rel, err)
+							cancel()
+						})
 						return
 					}
 				}
@@ -208,6 +287,12 @@ alimentar:
 	if firstErr != nil {
 		return firstErr
 	}
+	// Los enlaces, al final: asi apuntan a ficheros que ya estan.
+	for _, l := range enlaces {
+		if err := c.ponerEnlace(path.Join(remoteDir, l.rel), l.destino); err != nil {
+			return i18n.Errorf("no se pudo crear el enlace %s en la Deck: %w", l.rel, err)
+		}
+	}
 	msg := fmt.Sprintf("%d ficheros copiados", len(files))
 	if s := skipped.Load(); s > 0 {
 		msg = fmt.Sprintf("%d ficheros (%d ya estaban y se han saltado)", len(files), s)
@@ -217,6 +302,34 @@ alimentar:
 		BytesDone: total, BytesTotal: total, Done: true, Message: msg,
 	})
 	return nil
+}
+
+// ponerEnlace deja en dst un enlace simbolico a destino. Si ya hay uno igual
+// no toca nada; si hay otra cosa con ese nombre (el enlace viejo de una
+// version anterior del juego, o la copia que dejo un zip sin enlaces), la
+// sustituye.
+func (c *Client) ponerEnlace(dst, destino string) error {
+	if actual, err := c.sftp.ReadLink(dst); err == nil && actual == destino {
+		return nil
+	}
+	if fi, err := c.sftp.Lstat(dst); err == nil {
+		if fi.IsDir() {
+			return i18n.Errorf("ya hay una carpeta con ese nombre")
+		}
+		if err := c.sftp.Remove(dst); err != nil {
+			return err
+		}
+	}
+	return c.sftp.Symlink(destino, dst)
+}
+
+// DarPermisoDeEjecucion marca un fichero de la Deck como ejecutable.
+func (c *Client) DarPermisoDeEjecucion(p string) error {
+	fi, err := c.sftp.Stat(p)
+	if err != nil {
+		return err
+	}
+	return c.sftp.Chmod(p, fi.Mode().Perm()|0o111)
 }
 
 // uploadOne sube un fichero. El "ya estaba con este tamano, me lo salto" lo

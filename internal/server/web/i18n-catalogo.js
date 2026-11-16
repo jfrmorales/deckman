@@ -83,10 +83,10 @@ const CATALOGO = {
     'Eliminar': 'Delete',
 
     // --- enviar juego ---
-    'Enviar un juego de Windows a la Deck': 'Send a Windows game to the Deck',
+    'Enviar un juego a la Deck': 'Send a game to the Deck',
     'Copia la carpeta del juego a': 'Copies the game folder to',
-    'y, si quieres, lo registra en Steam como juego no-Steam con la versión de Proton que elijas.':
-      'and, if you want, registers it in Steam as a non-Steam game with the Proton version you choose.',
+    'y, si quieres, lo registra en Steam como juego no-Steam: con la versión de Proton que elijas si es de Windows, o sin Proton si es nativo de Linux.':
+      'and, if you want, registers it in Steam as a non-Steam game: with the Proton version you choose if it is a Windows game, or without Proton if it is native Linux.',
     'Carpeta del juego en este PC': 'Game folder on this PC',
     'Ninguna carpeta seleccionada': 'No folder selected',
     'Elegir carpeta': 'Choose folder',
@@ -97,7 +97,7 @@ const CATALOGO = {
     'Nombre en la biblioteca de Steam': 'Name in the Steam library',
     'Se rellena solo al elegir la carpeta': 'Filled in automatically when you choose the folder',
     'Ejecutable (dentro de la carpeta)': 'Executable (inside the folder)',
-    'p. ej. bin/juego.exe': 'e.g. bin/game.exe',
+    'p. ej. bin/juego.exe o juego.x86_64': 'e.g. bin/game.exe or game.x86_64',
     'Versión de Proton': 'Proton version',
     'Añadir a la biblioteca de Steam': 'Add to the Steam library',
     'Descargar carátulas de SteamGridDB': 'Download artwork from SteamGridDB',
@@ -213,7 +213,12 @@ const CATALOGO = {
     'Moviendo {0}': 'Moving {0}',
     'Ningún juego que mostrar.': 'No games to show.',
     'No has marcado nada que borrar.': 'You have not ticked anything to delete.',
-    'No se encontró ningún .exe': 'No .exe was found',
+    'No se encontró ningún ejecutable': 'No executable was found',
+    'Es un ejecutable nativo de Linux': 'It is a native Linux executable',
+    'se lanzará sin Proton': 'it will be launched without Proton',
+    'También trae versión nativa de Linux: {0}': 'It also ships a native Linux version: {0}',
+    'para usarla, elígela abajo como ejecutable; Proton pasará a «Ninguno»':
+      'to use it, pick it below as the executable; Proton will switch to “None”',
     'No se pudieron leer los sistemas: ': 'The systems could not be read: ',
     'No se pudieron listar las ROMs: {0}': 'The ROMs could not be listed: {0}',
     // --- aviso de clave de host cambiada ---
@@ -523,10 +528,10 @@ const CATALOGO = {
     'Eliminar': 'Supprimer',
 
     // --- enviar juego ---
-    'Enviar un juego de Windows a la Deck': 'Envoyer un jeu Windows sur la Deck',
+    'Enviar un juego a la Deck': 'Envoyer un jeu sur la Deck',
     'Copia la carpeta del juego a': 'Copie le dossier du jeu vers',
-    'y, si quieres, lo registra en Steam como juego no-Steam con la versión de Proton que elijas.':
-      'et, si vous le souhaitez, l’enregistre dans Steam comme jeu hors Steam avec la version de Proton de votre choix.',
+    'y, si quieres, lo registra en Steam como juego no-Steam: con la versión de Proton que elijas si es de Windows, o sin Proton si es nativo de Linux.':
+      'et, si vous le souhaitez, l’enregistre dans Steam comme jeu hors Steam : avec la version de Proton de votre choix s’il est pour Windows, ou sans Proton s’il est natif Linux.',
     'Carpeta del juego en este PC': 'Dossier du jeu sur ce PC',
     'Ninguna carpeta seleccionada': 'Aucun dossier sélectionné',
     'Elegir carpeta': 'Choisir un dossier',
@@ -537,7 +542,7 @@ const CATALOGO = {
     'Nombre en la biblioteca de Steam': 'Nom dans la bibliothèque Steam',
     'Se rellena solo al elegir la carpeta': 'Rempli automatiquement au choix du dossier',
     'Ejecutable (dentro de la carpeta)': 'Exécutable (dans le dossier)',
-    'p. ej. bin/juego.exe': 'p. ex. bin/jeu.exe',
+    'p. ej. bin/juego.exe o juego.x86_64': 'p. ex. bin/jeu.exe ou jeu.x86_64',
     'Versión de Proton': 'Version de Proton',
     'Añadir a la biblioteca de Steam': 'Ajouter à la bibliothèque Steam',
     'Descargar carátulas de SteamGridDB': 'Télécharger les jaquettes depuis SteamGridDB',
@@ -653,7 +658,12 @@ const CATALOGO = {
     'Moviendo {0}': 'Déplacement de {0}',
     'Ningún juego que mostrar.': 'Aucun jeu à afficher.',
     'No has marcado nada que borrar.': 'Vous n’avez rien coché à supprimer.',
-    'No se encontró ningún .exe': 'Aucun .exe trouvé',
+    'No se encontró ningún ejecutable': 'Aucun exécutable trouvé',
+    'Es un ejecutable nativo de Linux': 'C’est un exécutable Linux natif',
+    'se lanzará sin Proton': 'il sera lancé sans Proton',
+    'También trae versión nativa de Linux: {0}': 'Il contient aussi une version Linux native : {0}',
+    'para usarla, elígela abajo como ejecutable; Proton pasará a «Ninguno»':
+      'pour l’utiliser, choisissez-la ci-dessous comme exécutable ; Proton passera à « Aucun »',
     'No se pudieron leer los sistemas: ': 'Les systèmes n’ont pas pu être lus : ',
     'No se pudieron listar las ROMs: {0}': 'Les ROMs n’ont pas pu être listées : {0}',
     // --- aviso de clave de host cambiada ---

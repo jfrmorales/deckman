@@ -39,10 +39,16 @@ func (s *Server) handleDetect(w http.ResponseWriter, r *http.Request) {
 		return
 	} else if !fi.IsDir() {
 		// Un ejecutable suelto: no hay nada que rastrear mas alla del nombre.
+		// Se devuelve como unico candidato para que la interfaz sepa si es
+		// nativo de Linux y proponga lanzarlo sin Proton.
+		nombre := filepath.Base(req.LocalPath)
 		writeJSON(w, map[string]any{
 			"local": &detect.Result{
 				Dir:       req.LocalPath,
-				CleanName: detect.CleanName(strings.TrimSuffix(filepath.Base(req.LocalPath), filepath.Ext(req.LocalPath))),
+				CleanName: detect.CleanName(strings.TrimSuffix(nombre, filepath.Ext(nombre))),
+				Executables: []detect.Candidate{{
+					Rel: nombre, Size: fi.Size(), Native: detect.LanzableEn(req.LocalPath),
+				}},
 			},
 		})
 		return
@@ -220,6 +226,16 @@ func (s *Server) handleSendGame(w http.ResponseWriter, r *http.Request) {
 			exeRemote = remoteBase + "/" + folderName
 		}
 		startDir := exeRemote[:strings.LastIndex(exeRemote, "/")]
+
+		// Sin Proton, lo que Steam lanza es el fichero tal cual, y sin permiso
+		// de ejecucion no arranca. La copia ya se lo pone a lo que reconoce
+		// (binarios ELF y scripts con "#!"); esto cubre lo que no reconoce pero
+		// el usuario ha elegido a sabiendas, como un script sin primera linea.
+		if req.CompatTool == "" {
+			if err := c.DarPermisoDeEjecucion(exeRemote); err != nil {
+				return i18n.Errorf("no se pudo dar permiso de ejecucion a %s: %w", exeRemote, err)
+			}
+		}
 
 		appID, viaSteam, err := s.registerShortcut(ctx, c, deck.NonSteamOptions{
 			Name:          req.Name,

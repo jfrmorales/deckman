@@ -162,10 +162,11 @@
   <!-- ---------- ENVIAR JUEGO ---------- -->
   <section id="tab-send" class="panel">
     <div class="card">
-      <h2>Enviar un juego de Windows a la Deck</h2>
+      <h2>Enviar un juego a la Deck</h2>
       <p class="hint">
         Copia la carpeta del juego a <code id="gamesDirLabel">~/Games</code> y, si quieres,
-        lo registra en Steam como juego no-Steam con la versión de Proton que elijas.
+        lo registra en Steam como juego no-Steam: con la versión de Proton que elijas si es de
+        Windows, o sin Proton si es nativo de Linux.
       </p>
 
       <div class="field">
@@ -200,7 +201,7 @@
         <div class="field">
           <label>Ejecutable (dentro de la carpeta)</label>
           <div class="row">
-            <input id="sendExe" placeholder="p. ej. bin/juego.exe">
+            <input id="sendExe" placeholder="p. ej. bin/juego.exe o juego.x86_64">
             <button data-browse="sendExe" data-mode="rel">Elegir…</button>
           </div>
         </div>

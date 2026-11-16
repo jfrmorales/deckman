@@ -28,6 +28,9 @@ type Candidate struct {
 	Size  int64  `json:"size"`
 	Score int    `json:"score"`
 	Why   string `json:"why"`
+	// Native: ejecutable nativo de Linux (binario ELF o script). Se lanza sin
+	// Proton, y la interfaz lo usa para proponer "Ninguno".
+	Native bool `json:"native"`
 }
 
 // Detect examina la carpeta. Nunca falla del todo: si no encuentra nada,
@@ -269,8 +272,19 @@ func isNoiseDir(name string) bool {
 // Carpetas donde suele vivir el ejecutable bueno.
 var goodDirHints = []string{"bin", "binaries", "win64", "win32", "x64", "game"}
 
-// PickExecutable ordena los .exe de la carpeta de mas a menos probable.
+// PickExecutable ordena los ejecutables de la carpeta de mas a menos probable:
+// los .exe de Windows y los nativos de Linux (binarios ELF de x86 y scripts de
+// arranque, reconocidos por su contenido; ver nativo.go).
 // Devuelve tambien los descartados, para poder justificar la eleccion.
+//
+// Cuando la carpeta trae LAS DOS versiones se propone la de Windows, y los
+// nativos pierden puntos (penalizacionNativoConWindows). El motivo: con Proton
+// el juego lleva consigo todo lo que necesita, mientras que un binario nativo
+// lanzado como juego no-Steam depende de las bibliotecas que haya en SteamOS,
+// que es un sistema minimo; si le falta una, no arranca y no dice por que. La
+// nativa queda segunda en la lista y la interfaz la ofrece. Solo gana si es
+// claramente el juego y el .exe un accesorio (un binario de 80 MB junto a un
+// .exe de 100 KB).
 func PickExecutable(dir, gameName string) (picked []Candidate, skipped []string) {
 	base := filepath.Clean(dir)
 	nameKey := normalizeKey(gameName)
@@ -289,12 +303,26 @@ func PickExecutable(dir, gameName string) (picked []Candidate, skipped []string)
 			}
 			return nil
 		}
-		if !strings.EqualFold(filepath.Ext(d.Name()), ".exe") {
-			return nil
-		}
 		fi, err := d.Info()
-		if err != nil {
-			return nil
+		if err != nil || !fi.Mode().IsRegular() {
+			return nil // los enlaces simbolicos apuntan a algo que ya se mira por su nombre real
+		}
+		nativo, script := false, false
+		if !strings.EqualFold(filepath.Ext(d.Name()), ".exe") {
+			if !PuedeSerNativo(d.Name()) {
+				return nil
+			}
+			n := Olfatear(p)
+			if !n.Lanzable(d.Name()) {
+				return nil
+			}
+			// De los scripts solo cuentan los de arranque: "juego.sh" o un
+			// lanzador sin extension. Un juego de Ren'Py trae cientos de
+			// ficheros con "#!" que no son el juego.
+			if ext := strings.ToLower(filepath.Ext(d.Name())); n.Script && ext != ".sh" && ext != "" {
+				return nil
+			}
+			nativo, script = true, n.Script
 		}
 		rel, err := filepath.Rel(base, p)
 		if err != nil {
@@ -308,12 +336,15 @@ func PickExecutable(dir, gameName string) (picked []Candidate, skipped []string)
 			return nil
 		}
 
-		c := Candidate{Rel: rel, Size: fi.Size()}
+		c := Candidate{Rel: rel, Size: fi.Size(), Native: nativo}
 		var why []string
 
 		// El tamano es la senal mas fuerte: el ejecutable del juego suele ser
 		// de decenas o cientos de MB, y los accesorios de unos pocos.
 		switch {
+		case script:
+			// Un script de arranque ocupa unos cientos de bytes: el tamano no
+			// dice nada de el.
 		case fi.Size() > 100<<20:
 			c.Score += 50
 			why = append(why, "muy grande")
@@ -366,6 +397,18 @@ func PickExecutable(dir, gameName string) (picked []Candidate, skipped []string)
 		return nil
 	})
 
+	hayWindows := false
+	for _, c := range picked {
+		hayWindows = hayWindows || !c.Native
+	}
+	if hayWindows {
+		for i := range picked {
+			if picked[i].Native {
+				picked[i].Score -= penalizacionNativoConWindows
+			}
+		}
+	}
+
 	sort.SliceStable(picked, func(i, j int) bool {
 		if picked[i].Score != picked[j].Score {
 			return picked[i].Score > picked[j].Score
@@ -375,6 +418,10 @@ func PickExecutable(dir, gameName string) (picked []Candidate, skipped []string)
 	sort.Strings(skipped)
 	return picked, skipped
 }
+
+// penalizacionNativoConWindows es lo que pierde un ejecutable nativo cuando en
+// la misma carpeta hay un .exe candidato. El porque, en PickExecutable.
+const penalizacionNativoConWindows = 25
 
 var reNonAlnum = regexp.MustCompile(`[^a-z0-9]`)
 

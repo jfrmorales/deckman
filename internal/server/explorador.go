@@ -7,6 +7,8 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+
+	"github.com/jfrmorales/deckman/internal/detect"
 )
 
 // Explorador de ficheros de este PC, para elegir que se envia.
@@ -18,6 +20,8 @@ type browseEntry struct {
 	Path  string `json:"path"`
 	IsDir bool   `json:"isDir"`
 	Size  int64  `json:"size"`
+	// Native: ejecutable nativo de Linux. Solo se rellena si se pide (exes=1).
+	Native bool `json:"native,omitempty"`
 }
 
 // handleBrowse lista el sistema de ficheros del PC. Hace falta porque el
@@ -25,6 +29,11 @@ type browseEntry struct {
 // copiar un juego necesitamos exactamente eso.
 func (s *Server) handleBrowse(w http.ResponseWriter, r *http.Request) {
 	p := r.URL.Query().Get("path")
+	// Al elegir el ejecutable, el explorador necesita saber cuales lo son. Un
+	// .exe se ve por el nombre, pero un binario de Linux no lleva extension:
+	// hay que mirar la cabecera, y eso solo se hace cuando se pide porque es
+	// abrir cada fichero de la carpeta.
+	marcarNativos := r.URL.Query().Get("exes") == "1"
 
 	if p == "" {
 		if home, err := os.UserHomeDir(); err == nil {
@@ -54,6 +63,7 @@ func (s *Server) handleBrowse(w http.ResponseWriter, r *http.Request) {
 		be := browseEntry{Name: e.Name(), Path: full, IsDir: e.IsDir()}
 		if fi, err := e.Info(); err == nil && !e.IsDir() {
 			be.Size = fi.Size()
+			be.Native = marcarNativos && detect.LanzableEn(full)
 		}
 		out = append(out, be)
 	}

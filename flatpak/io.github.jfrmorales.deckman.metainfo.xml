@@ -2,7 +2,7 @@
 <component type="desktop-application">
   <id>io.github.jfrmorales.deckman</id>
   <name>deckman</name>
-  <summary>Gestiona los juegos de tu Steam Deck desde el PC</summary>
+  <summary>Gestiona los juegos de SteamOS desde el PC</summary>
   <developer id="io.github.jfrmorales">
     <name>jfrmorales</name>
   </developer>
@@ -10,13 +10,13 @@
   <project_license>GPL-3.0-or-later</project_license>
   <description>
     <p>
-      Gestiona los juegos de tu Steam Deck desde el ordenador: ver qué hay
+      Gestiona los juegos de SteamOS desde el ordenador: ver qué hay
       instalado, enviar juegos de Windows y ROMs, cambiar carátulas, mover
       juegos entre el SSD interno y la microSD, y liberar espacio.
     </p>
     <p>
       Al abrirlo arranca un servidor local y muestra la interfaz en el
-      navegador. En la Deck no hay que instalar nada: solo activar SSH.
+      navegador. En el equipo con SteamOS no hay que instalar nada: solo activar SSH.
     </p>
   </description>
   <launchable type="desktop-id">io.github.jfrmorales.deckman.desktop</launchable>

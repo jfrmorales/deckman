@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>deckman — gestor de la Steam Deck</title>
+<title>deckman — gestor de SteamOS</title>
 <!-- El icono va tambien en PNG, y no por gusto: en Wayland la ventana no
      tiene icono propio, el navegador se lo manda al escritorio por
      xdg-toplevel-icon sacandolo del favicon, y con un favicon solo SVG los
@@ -65,13 +65,13 @@
   <section id="connectView" class="connect-view">
     <div class="conncard">
       <div class="conncard-icon"><img src="icon.svg" alt="" width="56" height="56"></div>
-      <h1>Conecta con tu Steam Deck</h1>
-      <p class="conncard-sub">deckman controla la Deck por SSH. Solo hay que activarlo una vez.</p>
+      <h1>Conecta con SteamOS</h1>
+      <p class="conncard-sub">deckman controla tu equipo SteamOS por SSH. Solo hay que activarlo una vez.</p>
 
       <!-- Decks guardadas. Solo aparece si hay alguna: con una sola Deck no
            tiene sentido gastar media pantalla en una lista de un elemento. -->
       <div id="savedDecks" class="saved hidden">
-        <p class="saved-title">Tus Steam Decks</p>
+        <p class="saved-title">Tus equipos SteamOS</p>
         <ul id="deckList" class="decklist"></ul>
         <button id="btnNewDeck" class="linkish">+ Añadir otra Deck</button>
       </div>
@@ -108,14 +108,12 @@
       <p id="connError" class="connerr hidden"></p>
 
       <details class="help">
-        <summary>¿Primera vez? Activa SSH en la Deck</summary>
+        <summary>¿Primera vez? Configura SSH, contraseña e IP en SteamOS</summary>
         <ol class="steps">
-          <li>En la Deck, pasa a <strong>modo escritorio</strong>.</li>
-          <li>Abre <strong>Ajustes del sistema → Compartir</strong> y activa <strong>SSH</strong>.
-            En una terminal es lo mismo que:
-            <span class="cmd">sudo systemctl enable --now sshd</span></li>
-          <li>Si el usuario <strong>deck</strong> no tiene contraseña, ponla en la Deck con
-            <code>passwd</code> — SteamOS viene sin ella y SSH no deja entrar así.</li>
+          <li>En SteamOS, pasa a <strong>modo escritorio</strong> (menú Steam → Encendido → Cambiar a escritorio).</li>
+          <li>Abre <strong>Ajustes del sistema → Compartir</strong> y activa <strong>SSH</strong>. En una terminal es lo mismo que:<span class="cmd">sudo systemctl enable --now sshd</span></li>
+          <li>Asigna una contraseña al usuario <strong>deck</strong> (SteamOS viene sin ella y SSH no deja entrar así): ve a <strong>Ajustes del sistema → Usuarios → deck → Cambiar contraseña</strong>, o abre <strong>Konsole</strong> y ejecuta <code>passwd</code> (te pedirá la nueva contraseña dos veces; no se verá nada al escribir).</li>
+          <li>Para ver la <strong>IP</strong>: en <strong>modo juego</strong> entra en <strong>Steam → Parámetros → Internet</strong> y selecciona tu red; en <strong>modo escritorio</strong> pulsa el icono de red junto al reloj (<strong>Detalles</strong>) o ejecuta <code>hostname -I</code> en Konsole.</li>
         </ol>
       </details>
     </div>
@@ -507,6 +505,23 @@
       <span class="spacer"></span>
       <button id="delCancel">Cancelar</button>
       <button id="delConfirm" class="danger">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ---------- VISTA PREVIA DE CAMBIOS ---------- -->
+<div id="previewModal" class="modal hidden">
+  <div class="mbox">
+    <div class="mhead"><span id="chgTitle">Cambios que se van a aplicar</span><span class="spacer"></span><button id="chgClose">✕</button></div>
+    <div class="mbody">
+      <p id="chgSummary" class="chg-summary"></p>
+      <ul id="chgList" class="chg-list"></ul>
+      <p id="chgNote" class="hint chg-note hidden"></p>
+    </div>
+    <div class="mfoot">
+      <span class="spacer"></span>
+      <button id="chgCancel">Cancelar</button>
+      <button id="chgConfirm" class="primary">Aplicar cambios</button>
     </div>
   </div>
 </div>

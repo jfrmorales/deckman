@@ -12,7 +12,7 @@
 const CATALOGO = {
   en: {
     // --- cabecera y navegación ---
-    'deckman — gestor de la Steam Deck': 'deckman — Steam Deck manager',
+    'deckman — gestor de SteamOS': 'deckman — SteamOS manager',
     'sin conexión': 'not connected',
     'Salir': 'Quit',
     'Cerrar deckman (apaga el servidor local)': 'Quit deckman (shuts down the local server)',
@@ -23,8 +23,8 @@ const CATALOGO = {
     'Preferences': 'Preferences',
 
     // --- conexión ---
-    'Conecta con tu Steam Deck': 'Connect to your Steam Deck',
-    'Tus Steam Decks': 'Your Steam Decks',
+    'Conecta con SteamOS': 'Connect to SteamOS',
+    'Tus equipos SteamOS': 'Your SteamOS devices',
     '+ Añadir otra Deck': '+ Add another Deck',
     'Conectar con otra Deck': 'Connect to another Deck',
     'IP de la Deck': 'Deck IP address',
@@ -36,19 +36,37 @@ const CATALOGO = {
     'Nombre (opcional)': 'Name (optional)',
     'p. ej. la del salón': 'e.g. the one in the living room',
     'Conectar': 'Connect',
-    '¿Primera vez? Activa SSH en la Deck': 'First time? Turn on SSH on the Deck',
-    'deckman controla la Deck por SSH. Solo hay que activarlo una vez.':
-      'deckman drives the Deck over SSH. You only need to turn it on once.',
-    'En la Deck, pasa a': 'On the Deck, switch to',
+    '¿Primera vez? Configura SSH, contraseña e IP en SteamOS':
+      'First time? Set up SSH, password and IP on SteamOS',
+    'deckman controla tu equipo SteamOS por SSH. Solo hay que activarlo una vez.':
+      'deckman drives your SteamOS device over SSH. You only need to turn it on once.',
+    'En SteamOS, pasa a': 'On SteamOS, switch to',
     'modo escritorio': 'desktop mode',
+    '(menú Steam → Encendido → Cambiar a escritorio).':
+      '(Steam menu → Power → Switch to Desktop).',
     'Abre': 'Open',
     'Ajustes del sistema → Compartir': 'System Settings → Sharing',
     'y activa': 'and turn on',
     '. En una terminal es lo mismo que:': '. In a terminal that is the same as:',
-    'Si el usuario': 'If the user',
-    'no tiene contraseña, ponla en la Deck con': 'has no password, set one on the Deck with',
-    '— SteamOS viene sin ella y SSH no deja entrar así.':
-      '— SteamOS ships without one and SSH will not let you in that way.',
+    'Asigna una contraseña al usuario': 'Set a password for the',
+    '(SteamOS viene sin ella y SSH no deja entrar así): ve a':
+      'user (SteamOS ships without one and SSH will not let you in that way): go to',
+    'Ajustes del sistema → Usuarios → deck → Cambiar contraseña':
+      'System Settings → Users → deck → Change Password',
+    ', o abre': ', or open',
+    'y ejecuta': 'and run',
+    '(te pedirá la nueva contraseña dos veces; no se verá nada al escribir).':
+      '(it will ask for the new password twice; nothing is shown while typing).',
+    'Para ver la': 'To find the',
+    ': en': ': in',
+    'modo juego': 'gaming mode',
+    'entra en': 'go to',
+    'Steam → Parámetros → Internet': 'Steam → Settings → Internet',
+    'y selecciona tu red; en': 'and select your network; in',
+    'pulsa el icono de red junto al reloj (': 'click the network icon next to the clock (',
+    'Detalles': 'Details',
+    ') o ejecuta': ') or run',
+    'en Konsole.': 'in Konsole.',
     'se regenera sola': 'it regenerates itself',
 
     // --- biblioteca ---
@@ -304,11 +322,72 @@ const CATALOGO = {
     'Reanudando movimientos…': 'Resuming pending moves…',
     'Cola reanudada ({0}).': 'Queue resumed ({0}).',
     'Moviendo…': 'Moving…',
+
+    // --- vista previa de cambios ---
+    'Cambios que se van a aplicar': 'Changes to be applied',
+    'Aplicar cambios': 'Apply changes',
+    'Aplicar carátula ({0}) a "{1}".': 'Apply artwork ({0}) to "{1}".',
+    'Guarda o sustituye solo esta imagen; el resto de carátulas y los .json de Decky no se tocan.':
+      'Saves or replaces only this image; other artwork and Decky .json files are left untouched.',
+    'Steam está abierto: se aplicará en caliente sin reiniciar.':
+      'Steam is open: it will be applied live without restarting.',
+    'Si Steam está cerrado (o es un icono), se verá al reiniciar Steam.':
+      'If Steam is closed (or this is an icon), it will appear once Steam restarts.',
+    'Aplicar imagen': 'Apply image',
+    'Quitar carátula ({0}) de "{1}".': 'Remove artwork ({0}) from "{1}".',
+    'Elimina únicamente esa imagen; no toca otras carátulas ni configuraciones.':
+      'Deletes only this image; other artwork and settings are left untouched.',
+    'Quitar imagen': 'Remove image',
+    'Copia la carpeta del juego desde este PC.': 'Copies the game folder from this PC.',
+    'Registra "{0}" mediante la API de Steam (conserva tus accesos directos actuales).':
+      'Registers "{0}" via the Steam API (keeps your existing shortcuts).',
+    'Añade "{0}" conservando el resto de accesos directos (guarda copia .deckman.bak).':
+      'Adds "{0}" while keeping all other shortcuts (saves a .deckman.bak backup).',
+    'Asigna {0} en CompatToolMapping para este juego (conserva el resto; copia .deckman.bak).':
+      'Sets {0} in CompatToolMapping for this game (keeps the rest; saves .deckman.bak).',
+    'Descarga las carátulas faltantes desde SteamGridDB (no borra ficheros existentes).':
+      'Downloads missing artwork from SteamGridDB (does not delete existing files).',
+    'Enviar "{0}" a SteamOS.': 'Send "{0}" to SteamOS.',
+    'Copiar ROM "{0}" al sistema {1}.': 'Copy ROM "{0}" to {1}.',
+    'Copia el fichero sin modificar configuraciones de Steam ni otras ROMs.':
+      'Copies the file without modifying Steam settings or other ROMs.',
+    'Copiar ROM': 'Copy ROM',
+    'Copia la carpeta del juego ({0}) a la nueva ubicación.':
+      'Copies the game folder ({0}) to the new location.',
+    'Actualiza la ruta del acceso directo mediante la API de Steam (conserva el resto).':
+      'Updates the shortcut path via the Steam API (keeps the rest).',
+    'Actualiza la ruta del acceso directo conservando el resto (copia .deckman.bak).':
+      'Updates the shortcut path while keeping the rest (saves .deckman.bak).',
+    'Mueve los ficheros del juego ({0}) y su manifiesto .acf.':
+      'Moves the game files ({0}) and its .acf manifest.',
+    'Mover "{0}" ({1}) a {2}.': 'Move "{0}" ({1}) to {2}.',
+    'Mover': 'Move',
+    'Cambiar Proton de "{0}" a {1}.': 'Change Proton for "{0}" to {1}.',
+    'Aplica el cambio directamente en Steam sin tocar otros ajustes.':
+      'Applies the change directly in Steam without touching other settings.',
+    'Actualiza CompatToolMapping para este juego conservando el resto (copia .deckman.bak).':
+      'Updates CompatToolMapping for this game while keeping the rest (saves .deckman.bak).',
+    'Cambiar Proton': 'Change Proton',
+    'Borrar "{0}" de {1}.': 'Delete "{0}" from {1}.',
+    'Elimina el fichero de forma permanente (no hay papelera).':
+      'Deletes the file permanently (there is no recycle bin).',
+    'Renombrar ROM en {0}.': 'Rename ROM in {0}.',
+    'Cambia únicamente el nombre del fichero.': 'Changes only the file name.',
+    'Renombrar': 'Rename',
+    'Buscar carátulas de ROMs para {0}.': 'Scrape ROM artwork for {0}.',
+    'Descarga y sobrescribe carátulas, pantallas de título y capturas desde libretro-thumbnails.':
+      'Downloads and overwrites covers, title screens and screenshots from libretro-thumbnails.',
+    'Descarga solo las imágenes que falten desde libretro-thumbnails (conserva las existentes).':
+      'Downloads only missing images from libretro-thumbnails (keeps existing ones).',
+    'Descargar ROM en el sistema {0}.': 'Download ROM into {0}.',
+    'El equipo SteamOS descarga el fichero directamente desde la URL indicada.':
+      'The SteamOS device downloads the file directly from the given URL.',
+    'Descargar': 'Download',
   },
 
   fr: {
     // --- cabecera y navegación ---
-    'deckman — gestor de la Steam Deck': 'deckman — gestionnaire de Steam Deck',
+    'deckman — gestor de SteamOS': 'deckman — gestionnaire de SteamOS',
     'sin conexión': 'hors connexion',
     'Salir': 'Quitter',
     'Cerrar deckman (apaga el servidor local)': 'Quitter deckman (arrête le serveur local)',
@@ -319,8 +398,8 @@ const CATALOGO = {
     'Preferences': 'Préférences',
 
     // --- conexión ---
-    'Conecta con tu Steam Deck': 'Connectez-vous à votre Steam Deck',
-    'Tus Steam Decks': 'Vos Steam Decks',
+    'Conecta con SteamOS': 'Connectez-vous à SteamOS',
+    'Tus equipos SteamOS': 'Vos appareils SteamOS',
     '+ Añadir otra Deck': '+ Ajouter une autre Deck',
     'Conectar con otra Deck': 'Se connecter à une autre Deck',
     'IP de la Deck': 'Adresse IP de la Deck',
@@ -332,19 +411,37 @@ const CATALOGO = {
     'Nombre (opcional)': 'Nom (facultatif)',
     'p. ej. la del salón': 'p. ex. celle du salon',
     'Conectar': 'Se connecter',
-    '¿Primera vez? Activa SSH en la Deck': 'Première fois ? Activez SSH sur la Deck',
-    'deckman controla la Deck por SSH. Solo hay que activarlo una vez.':
-      'deckman pilote la Deck en SSH. Il n’y a qu’à l’activer une seule fois.',
-    'En la Deck, pasa a': 'Sur la Deck, passez en',
+    '¿Primera vez? Configura SSH, contraseña e IP en SteamOS':
+      'Première fois ? Configurez SSH, mot de passe et IP sur SteamOS',
+    'deckman controla tu equipo SteamOS por SSH. Solo hay que activarlo una vez.':
+      'deckman pilote votre appareil SteamOS en SSH. Il n’y a qu’à l’activer une seule fois.',
+    'En SteamOS, pasa a': 'Sur SteamOS, passez en',
     'modo escritorio': 'mode bureau',
+    '(menú Steam → Encendido → Cambiar a escritorio).':
+      '(menu Steam → Alimentation → Basculer vers le bureau).',
     'Abre': 'Ouvrez',
     'Ajustes del sistema → Compartir': 'Paramètres système → Partage',
     'y activa': 'et activez',
     '. En una terminal es lo mismo que:': '. Dans un terminal, cela revient à :',
-    'Si el usuario': 'Si l’utilisateur',
-    'no tiene contraseña, ponla en la Deck con': 'n’a pas de mot de passe, définissez-en un sur la Deck avec',
-    '— SteamOS viene sin ella y SSH no deja entrar así.':
-      '— SteamOS n’en fournit pas et SSH refuse l’accès sans lui.',
+    'Asigna una contraseña al usuario': 'Définissez un mot de passe pour l’utilisateur',
+    '(SteamOS viene sin ella y SSH no deja entrar así): ve a':
+      '(SteamOS n’en fournit pas et SSH refuse l’accès sans lui) : allez dans',
+    'Ajustes del sistema → Usuarios → deck → Cambiar contraseña':
+      'Paramètres système → Utilisateurs → deck → Modifier le mot de passe',
+    ', o abre': ', ou ouvrez',
+    'y ejecuta': 'et exécutez',
+    '(te pedirá la nueva contraseña dos veces; no se verá nada al escribir).':
+      '(le nouveau mot de passe vous sera demandé deux fois ; rien ne s’affiche pendant la saisie).',
+    'Para ver la': 'Pour trouver l’',
+    ': en': ' : en',
+    'modo juego': 'mode jeu',
+    'entra en': 'allez dans',
+    'Steam → Parámetros → Internet': 'Steam → Paramètres → Internet',
+    'y selecciona tu red; en': 'et sélectionnez votre réseau ; en',
+    'pulsa el icono de red junto al reloj (': 'cliquez sur l’icône réseau près de l’horloge (',
+    'Detalles': 'Détails',
+    ') o ejecuta': ') ou exécutez',
+    'en Konsole.': 'dans Konsole.',
     'se regenera sola': 'elle se régénère toute seule',
 
     // --- biblioteca ---
@@ -600,5 +697,66 @@ const CATALOGO = {
     'Reanudando movimientos…': 'Reprise des déplacements…',
     'Cola reanudada ({0}).': 'File reprise ({0}).',
     'Moviendo…': 'Déplacement…',
+
+    // --- vista previa de cambios ---
+    'Cambios que se van a aplicar': 'Modifications qui vont être appliquées',
+    'Aplicar cambios': 'Appliquer les modifications',
+    'Aplicar carátula ({0}) a "{1}".': 'Appliquer la jaquette ({0}) à « {1} ».',
+    'Guarda o sustituye solo esta imagen; el resto de carátulas y los .json de Decky no se tocan.':
+      'Enregistre ou remplace uniquement cette image ; les autres jaquettes et les .json de Decky ne sont pas touchés.',
+    'Steam está abierto: se aplicará en caliente sin reiniciar.':
+      'Steam est ouvert : cela sera appliqué à chaud sans redémarrer.',
+    'Si Steam está cerrado (o es un icono), se verá al reiniciar Steam.':
+      'Si Steam est fermé (ou s’il s’agit d’une icône), cela apparaîtra au redémarrage de Steam.',
+    'Aplicar imagen': 'Appliquer l’image',
+    'Quitar carátula ({0}) de "{1}".': 'Retirer la jaquette ({0}) de « {1} ».',
+    'Elimina únicamente esa imagen; no toca otras carátulas ni configuraciones.':
+      'Supprime uniquement cette image ; les autres jaquettes et réglages ne sont pas touchés.',
+    'Quitar imagen': 'Retirer l’image',
+    'Copia la carpeta del juego desde este PC.': 'Copie le dossier du jeu depuis ce PC.',
+    'Registra "{0}" mediante la API de Steam (conserva tus accesos directos actuales).':
+      'Enregistre « {0} » via l’API de Steam (conserve vos raccourcis actuels).',
+    'Añade "{0}" conservando el resto de accesos directos (guarda copia .deckman.bak).':
+      'Ajoute « {0} » en conservant les autres raccourcis (sauvegarde .deckman.bak).',
+    'Asigna {0} en CompatToolMapping para este juego (conserva el resto; copia .deckman.bak).':
+      'Définit {0} dans CompatToolMapping pour ce jeu (conserve le reste ; sauvegarde .deckman.bak).',
+    'Descarga las carátulas faltantes desde SteamGridDB (no borra ficheros existentes).':
+      'Télécharge les jaquettes manquantes depuis SteamGridDB (ne supprime pas les fichiers existants).',
+    'Enviar "{0}" a SteamOS.': 'Envoyer « {0} » vers SteamOS.',
+    'Copiar ROM "{0}" al sistema {1}.': 'Copier la ROM « {0} » vers {1}.',
+    'Copia el fichero sin modificar configuraciones de Steam ni otras ROMs.':
+      'Copie le fichier sans modifier les réglages de Steam ni les autres ROMs.',
+    'Copiar ROM': 'Copier la ROM',
+    'Copia la carpeta del juego ({0}) a la nueva ubicación.':
+      'Copie le dossier du jeu ({0}) vers le nouvel emplacement.',
+    'Actualiza la ruta del acceso directo mediante la API de Steam (conserva el resto).':
+      'Met à jour le chemin du raccourci via l’API de Steam (conserve le reste).',
+    'Actualiza la ruta del acceso directo conservando el resto (copia .deckman.bak).':
+      'Met à jour le chemin du raccourci en conservant le reste (sauvegarde .deckman.bak).',
+    'Mueve los ficheros del juego ({0}) y su manifiesto .acf.':
+      'Déplace les fichiers du jeu ({0}) et son manifeste .acf.',
+    'Mover "{0}" ({1}) a {2}.': 'Déplacer « {0} » ({1}) vers {2}.',
+    'Mover': 'Déplacer',
+    'Cambiar Proton de "{0}" a {1}.': 'Changer Proton de « {0} » vers {1}.',
+    'Aplica el cambio directamente en Steam sin tocar otros ajustes.':
+      'Applique le changement directement dans Steam sans toucher aux autres réglages.',
+    'Actualiza CompatToolMapping para este juego conservando el resto (copia .deckman.bak).':
+      'Met à jour CompatToolMapping pour ce jeu en conservant le reste (sauvegarde .deckman.bak).',
+    'Cambiar Proton': 'Changer Proton',
+    'Borrar "{0}" de {1}.': 'Supprimer « {0} » de {1}.',
+    'Elimina el fichero de forma permanente (no hay papelera).':
+      'Supprime le fichier définitivement (il n’y a pas de corbeille).',
+    'Renombrar ROM en {0}.': 'Renommer la ROM dans {0}.',
+    'Cambia únicamente el nombre del fichero.': 'Modifie uniquement le nom du fichier.',
+    'Renombrar': 'Renommer',
+    'Buscar carátulas de ROMs para {0}.': 'Rechercher des jaquettes de ROMs pour {0}.',
+    'Descarga y sobrescribe carátulas, pantallas de título y capturas desde libretro-thumbnails.':
+      'Télécharge et écrase jaquettes, écrans titre et captures depuis libretro-thumbnails.',
+    'Descarga solo las imágenes que falten desde libretro-thumbnails (conserva las existentes).':
+      'Télécharge uniquement les images manquantes depuis libretro-thumbnails (conserve les existantes).',
+    'Descargar ROM en el sistema {0}.': 'Télécharger la ROM dans {0}.',
+    'El equipo SteamOS descarga el fichero directamente desde la URL indicada.':
+      'L’appareil SteamOS télécharge le fichier directement depuis l’URL indiquée.',
+    'Descargar': 'Télécharger',
   },
 };

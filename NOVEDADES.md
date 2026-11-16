@@ -20,6 +20,17 @@ Cómo se mantiene este fichero:
   «Arreglos». Sin emoji: el foro no los aguanta.
 -->
 
+## 16/11/2026 · Vista previa de cambios, soporte para SteamOS y guía de conexión
+
+### Novedades
+
+- **Vista previa de cambios antes de tocar el equipo**: antes de enviar un juego, cambiar Proton, aplicar o quitar una carátula, mover un juego o gestionar ROMs, deckman muestra un resumen con los ficheros y carpetas exactos que se van a modificar (`shortcuts.vdf`, `config.vdf`, `grid/`, `~/Games/`, etc.), indicando qué se conserva y la copia de seguridad `.deckman.bak`.
+
+### Mejoras
+
+- **Textos adaptados a SteamOS**: cambiadas las referencias exclusivas a Steam Deck por **SteamOS** para quienes usan deckman también en Steam Machine u otros equipos con SteamOS.
+- **Guía inicial más clara**: la pantalla de conexión y el README explican ahora paso a paso cómo asignar contraseña al usuario `deck` (desde Ajustes del sistema o `passwd` en Konsole) y dónde encontrar la dirección IP en los ajustes de red tanto en modo juego como en modo escritorio.
+
 ## 15/11/2026 · Cola de movimientos e historial permanente de operaciones
 
 ### Novedades

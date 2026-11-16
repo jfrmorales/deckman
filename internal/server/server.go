@@ -287,7 +287,7 @@ func (s *Server) conn() (*deck.Client, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if s.client == nil {
-		return nil, i18n.Errorf("no hay conexion con la Steam Deck")
+		return nil, i18n.Errorf("no hay conexion con SteamOS")
 	}
 	return s.client, nil
 }
@@ -371,7 +371,7 @@ func (s *Server) handleConnect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.Host == "" {
-		writeErr(w, i18n.Errorf("indica la IP de la Steam Deck"), http.StatusBadRequest)
+		writeErr(w, i18n.Errorf("indica la IP de SteamOS"), http.StatusBadRequest)
 		return
 	}
 	if req.Port == 0 {

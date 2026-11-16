@@ -141,9 +141,9 @@ func TestErroresEnvueltosSiguenSiendoComparables(t *testing.T) {
 		t.Error("errors.Is no atraviesa el Mensaje")
 	}
 	// Y el error de dentro tambien se traduce, para no mezclar idiomas.
-	dentro := Errorf("no hay conexion con la Steam Deck")
+	dentro := Errorf("no hay conexion con SteamOS")
 	fuera := Errorf("no se pudo leer %s: %w", "shortcuts.vdf", dentro)
-	if got, want := Traducir(fuera, EN), "shortcuts.vdf could not be read: there is no connection to the Steam Deck"; got != want {
+	if got, want := Traducir(fuera, EN), "shortcuts.vdf could not be read: there is no connection to SteamOS"; got != want {
 		t.Errorf("anidado EN = %q, se esperaba %q", got, want)
 	}
 }

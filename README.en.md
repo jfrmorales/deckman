@@ -2,7 +2,7 @@
 
 *[Español](README.md) · **English** · [Français](README.fr.md)*
 
-Manage your Steam Deck's games from your computer: see what is installed, send
+Manage your SteamOS (Steam Deck, Steam Machine…) games from your computer: see what is installed, send
 Windows games and ROMs, change artwork, move games between the internal SSD and
 the microSD, and free up space.
 
@@ -62,6 +62,7 @@ by default, and there is a selector in the top bar.
 | **ROM artwork** | Looks up box art, title screen and screenshot for each ROM on libretro-thumbnails and puts them where ES-DE looks for them. No key, no sign-up. |
 | **Move** | Moves a game between the internal drive and the microSD without downloading it again. Non-Steam games too: it takes the folder across and updates the shortcut. |
 | **Clean up** | Uninstalls games and deletes the Proton prefix or the shader cache separately. |
+| **Change preview** | Before touching anything on your device, shows the exact folders and files it will modify (`shortcuts.vdf`, `config.vdf`, `grid/`, `~/Games/`, ROMs), preserving your existing settings and keeping a `.deckman.bak` backup. |
 
 ---
 
@@ -104,13 +105,22 @@ French, and follows your browser by default.
 
 ## Before you start
 
-On the Deck, just once:
+On your SteamOS device, just once:
 
-1. Desktop mode.
-2. **System Settings → Desktop → Sharing → SSH**, turn it on.
-   (Or in a terminal: `sudo systemctl enable --now sshd`.)
-3. If you have never set a password for the `deck` user, set one with `passwd`.
-   SteamOS ships without one and SSH will not let you in that way.
+1. Switch to **Desktop mode** (**Steam menu → Power → Switch to Desktop**).
+2. Turn on **SSH** under **System Settings → Desktop → Sharing → SSH**
+   (or in **Konsole**: `sudo systemctl enable --now sshd`).
+3. **Set a password for the `deck` user** (SteamOS ships without one and SSH
+   will not let you in without it):
+   - **From settings**: **System Settings → Users → `deck` → Change Password**.
+   - **From a terminal**: open **Konsole**, run `passwd` and type the new
+     password twice (no characters are shown while typing).
+4. **Find the IP address** (e.g. `192.168.1.50`) in network settings:
+   - **In Gaming Mode**: **Steam → Settings → Internet** and select your
+     connected network to view the **IP address**.
+   - **In Desktop Mode**: click the **network icon** next to the clock in the
+     bottom panel → **Details** (or **System Settings → Network**), or run
+     `hostname -I` in Konsole.
 
 ## Use
 

@@ -98,7 +98,7 @@ func (c *Client) getJSON(ctx context.Context, rawURL string, hdr map[string]stri
 	if err != nil {
 		return err
 	}
-	req.Header.Set("User-Agent", "deckman/1.0 (+gestor local de Steam Deck)")
+	req.Header.Set("User-Agent", "deckman/1.0 (+gestor local de SteamOS)")
 	req.Header.Set("Accept", "application/json")
 	for k, v := range hdr {
 		req.Header.Set(k, v)

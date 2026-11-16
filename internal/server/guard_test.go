@@ -173,7 +173,7 @@ func TestElErrorSaleEnElIdiomaDeLaPeticion(t *testing.T) {
 	h := s.Handler()
 
 	casos := map[string]string{
-		"en-GB,en;q=0.9": "there is no connection to the Steam Deck",
+		"en-GB,en;q=0.9": "there is no connection to SteamOS",
 		"fr-FR,fr;q=0.9": "il n", // "il n'y a pas de connexion..."
 		"es-ES":          "no hay conexion",
 		"de-DE":          "no hay conexion", // idioma que no hablamos: castellano

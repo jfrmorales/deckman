@@ -395,7 +395,7 @@ function renderGames() {
       const opts = [`<option value="">${escapeHtml(t('Por defecto'))}</option>`]
         .concat(shown.map((t) =>
           `<option value="${escapeHtml(t.name)}"${t.name === g.compatTool ? ' selected' : ''}>${escapeHtml(t.displayName)}</option>`));
-      compatCell = `<select class="compat" data-appid="${escapeHtml(g.appId)}">${opts.join('')}</select>`;
+      compatCell = `<select class="compat" data-appid="${escapeHtml(g.appId)}" data-prev="${escapeHtml(g.compatTool || '')}">${opts.join('')}</select>`;
     }
 
     const extras = [];
@@ -942,6 +942,22 @@ async function loadArtOptions() {
 async function applyArt(opt, el, kind) {
   if (art.busy) return;
   kind = kind || art.kind;
+  const kindLabel = t(ART_KINDS[kind] || kind);
+  const ok = await confirmChanges({
+    summary: t('Aplicar carátula ({0}) a "{1}".', kindLabel, art.name),
+    items: [
+      {
+        path: `userdata/<id>/config/grid/${art.appId}...`,
+        desc: t('Guarda o sustituye solo esta imagen; el resto de carátulas y los .json de Decky no se tocan.'),
+      },
+    ],
+    note: inventory && inventory.steamRunning && kind !== 'icon'
+      ? t('Steam está abierto: se aplicará en caliente sin reiniciar.')
+      : t('Si Steam está cerrado (o es un icono), se verá al reiniciar Steam.'),
+    confirmLabel: t('Aplicar imagen'),
+  });
+  if (!ok) return;
+
   art.busy = true;
   $('artBody').querySelectorAll('.artitem').forEach((x) => x.classList.remove('chosen'));
   el.classList.add('working');
@@ -1034,6 +1050,19 @@ async function restartSteam(btn) {
 }
 
 async function removeArt() {
+  const kindLabel = t(ART_KINDS[art.kind] || art.kind);
+  const ok = await confirmChanges({
+    summary: t('Quitar carátula ({0}) de "{1}".', kindLabel, art.name),
+    items: [
+      {
+        path: `userdata/<id>/config/grid/${art.appId}...`,
+        desc: t('Elimina únicamente esa imagen; no toca otras carátulas ni configuraciones.'),
+      },
+    ],
+    confirmLabel: t('Quitar imagen'),
+    danger: true,
+  });
+  if (!ok) return;
   try {
     const r = await api('/api/artwork/remove', { appId: art.appId, kind: art.kind });
     delete art.current[art.kind];
@@ -1328,19 +1357,108 @@ async function startJob(path, body, titulo, fallo) {
   }
 }
 
+function confirmChanges({ title, summary, items, note, confirmLabel, danger }) {
+  return new Promise((resolve) => {
+    const modal = $('previewModal');
+    const btnOk = $('chgConfirm');
+    const btnCancel = $('chgCancel');
+    const btnClose = $('chgClose');
+
+    $('chgTitle').textContent = title || t('Cambios que se van a aplicar');
+    $('chgSummary').textContent = summary || '';
+    $('chgList').innerHTML = (items || []).map((it) =>
+      `<li><span class="chg-path">${escapeHtml(it.path)}</span><span class="chg-desc">${escapeHtml(it.desc)}</span></li>`
+    ).join('');
+
+    const noteEl = $('chgNote');
+    if (note) {
+      noteEl.textContent = note;
+      noteEl.classList.remove('hidden');
+    } else {
+      noteEl.textContent = '';
+      noteEl.classList.add('hidden');
+    }
+
+    btnOk.textContent = confirmLabel || t('Aplicar cambios');
+    btnOk.className = danger ? 'danger' : 'primary';
+
+    const done = (res) => {
+      modal.classList.add('hidden');
+      document.removeEventListener('keydown', onKey);
+      modal.onclick = null;
+      btnOk.onclick = null;
+      btnCancel.onclick = null;
+      btnClose.onclick = null;
+      resolve(res);
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') done(false);
+    };
+
+    btnOk.onclick = () => done(true);
+    btnCancel.onclick = () => done(false);
+    btnClose.onclick = () => done(false);
+    modal.onclick = (e) => { if (e.target === modal) done(false); };
+    document.addEventListener('keydown', onKey);
+
+    modal.classList.remove('hidden');
+    btnOk.focus();
+  });
+}
+
 async function sendGame() {
   const path = $('sendPath').value;
   if (!path) { banner(t('Elige la carpeta del juego.'), 'err'); return; }
   const addShortcut = $('addShortcut').checked;
   if (addShortcut && !$('sendExe').value) { banner(t('Elige el ejecutable.'), 'err'); return; }
+
+  const name = $('sendName').value.trim() || path.split(/[\\/]/).pop();
+  const folderName = path.split(/[\\/]/).filter(Boolean).pop() || name;
+  const compatTool = $('sendProton').value;
+  const artwork = addShortcut && $('sendArtwork').checked;
+
+  const items = [
+    {
+      path: `~/Games/${folderName}`,
+      desc: t('Copia la carpeta del juego desde este PC.'),
+    },
+  ];
+  if (addShortcut) {
+    items.push({
+      path: 'userdata/<id>/config/shortcuts.vdf',
+      desc: inventory && inventory.steamRunning
+        ? t('Registra "{0}" mediante la API de Steam (conserva tus accesos directos actuales).', name)
+        : t('Añade "{0}" conservando el resto de accesos directos (guarda copia .deckman.bak).', name),
+    });
+  }
+  if (compatTool) {
+    items.push({
+      path: 'config/config.vdf',
+      desc: t('Asigna {0} en CompatToolMapping para este juego (conserva el resto; copia .deckman.bak).', compatTool),
+    });
+  }
+  if (artwork) {
+    items.push({
+      path: 'userdata/<id>/config/grid/',
+      desc: t('Descarga las carátulas faltantes desde SteamGridDB (no borra ficheros existentes).'),
+    });
+  }
+
+  const ok = await confirmChanges({
+    summary: t('Enviar "{0}" a SteamOS.', name),
+    items,
+    confirmLabel: t('Enviar juego'),
+  });
+  if (!ok) return;
+
   await startJob('/api/send-game', {
     localPath: path,
     name: $('sendName').value.trim(),
     exe: $('sendExe').value.trim(),
-    compatTool: $('sendProton').value,
+    compatTool,
     launchOptions: $('sendOpts').value.trim(),
     addShortcut,
-    artwork: addShortcut && $('sendArtwork').checked,
+    artwork,
     steamAppId: detectedAppId(),
   }, t('Enviando juego'), t('No se pudo enviar el juego'));
 }
@@ -1348,10 +1466,24 @@ async function sendGame() {
 async function sendRom() {
   const path = $('romPath').value;
   if (!path) { banner(t('Elige la ROM.'), 'err'); return; }
+  const sys = $('romSystem').value;
+  const fileName = path.split(/[\\/]/).filter(Boolean).pop() || path;
+  const ok = await confirmChanges({
+    summary: t('Copiar ROM "{0}" al sistema {1}.', fileName, sys),
+    items: [
+      {
+        path: `${inventory.romsDir}/${sys}/${fileName}`,
+        desc: t('Copia el fichero sin modificar configuraciones de Steam ni otras ROMs.'),
+      },
+    ],
+    confirmLabel: t('Copiar ROM'),
+  });
+  if (!ok) return;
+
   await startJob('/api/send-rom', {
     localPath: path,
     romsDir: inventory.romsDir,
-    system: $('romSystem').value,
+    system: sys,
   }, t('Enviando ROM'), t('No se pudo enviar la ROM'));
 }
 
@@ -1360,23 +1492,42 @@ async function moveGame(appId, target) {
   const lib = (inventory.libraries || []).find((l) => l.path === target);
   if (!g) return;
 
-  // Los dos casos tienen letra pequeña distinta. Un juego de Steam, con Steam
-  // abierto, lo mueve el propio Steam; con Steam cerrado lo copiamos nosotros,
-  // y abrirlo a medias desharía el cambio. En uno no-Steam lo que se toca es
-  // el acceso directo, y eso Steam también sabe hacerlo en caliente.
-  let aviso = '\n\n' + (inventory.steamRunning
+  const items = [];
+  let note = inventory.steamRunning
     ? t('Steam está abierto: lo moverá él mismo, como desde Ajustes > Almacenamiento.')
-    : t('Steam está cerrado: no lo abras en la Deck hasta que termine.'));
+    : t('Steam está cerrado: no lo abras en la Deck hasta que termine.');
+
   if (g.kind === 'nonsteam') {
-    aviso = '\n\n' + t('Se copia la carpeta a {0} y se actualiza el acceso directo.', lib ? lib.gamesDir : target)
-      + (inventory.steamRunning
-        ? ' ' + t('Steam está abierto: se lo pediremos a él, así que no hace falta cerrarlo.')
-        : '');
+    items.push({
+      path: lib ? lib.gamesDir : target,
+      desc: t('Copia la carpeta del juego ({0}) a la nueva ubicación.', fmtBytes(g.size)),
+    });
+    items.push({
+      path: 'userdata/<id>/config/shortcuts.vdf',
+      desc: inventory.steamRunning
+        ? t('Actualiza la ruta del acceso directo mediante la API de Steam (conserva el resto).')
+        : t('Actualiza la ruta del acceso directo conservando el resto (copia .deckman.bak).'),
+    });
+    note = inventory.steamRunning
+      ? t('Steam está abierto: se lo pediremos a él, así que no hace falta cerrarlo.')
+      : '';
     if (g.hasCompat) {
-      aviso += '\n' + t('El prefijo de Proton (partidas guardadas) se queda donde está, que es donde Steam lo busca.');
+      note = (note ? note + ' ' : '') + t('El prefijo de Proton (partidas guardadas) se queda donde está, que es donde Steam lo busca.');
     }
+  } else {
+    items.push({
+      path: `${target}/steamapps/common/`,
+      desc: t('Mueve los ficheros del juego ({0}) y su manifiesto .acf.', fmtBytes(g.size)),
+    });
   }
-  if (!confirm(t('¿Mover "{0}" ({1}) a {2}?', g.name, fmtBytes(g.size), lib ? t(lib.label) : target) + aviso)) return;
+
+  const ok = await confirmChanges({
+    summary: t('Mover "{0}" ({1}) a {2}.', g.name, fmtBytes(g.size), lib ? t(lib.label) : target),
+    items,
+    note,
+    confirmLabel: t('Mover'),
+  });
+  if (!ok) return;
   try {
     const res = await api('/api/move', { appId, target });
     if (res.queued) {
@@ -1838,8 +1989,31 @@ function init() {
   $('gamesBody').addEventListener('change', async (e) => {
     const sel = e.target.closest('select.compat');
     if (!sel) return;
+    const prev = sel.dataset.prev ?? '';
+    const appId = sel.dataset.appid;
+    const g = (inventory.games || []).find((x) => String(x.appId) === String(appId));
+    const toolLabel = sel.options[sel.selectedIndex]?.textContent || sel.value || t('Por defecto');
+
+    const ok = await confirmChanges({
+      summary: t('Cambiar Proton de "{0}" a {1}.', g ? g.name : appId, toolLabel),
+      items: [
+        {
+          path: inventory && inventory.steamRunning ? 'Steam (API)' : 'config/config.vdf',
+          desc: inventory && inventory.steamRunning
+            ? t('Aplica el cambio directamente en Steam sin tocar otros ajustes.')
+            : t('Actualiza CompatToolMapping para este juego conservando el resto (copia .deckman.bak).'),
+        },
+      ],
+      confirmLabel: t('Cambiar Proton'),
+    });
+    if (!ok) {
+      sel.value = prev;
+      return;
+    }
+
     try {
-      const r = await api('/api/compat', { appId: sel.dataset.appid, tool: sel.value });
+      const r = await api('/api/compat', { appId, tool: sel.value });
+      sel.dataset.prev = sel.value;
       // Si lo ha aplicado el propio Steam, ya está hecho. Solo cuando se ha
       // escrito el fichero (Steam cerrado) hace falta arrancarlo: decir
       // "reinicia Steam" tras un cambio en caliente era justo lo contrario,
@@ -1848,6 +2022,7 @@ function init() {
         ? 'Proton actualizado. Steam ya lo ha aplicado, sin reiniciar.'
         : t('Proton actualizado. Se verá la próxima vez que arranques Steam.'), 'ok');
     } catch (err) {
+      sel.value = prev;
       banner(t('No se pudo cambiar Proton: {0}', err.message), 'err');
     }
   });
@@ -1909,7 +2084,18 @@ function init() {
 
     if (btn.dataset.romdel) {
       const name = btn.dataset.romdel;
-      if (!confirm(t('¿Borrar "{0}" de {1}? No hay papelera en la Deck.', name, system))) return;
+      const ok = await confirmChanges({
+        summary: t('Borrar "{0}" de {1}.', name, system),
+        items: [
+          {
+            path: `${inventory.romsDir}/${system}/${name}`,
+            desc: t('Elimina el fichero de forma permanente (no hay papelera).'),
+          },
+        ],
+        confirmLabel: t('Eliminar'),
+        danger: true,
+      });
+      if (!ok) return;
       try {
         await api('/api/roms/delete', { system, name });
         banner(t('ROM borrada.'), 'ok');
@@ -1923,6 +2109,17 @@ function init() {
       const name = btn.dataset.romren;
       const newName = prompt(t('Nuevo nombre:'), name);
       if (!newName || newName === name) return;
+      const ok = await confirmChanges({
+        summary: t('Renombrar ROM en {0}.', system),
+        items: [
+          {
+            path: `${inventory.romsDir}/${system}/${name} → ${newName}`,
+            desc: t('Cambia únicamente el nombre del fichero.'),
+          },
+        ],
+        confirmLabel: t('Renombrar'),
+      });
+      if (!ok) return;
       try {
         await api('/api/roms/rename', { system, name, newName });
         banner(t('ROM renombrada.'), 'ok');
@@ -2018,10 +2215,25 @@ async function scrapeSystem() {
   const sys = $('manageRomSystem').value;
   if (!sys) return;
 
+  const rehacer = $('scrapeRehacer').checked;
+  const okConfirm = await confirmChanges({
+    summary: t('Buscar carátulas de ROMs para {0}.', sys),
+    items: [
+      {
+        path: `ES-DE/downloaded_media/${sys}/`,
+        desc: rehacer
+          ? t('Descarga y sobrescribe carátulas, pantallas de título y capturas desde libretro-thumbnails.')
+          : t('Descarga solo las imágenes que falten desde libretro-thumbnails (conserva las existentes).'),
+      },
+    ],
+    confirmLabel: t('Buscar carátulas'),
+  });
+  if (!okConfirm) return;
+
   $('scrapeStatus').textContent = '';
   $('scrapeResumen').classList.add('hidden');
   const ok = await startJob('/api/roms/scrape',
-    { system: sys, rehacer: $('scrapeRehacer').checked },
+    { system: sys, rehacer },
     t('Buscando carátulas'), t('No se pudo empezar la búsqueda de carátulas'));
   if (ok) esperarScrape(sys);
 }
@@ -2071,6 +2283,18 @@ async function downloadRom() {
   const sys = $('downloadRomSystem').value;
   if (!url) { $('downloadStatus').textContent = t('Elige un resultado o pega una URL.'); return; }
   if (!sys) { $('downloadStatus').textContent = t('Elige el sistema de destino.'); return; }
+
+  const okConfirm = await confirmChanges({
+    summary: t('Descargar ROM en el sistema {0}.', sys),
+    items: [
+      {
+        path: `${inventory.romsDir}/${sys}/`,
+        desc: t('El equipo SteamOS descarga el fichero directamente desde la URL indicada.'),
+      },
+    ],
+    confirmLabel: t('Descargar'),
+  });
+  if (!okConfirm) return;
 
   $('downloadStatus').textContent = '';
   // La descarga es un trabajo largo del servidor: el avance y el botón de

@@ -2,7 +2,7 @@
 
 ***Español** · [English](README.en.md) · [Français](README.fr.md)*
 
-Gestiona los juegos de tu Steam Deck desde el ordenador: ver qué hay instalado,
+Gestiona los juegos de SteamOS (Steam Deck, Steam Machine…) desde el ordenador: ver qué hay instalado,
 enviar juegos de Windows y ROMs, cambiar carátulas, mover juegos entre el SSD
 interno y la microSD, y liberar espacio.
 
@@ -62,6 +62,7 @@ navegador, y hay un selector en la barra superior.
 | **Carátulas de ROMs** | Busca carátula, pantalla de título y captura de cada ROM en libretro-thumbnails y las deja donde ES-DE las busca. Sin clave ni registro. |
 | **Mover** | Traslada un juego entre el interno y la microSD sin volver a descargarlo. También los no-Steam: se lleva la carpeta y actualiza el acceso directo. |
 | **Limpiar** | Desinstala juegos y borra por separado el prefijo de Proton o la caché de shaders. |
+| **Vista previa de cambios** | Antes de tocar nada en el equipo, muestra exactamente qué carpetas y ficheros va a modificar (`shortcuts.vdf`, `config.vdf`, `grid/`, `~/Games/`, ROMs), conservando tus ajustes previos y dejando copia `.deckman.bak`. |
 
 ---
 
@@ -105,13 +106,23 @@ Cada envío o movimiento queda registrado en el historial permanente de operacio
 
 ## Antes de empezar
 
-En la Deck, una sola vez:
+En tu equipo con SteamOS, una sola vez:
 
-1. Modo escritorio.
-2. **Ajustes del sistema → Escritorio → Compartir → SSH**, actívalo.
-   (O en una terminal: `sudo systemctl enable --now sshd`.)
-3. Si nunca has puesto contraseña al usuario `deck`, ponla con `passwd`.
-   SteamOS viene sin contraseña y SSH no deja entrar así.
+1. Pasa a **modo escritorio** (menú **Steam → Encendido → Cambiar a escritorio**).
+2. Activa **SSH** en **Ajustes del sistema → Escritorio → Compartir → SSH**
+   (o en una terminal **Konsole**: `sudo systemctl enable --now sshd`).
+3. **Asigna una contraseña al usuario `deck`** (SteamOS viene sin contraseña y
+   SSH no deja entrar así):
+   - **Desde los ajustes**: **Ajustes del sistema → Usuarios → `deck` → Cambiar contraseña**.
+   - **Desde la terminal**: abre **Konsole**, ejecuta `passwd` y escribe la
+     nueva contraseña dos veces (por seguridad no se muestran caracteres mientras
+     escribes).
+4. **Localiza la dirección IP** (p. ej. `192.168.1.50`) en los ajustes de red:
+   - **En modo juego**: **Steam → Parámetros → Internet** y selecciona la red a
+     la que estás conectado para ver la **dirección IP**.
+   - **En modo escritorio**: pulsa el **icono de red** junto al reloj en la
+     barra inferior → **Detalles** (o **Ajustes del sistema → Red**), o ejecuta
+     `hostname -I` en Konsole.
 
 ## Uso
 

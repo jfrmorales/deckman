@@ -2,7 +2,7 @@
 
 *[Español](README.md) · [English](README.en.md) · **Français***
 
-Gérez les jeux de votre Steam Deck depuis votre ordinateur : voir ce qui est
+Gérez les jeux de SteamOS (Steam Deck, Steam Machine…) depuis votre ordinateur : voir ce qui est
 installé, envoyer des jeux Windows et des ROMs, changer les jaquettes, déplacer
 les jeux entre le SSD interne et la microSD, et libérer de la place.
 
@@ -63,6 +63,7 @@ par défaut, et un sélecteur se trouve dans la barre du haut.
 | **Jaquettes de ROMs** | Cherche la jaquette, l'écran-titre et une capture de chaque ROM sur libretro-thumbnails et les dépose là où ES-DE les cherche. Sans clé ni inscription. |
 | **Déplacer** | Déplace un jeu entre le disque interne et la microSD sans le retélécharger. Les jeux hors Steam aussi : le dossier suit et le raccourci est mis à jour. |
 | **Nettoyer** | Désinstalle des jeux et supprime séparément le préfixe Proton ou le cache de shaders. |
+| **Aperçu des changements** | Avant de toucher à quoi que ce soit sur votre appareil, affiche les dossiers et fichiers exacts qui vont être modifiés (`shortcuts.vdf`, `config.vdf`, `grid/`, `~/Games/`, ROMs), en conservant vos réglages existants et une sauvegarde `.deckman.bak`. |
 
 ---
 
@@ -106,14 +107,23 @@ français, et suit le navigateur par défaut.
 
 ## Avant de commencer
 
-Sur la Deck, une seule fois :
+Sur votre appareil SteamOS, une seule fois :
 
-1. Mode bureau.
-2. **Paramètres système → Bureau → Partage → SSH**, activez-le.
-   (Ou dans un terminal : `sudo systemctl enable --now sshd`.)
-3. Si vous n'avez jamais défini de mot de passe pour l'utilisateur `deck`,
-   faites-le avec `passwd`. SteamOS n'en fournit pas et SSH refuse l'accès sans
-   lui.
+1. Passez en **mode bureau** (menu **Steam → Alimentation → Basculer vers le bureau**).
+2. Activez **SSH** dans **Paramètres système → Bureau → Partage → SSH**
+   (ou dans **Konsole** : `sudo systemctl enable --now sshd`).
+3. **Définissez un mot de passe pour l'utilisateur `deck`** (SteamOS n'en
+   fournit pas et SSH refuse l'accès sans lui) :
+   - **Depuis les paramètres** : **Paramètres système → Utilisateurs → `deck` → Modifier le mot de passe**.
+   - **Depuis un terminal** : ouvrez **Konsole**, exécutez `passwd` et saisissez
+     le nouveau mot de passe deux fois (aucun caractère ne s'affiche pendant la
+     saisie).
+4. **Trouvez l'adresse IP** (p. ex. `192.168.1.50`) dans les paramètres réseau :
+   - **En mode jeu** : **Steam → Paramètres → Internet** et sélectionnez votre
+     réseau connecté pour voir l'**adresse IP**.
+   - **En mode bureau** : cliquez sur l'**icône réseau** à côté de l'horloge
+     dans la barre inférieure → **Détails** (ou **Paramètres système → Réseau**),
+     ou exécutez `hostname -I` dans Konsole.
 
 ## Utilisation
 

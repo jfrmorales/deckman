@@ -20,6 +20,19 @@ Cómo se mantiene este fichero:
   «Arreglos». Sin emoji: el foro no los aguanta.
 -->
 
+## 16/11/2026 · Enviar juegos nativos de Linux
+
+### Novedades
+
+- **«Enviar juego» ya no es solo para juegos de Windows**: deckman reconoce los ejecutables nativos de Linux aunque no lleven extensión (binarios, AppImage y scripts de arranque), como los de las recompilaciones que se publican con versión de Linux, y propone lanzarlos sin Proton. Antes, con una carpeta así, respondía que no encontraba ningún `.exe`.
+- **El selector de ejecutable distingue Windows y Linux**: cada ejecutable lleva su etiqueta y, al elegir uno, la versión de Proton se ajusta sola: «Ninguno» para un nativo y Proton para un `.exe`.
+- **Carpetas con las dos versiones**: se propone la de Windows con Proton, que no depende de las bibliotecas que traiga SteamOS, y se avisa de que la nativa está ahí por si prefieres usarla.
+
+### Arreglos
+
+- **Los ejecutables nativos llegaban sin permiso de ejecución** y Steam no conseguía arrancarlos. Ahora quedan listos para lanzar, también cuando la carpeta se envía desde un PC con Windows. Si ya habías enviado un juego así, basta con volver a enviarlo: no se copia de nuevo, solo se corrige el permiso.
+- **Se copian los enlaces simbólicos de dentro de la carpeta del juego**, que es como muchos juegos nativos traen sus bibliotecas. Antes se saltaban y el juego no encontraba lo que necesitaba.
+
 ## 16/11/2026 · Vista previa de cambios, soporte para SteamOS y guía de conexión
 
 ### Novedades

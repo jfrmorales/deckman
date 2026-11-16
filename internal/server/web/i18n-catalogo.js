@@ -1,5 +1,5 @@
 // Catálogo de la interfaz. La clave es el castellano tal cual está escrito en
-// index.html y en app.js; ver i18n.js para el porqué.
+// index.html y en el JavaScript; ver i18n.js para el porqué.
 //
 // Solo se listan las cadenas que cambian: lo que no esté aquí sale en
 // castellano, que es lo correcto para nombres propios (Steam, Proton,
@@ -34,6 +34,7 @@ const CATALOGO = {
     'Contraseña': 'Password',
     'contraseña del usuario deck': 'password of the deck user',
     'Nombre (opcional)': 'Name (optional)',
+    '(opcional)': '(optional)',
     'p. ej. la del salón': 'e.g. the one in the living room',
     'Conectar': 'Connect',
     '¿Primera vez? Configura SSH, contraseña e IP en SteamOS':
@@ -79,10 +80,7 @@ const CATALOGO = {
     'Juego': 'Game',
     'Tamaño': 'Size',
     'Ubicación': 'Location',
-    'Extras': 'Extras',
     'Eliminar': 'Delete',
-    'Steam está abierto en la Deck': 'Steam is open on the Deck',
-    'Necesario para que Steam vea los cambios': 'Needed for Steam to see the changes',
 
     // --- enviar juego ---
     'Enviar un juego de Windows a la Deck': 'Send a Windows game to the Deck',
@@ -117,13 +115,9 @@ const CATALOGO = {
     'Guardar': 'Save',
 
     // --- emulación ---
-    'Envía, organiza y descarga ROMs': 'Send, organise and download ROMs',
     'Enviar ROM': 'Send ROM',
-    'Copia roms a la Deck': 'Copy roms to the Deck',
     'Gestionar': 'Manage',
-    'Organiza y busca carátulas': 'Organise and find artwork',
     'Descargar': 'Download',
-    'Obtén nuevas roms': 'Get new roms',
     'Enviar una ROM': 'Send a ROM',
     'Copia a la carpeta de EmuDeck': 'Copies to the EmuDeck folder',
     'Fichero o carpeta en este PC': 'File or folder on this PC',
@@ -131,9 +125,6 @@ const CATALOGO = {
     'Después, en la Deck, actualiza la lista de juegos en ES-DE o Steam ROM Manager.':
       'Afterwards, on the Deck, refresh the game list in ES-DE or Steam ROM Manager.',
     'Gestor de colección': 'Collection manager',
-    'Solo se listan los sistemas que tienen ROMs, no las 181 carpetas que crea EmuDeck.':
-      'Only systems that actually have ROMs are listed, not the 181 folders EmuDeck creates.',
-    'Cargar': 'Load',
     'ROM': 'ROM',
     'No hay ROMs en este sistema.': 'There are no ROMs in this system.',
     'Carátulas': 'Artwork',
@@ -179,11 +170,9 @@ const CATALOGO = {
     'Quitar esta imagen': 'Remove this image',
     'Acceso directo de Steam': 'Steam shortcut',
 
-    // --- mensajes que pinta app.js ---
+    // --- mensajes que pinta JavaScript ---
     'Interno': 'Internal',
     'Por defecto': 'Default',
-    'prefijo {0}': 'prefix {0}',
-    'shaders {0}': 'shaders {0}',
     '(sin nombre)': '(no name)',
     'Renombrar': 'Rename',
     'de {0}': 'of {0}',
@@ -197,7 +186,6 @@ const CATALOGO = {
     'Buscando en archive.org…': 'Searching archive.org…',
     'Caché de shaders ({0})': 'Shader cache ({0})',
     'Cargando imágenes…': 'Loading images…',
-    'Cargando…': 'Loading…',
     'Carátulas — ': 'Artwork — ',
     'Conectando…': 'Connecting…',
     'Descargando ROM': 'Downloading ROM',
@@ -206,7 +194,6 @@ const CATALOGO = {
     'Elegido: ': 'Chosen: ',
     'Elige el ejecutable.': 'Choose the executable.',
     'Elige el sistema de destino.': 'Choose the destination system.',
-    'Elige el sistema.': 'Choose the system.',
     'Elige la ROM.': 'Choose the ROM.',
     'Elige la carpeta del juego.': 'Choose the game folder.',
     'Elige primero la carpeta del juego.': 'Choose the game folder first.',
@@ -216,7 +203,6 @@ const CATALOGO = {
     'Enviando juego': 'Sending game',
     'Error: ': 'Error: ',
     'Ficheros del juego ({0})': 'Game files ({0})',
-    'Hace falta para que aparezcan las carátulas y los juegos añadidos.': 'It is needed for the artwork and the added games to show up.',
     'Hay una clave guardada. Para borrarla, guarda el campo vacío.': 'A key is stored. To remove it, save the field empty.',
     'Instalando…': 'Installing…',
     'La búsqueda falló: ': 'The search failed: ',
@@ -233,7 +219,6 @@ const CATALOGO = {
     // --- aviso de clave de host cambiada ---
     'La Deck de {0} presenta una clave SSH distinta de la que deckman recuerda.':
       'The Deck at {0} is presenting a different SSH key from the one deckman remembers.',
-    'Ahora: {0}\nAntes: {1}': 'Now:    {0}\nBefore: {1}',
     'Si acabas de reinstalar SteamOS, esto es lo normal: acepta y deckman recordará la nueva.':
       'If you have just reinstalled SteamOS, this is expected: accept and deckman will remember the new one.',
     'Si no has hecho nada parecido, cancela: puede que quien conteste en esa dirección no sea tu Deck, y conectar le entregaría la contraseña.':
@@ -265,7 +250,6 @@ const CATALOGO = {
     'ROM borrada.': 'ROM deleted.',
     'ROM renombrada.': 'ROM renamed.',
     'Reiniciando…': 'Restarting…',
-    'Se copia la carpeta a {0} y se actualiza el acceso directo.': 'The folder is copied to {0} and the shortcut is updated.',
     'Se usará la carpeta actual': 'The current folder will be used',
     'Sin datos.': 'No data.',
     'Sin resultados de {0}. Prueba a buscar en todos los sistemas.': 'No results for {0}. Try searching every system.',
@@ -278,7 +262,6 @@ const CATALOGO = {
     'Ya hay una operación en curso: espera a que termine o cancélala.': 'An operation is already under way: wait for it to finish or cancel it.',
     'clave SSH instalada — no hace falta': 'SSH key installed — not needed',
     'deducido del nombre, no venía en la carpeta': 'deduced from the name, it was not in the folder',
-    'el único juego': 'the only game',
     'empezando…': 'starting…',
     'libretro no tiene carátulas de {0}.': 'libretro has no artwork for {0}.',
     'no se encontró EmuDeck': 'EmuDeck was not found',
@@ -291,10 +274,7 @@ const CATALOGO = {
     '{0} sistemas con ROMs en {1}': '{0} systems with ROMs in {1}',
     '{0} — {1} ROM': '{0} — {1} ROM',
     '{0} — {1} ROMs': '{0} — {1} ROMs',
-    '¿Borrar "{0}" de {1}? No hay papelera en la Deck.': 'Delete "{0}" from {1}? There is no recycle bin on the Deck.',
     '¿Cerrar deckman? Se apaga el servidor local de este PC.': 'Quit deckman? The local server on this PC will be shut down.',
-    '¿Mover "{0}" ({1}) a {2}?': 'Move "{0}" ({1}) to {2}?',
-    '¿Reiniciar Steam en la Deck?\\n\\nSe cerrará cualquier juego que tengas abierto.': 'Restart Steam on the Deck?\\n\\nAny game you have open will be closed.',
 
     // --- historial y cola de operaciones ---
     'Historial y cola de operaciones': 'Operations history and queue',
@@ -326,14 +306,10 @@ const CATALOGO = {
     // --- vista previa de cambios ---
     'Cambios que se van a aplicar': 'Changes to be applied',
     'Aplicar cambios': 'Apply changes',
-    'Aplicar carátula ({0}) a "{1}".': 'Apply artwork ({0}) to "{1}".',
-    'Guarda o sustituye solo esta imagen; el resto de carátulas y los .json de Decky no se tocan.':
-      'Saves or replaces only this image; other artwork and Decky .json files are left untouched.',
     'Steam está abierto: se aplicará en caliente sin reiniciar.':
       'Steam is open: it will be applied live without restarting.',
     'Si Steam está cerrado (o es un icono), se verá al reiniciar Steam.':
       'If Steam is closed (or this is an icon), it will appear once Steam restarts.',
-    'Aplicar imagen': 'Apply image',
     'Quitar carátula ({0}) de "{1}".': 'Remove artwork ({0}) from "{1}".',
     'Elimina únicamente esa imagen; no toca otras carátulas ni configuraciones.':
       'Deletes only this image; other artwork and settings are left untouched.',
@@ -373,7 +349,6 @@ const CATALOGO = {
       'Deletes the file permanently (there is no recycle bin).',
     'Renombrar ROM en {0}.': 'Rename ROM in {0}.',
     'Cambia únicamente el nombre del fichero.': 'Changes only the file name.',
-    'Renombrar': 'Rename',
     'Buscar carátulas de ROMs para {0}.': 'Scrape ROM artwork for {0}.',
     'Descarga y sobrescribe carátulas, pantallas de título y capturas desde libretro-thumbnails.':
       'Downloads and overwrites covers, title screens and screenshots from libretro-thumbnails.',
@@ -382,7 +357,97 @@ const CATALOGO = {
     'Descargar ROM en el sistema {0}.': 'Download ROM into {0}.',
     'El equipo SteamOS descarga el fichero directamente desde la URL indicada.':
       'The SteamOS device downloads the file directly from the given URL.',
-    'Descargar': 'Download',
+
+    // --- revisión de claridad: textos que pintaba JavaScript sin traducir ---
+    '(mejor reportado: {0})': '(best reported: {0})',
+    '1 imagen nueva': '1 new image',
+    'Arte': 'Art',
+    'Carpeta vacía.': 'Empty folder.',
+    'Carátulas de {0}': 'Artwork for {0}',
+    'Clave borrada.': 'Key removed.',
+    'Clave de SteamGridDB guardada.': 'SteamGridDB key saved.',
+    'Conecta primero con la Deck': 'Connect to the Deck first',
+    'Conectado.': 'Connected.',
+    'Conectar con esta Deck': 'Connect to this Deck',
+    'Confiar en la clave nueva': 'Trust the new key',
+    'Elegir el ejecutable': 'Choose the executable',
+    'Elegir fichero o carpeta': 'Choose a file or folder',
+    'En la Deck, recarga la lista de juegos en ES-DE para verlas.':
+      'On the Deck, reload the game list in ES-DE to see them.',
+    'Entrar': 'Open',
+    'Equipo': 'Computer',
+    'Fondo': 'Background',
+    'Guardadas en {0}.': 'Saved in {0}.',
+    'Hay {0} ejecutables candidatos': 'There are {0} candidate executables',
+    'Icono': 'Icon',
+    'La Deck no tiene juegos instalados.': 'The Deck has no games installed.',
+    'La clave SSH ha cambiado': 'The SSH key has changed',
+    'La que deckman recordaba': 'The one deckman remembered',
+    'La que presenta ahora': 'The one it presents now',
+    'Las casillas Steam / No-Steam esconden los juegos. Marca alguna para verlos.':
+      'The Steam / Non-Steam checkboxes are hiding the games. Tick one to see them.',
+    'Logo': 'Logo',
+    'Los cambios se aplican al instante, sin reiniciar Steam.':
+      'Changes apply instantly, without restarting Steam.',
+    'Nada coincide con el filtro.': 'Nothing matches the filter.',
+    'Ninguno (ejecutable nativo de Linux)': 'None (native Linux executable)',
+    'Ningún juego coincide con «{0}». Borra el filtro para verlos todos.':
+      'No game matches “{0}”. Clear the filter to see them all.',
+    'No hay imágenes de este tipo para este juego.': 'There are no images of this type for this game.',
+    'No hay ninguna ROM en {0}.': 'There are no ROMs in {0}.',
+    'No se toca ningún juego.': 'No game is touched.',
+    'Olvidar esta Deck': 'Forget this Deck',
+    'Para elegir carátulas hace falta una clave gratuita de SteamGridDB.':
+      'Choosing artwork needs a free SteamGridDB key.',
+    'Poner la clave': 'Add the key',
+    'Portada horizontal': 'Horizontal cover',
+    'Portada vertical': 'Vertical cover',
+    'Proton actualizado. Steam ya lo ha aplicado, sin reiniciar.':
+      'Proton updated. Steam has already applied it, no restart needed.',
+    'Proton sugerido: {0}': 'Suggested Proton: {0}',
+    'Quitada. Reinicia Steam para verlo.': 'Removed. Restart Steam to see it.',
+    'Quitada. Steam ha vuelto a su imagen original.': 'Removed. Steam is back to its original image.',
+    'Rellenar los datos de esta Deck': 'Fill in this Deck’s details',
+    'Renombrar ROM': 'Rename ROM',
+    'Se cerrará cualquier juego que tengas abierto.': 'Any game you have open will be closed.',
+    'Se retirará de esa Deck la clave SSH que instaló deckman, así que dejará de tener acceso desde este PC. La próxima vez habrá que volver a conectar con la contraseña.':
+      'The SSH key deckman installed will be removed from that Deck, so this PC will no longer have access. Next time you will have to connect with the password again.',
+    'Sin carátula en libretro ({0}). Suele ser que el nombre del fichero no coincide con el del volcado original:':
+      'No artwork in libretro ({0}). Usually the file name does not match the original dump’s name:',
+    'Sin identificar en Steam': 'Not identified on Steam',
+    'Sin resultados con archivo descargable.': 'No results with a downloadable file.',
+    'Solo hace falta si un cambio no aparece en Steam.': 'Only needed if a change does not show up in Steam.',
+    'Steam abierto: los cambios se aplican al instante': 'Steam is open: changes apply instantly',
+    'Steam cerrado: los cambios se verán al abrirlo': 'Steam is closed: changes will show when it opens',
+    'Steam reiniciado.': 'Steam restarted.',
+    'SteamGridDB no encuentra "{0}".': 'SteamGridDB cannot find "{0}".',
+    'Sustituye solo esta imagen; el resto de carátulas no se toca.':
+      'Only this image is replaced; the rest of the artwork is left alone.',
+    'Ya puedes cerrar esta pestaña.': 'You can close this tab now.',
+    'animada': 'animated',
+    'deckman se ha cerrado.': 'deckman has shut down.',
+    'descartados: {0}': 'skipped: {0}',
+    'encontrado en {0}': 'found in {0}',
+    'instalada': 'installed',
+    'la Deck': 'the Deck',
+    'nombre limpiado de la carpeta': 'name cleaned up from the folder',
+    'nunca': 'never',
+    'por {0}': 'by {0}',
+    'puedes cambiarlo abajo': 'you can change it below',
+    'puerto {0}': 'port {0}',
+    'si no arranca, cámbialo abajo: {0}': 'if it does not start, change it below: {0}',
+    'tendrás que indicarlo a mano': 'you will have to set it by hand',
+    '{0} (no instalado)': '{0} (not installed)',
+    '{0} de {1}': '{0} of {1}',
+    '{0} de {1} juegos con carátula': '{0} of {1} games with artwork',
+    '{0} imágenes nuevas': '{0} new images',
+    '{0} ya estaban': '{0} were already there',
+    '{0}/{1} ficheros': '{0}/{1} files',
+    '¿Olvidar {0}?': 'Forget {0}?',
+    '¿Reiniciar Steam en la Deck?': 'Restart Steam on the Deck?',
+    'Ajustes': 'Settings',
+    'Clave de SteamGridDB para las carátulas': 'SteamGridDB key for artwork',
+    'Falta la clave de SteamGridDB: ponerla': 'The SteamGridDB key is missing: add it',
   },
 
   fr: {
@@ -409,6 +474,7 @@ const CATALOGO = {
     'Contraseña': 'Mot de passe',
     'contraseña del usuario deck': 'mot de passe de l’utilisateur deck',
     'Nombre (opcional)': 'Nom (facultatif)',
+    '(opcional)': '(facultatif)',
     'p. ej. la del salón': 'p. ex. celle du salon',
     'Conectar': 'Se connecter',
     '¿Primera vez? Configura SSH, contraseña e IP en SteamOS':
@@ -454,10 +520,7 @@ const CATALOGO = {
     'Juego': 'Jeu',
     'Tamaño': 'Taille',
     'Ubicación': 'Emplacement',
-    'Extras': 'Extras',
     'Eliminar': 'Supprimer',
-    'Steam está abierto en la Deck': 'Steam est ouvert sur la Deck',
-    'Necesario para que Steam vea los cambios': 'Nécessaire pour que Steam voie les changements',
 
     // --- enviar juego ---
     'Enviar un juego de Windows a la Deck': 'Envoyer un jeu Windows sur la Deck',
@@ -492,13 +555,9 @@ const CATALOGO = {
     'Guardar': 'Enregistrer',
 
     // --- emulación ---
-    'Envía, organiza y descarga ROMs': 'Envoyez, organisez et téléchargez des ROMs',
     'Enviar ROM': 'Envoyer une ROM',
-    'Copia roms a la Deck': 'Copier des roms sur la Deck',
     'Gestionar': 'Gérer',
-    'Organiza y busca carátulas': 'Organiser et chercher des jaquettes',
     'Descargar': 'Télécharger',
-    'Obtén nuevas roms': 'Obtenir de nouvelles roms',
     'Enviar una ROM': 'Envoyer une ROM',
     'Copia a la carpeta de EmuDeck': 'Copie vers le dossier d’EmuDeck',
     'Fichero o carpeta en este PC': 'Fichier ou dossier sur ce PC',
@@ -506,9 +565,6 @@ const CATALOGO = {
     'Después, en la Deck, actualiza la lista de juegos en ES-DE o Steam ROM Manager.':
       'Ensuite, sur la Deck, actualisez la liste des jeux dans ES-DE ou Steam ROM Manager.',
     'Gestor de colección': 'Gestionnaire de collection',
-    'Solo se listan los sistemas que tienen ROMs, no las 181 carpetas que crea EmuDeck.':
-      'Seuls les systèmes qui contiennent des ROMs sont listés, pas les 181 dossiers créés par EmuDeck.',
-    'Cargar': 'Charger',
     'ROM': 'ROM',
     'No hay ROMs en este sistema.': 'Il n’y a pas de ROMs dans ce système.',
     'Carátulas': 'Jaquettes',
@@ -554,11 +610,9 @@ const CATALOGO = {
     'Quitar esta imagen': 'Retirer cette image',
     'Acceso directo de Steam': 'Raccourci Steam',
 
-    // --- mensajes que pinta app.js ---
+    // --- mensajes que pinta JavaScript ---
     'Interno': 'Interne',
     'Por defecto': 'Par défaut',
-    'prefijo {0}': 'préfixe {0}',
-    'shaders {0}': 'shaders {0}',
     '(sin nombre)': '(sans nom)',
     'Renombrar': 'Renommer',
     'de {0}': 'sur {0}',
@@ -572,7 +626,6 @@ const CATALOGO = {
     'Buscando en archive.org…': 'Recherche sur archive.org…',
     'Caché de shaders ({0})': 'Cache de shaders ({0})',
     'Cargando imágenes…': 'Chargement des images…',
-    'Cargando…': 'Chargement…',
     'Carátulas — ': 'Jaquettes — ',
     'Conectando…': 'Connexion…',
     'Descargando ROM': 'Téléchargement de la ROM',
@@ -581,7 +634,6 @@ const CATALOGO = {
     'Elegido: ': 'Choisi : ',
     'Elige el ejecutable.': 'Choisissez l’exécutable.',
     'Elige el sistema de destino.': 'Choisissez le système de destination.',
-    'Elige el sistema.': 'Choisissez le système.',
     'Elige la ROM.': 'Choisissez la ROM.',
     'Elige la carpeta del juego.': 'Choisissez le dossier du jeu.',
     'Elige primero la carpeta del juego.': 'Choisissez d’abord le dossier du jeu.',
@@ -591,7 +643,6 @@ const CATALOGO = {
     'Enviando juego': 'Envoi du jeu',
     'Error: ': 'Erreur : ',
     'Ficheros del juego ({0})': 'Fichiers du jeu ({0})',
-    'Hace falta para que aparezcan las carátulas y los juegos añadidos.': 'Elle est nécessaire pour que les jaquettes et les jeux ajoutés apparaissent.',
     'Hay una clave guardada. Para borrarla, guarda el campo vacío.': 'Une clé est enregistrée. Pour l’effacer, enregistrez le champ vide.',
     'Instalando…': 'Installation…',
     'La búsqueda falló: ': 'La recherche a échoué : ',
@@ -608,7 +659,6 @@ const CATALOGO = {
     // --- aviso de clave de host cambiada ---
     'La Deck de {0} presenta una clave SSH distinta de la que deckman recuerda.':
       'La Deck de {0} présente une clé SSH différente de celle que deckman a mémorisée.',
-    'Ahora: {0}\nAntes: {1}': 'Maintenant : {0}\nAvant :      {1}',
     'Si acabas de reinstalar SteamOS, esto es lo normal: acepta y deckman recordará la nueva.':
       'Si vous venez de réinstaller SteamOS, c’est normal : acceptez et deckman mémorisera la nouvelle.',
     'Si no has hecho nada parecido, cancela: puede que quien conteste en esa dirección no sea tu Deck, y conectar le entregaría la contraseña.':
@@ -640,7 +690,6 @@ const CATALOGO = {
     'ROM borrada.': 'ROM supprimée.',
     'ROM renombrada.': 'ROM renommée.',
     'Reiniciando…': 'Redémarrage…',
-    'Se copia la carpeta a {0} y se actualiza el acceso directo.': 'Le dossier est copié vers {0} et le raccourci est mis à jour.',
     'Se usará la carpeta actual': 'Le dossier actuel sera utilisé',
     'Sin datos.': 'Aucune donnée.',
     'Sin resultados de {0}. Prueba a buscar en todos los sistemas.': 'Aucun résultat pour {0}. Essayez de chercher sur tous les systèmes.',
@@ -653,7 +702,6 @@ const CATALOGO = {
     'Ya hay una operación en curso: espera a que termine o cancélala.': 'Une opération est déjà en cours : attendez qu’elle se termine ou annulez-la.',
     'clave SSH instalada — no hace falta': 'clé SSH installée — inutile',
     'deducido del nombre, no venía en la carpeta': 'déduit du nom, il n’était pas dans le dossier',
-    'el único juego': 'le seul jeu',
     'empezando…': 'démarrage…',
     'libretro no tiene carátulas de {0}.': 'libretro n’a pas de jaquettes pour {0}.',
     'no se encontró EmuDeck': 'EmuDeck est introuvable',
@@ -666,10 +714,7 @@ const CATALOGO = {
     '{0} sistemas con ROMs en {1}': '{0} systèmes avec des ROMs dans {1}',
     '{0} — {1} ROM': '{0} — {1} ROM',
     '{0} — {1} ROMs': '{0} — {1} ROMs',
-    '¿Borrar "{0}" de {1}? No hay papelera en la Deck.': 'Supprimer "{0}" de {1} ? Il n’y a pas de corbeille sur la Deck.',
     '¿Cerrar deckman? Se apaga el servidor local de este PC.': 'Quitter deckman ? Le serveur local de ce PC sera arrêté.',
-    '¿Mover "{0}" ({1}) a {2}?': 'Déplacer "{0}" ({1}) vers {2} ?',
-    '¿Reiniciar Steam en la Deck?\\n\\nSe cerrará cualquier juego que tengas abierto.': 'Redémarrer Steam sur la Deck ?\\n\\nTout jeu ouvert sera fermé.',
 
     // --- historial y cola de operaciones ---
     'Historial y cola de operaciones': 'Historique et file d’opérations',
@@ -701,14 +746,10 @@ const CATALOGO = {
     // --- vista previa de cambios ---
     'Cambios que se van a aplicar': 'Modifications qui vont être appliquées',
     'Aplicar cambios': 'Appliquer les modifications',
-    'Aplicar carátula ({0}) a "{1}".': 'Appliquer la jaquette ({0}) à « {1} ».',
-    'Guarda o sustituye solo esta imagen; el resto de carátulas y los .json de Decky no se tocan.':
-      'Enregistre ou remplace uniquement cette image ; les autres jaquettes et les .json de Decky ne sont pas touchés.',
     'Steam está abierto: se aplicará en caliente sin reiniciar.':
       'Steam est ouvert : cela sera appliqué à chaud sans redémarrer.',
     'Si Steam está cerrado (o es un icono), se verá al reiniciar Steam.':
       'Si Steam est fermé (ou s’il s’agit d’une icône), cela apparaîtra au redémarrage de Steam.',
-    'Aplicar imagen': 'Appliquer l’image',
     'Quitar carátula ({0}) de "{1}".': 'Retirer la jaquette ({0}) de « {1} ».',
     'Elimina únicamente esa imagen; no toca otras carátulas ni configuraciones.':
       'Supprime uniquement cette image ; les autres jaquettes et réglages ne sont pas touchés.',
@@ -748,7 +789,6 @@ const CATALOGO = {
       'Supprime le fichier définitivement (il n’y a pas de corbeille).',
     'Renombrar ROM en {0}.': 'Renommer la ROM dans {0}.',
     'Cambia únicamente el nombre del fichero.': 'Modifie uniquement le nom du fichier.',
-    'Renombrar': 'Renommer',
     'Buscar carátulas de ROMs para {0}.': 'Rechercher des jaquettes de ROMs pour {0}.',
     'Descarga y sobrescribe carátulas, pantallas de título y capturas desde libretro-thumbnails.':
       'Télécharge et écrase jaquettes, écrans titre et captures depuis libretro-thumbnails.',
@@ -757,6 +797,99 @@ const CATALOGO = {
     'Descargar ROM en el sistema {0}.': 'Télécharger la ROM dans {0}.',
     'El equipo SteamOS descarga el fichero directamente desde la URL indicada.':
       'L’appareil SteamOS télécharge le fichier directement depuis l’URL indiquée.',
-    'Descargar': 'Télécharger',
+
+    // --- revisión de claridad: textos que pintaba JavaScript sin traducir ---
+    '(mejor reportado: {0})': '(meilleur signalé : {0})',
+    '1 imagen nueva': '1 nouvelle image',
+    'Arte': 'Visuels',
+    'Carpeta vacía.': 'Dossier vide.',
+    'Carátulas de {0}': 'Jaquettes de {0}',
+    'Clave borrada.': 'Clé supprimée.',
+    'Clave de SteamGridDB guardada.': 'Clé SteamGridDB enregistrée.',
+    'Conecta primero con la Deck': 'Connectez-vous d’abord à la Deck',
+    'Conectado.': 'Connecté.',
+    'Conectar con esta Deck': 'Se connecter à cette Deck',
+    'Confiar en la clave nueva': 'Faire confiance à la nouvelle clé',
+    'Elegir el ejecutable': 'Choisir l’exécutable',
+    'Elegir fichero o carpeta': 'Choisir un fichier ou un dossier',
+    'En la Deck, recarga la lista de juegos en ES-DE para verlas.':
+      'Sur la Deck, rechargez la liste des jeux dans ES-DE pour les voir.',
+    'Entrar': 'Entrer',
+    'Equipo': 'Ordinateur',
+    'Fondo': 'Arrière-plan',
+    'Guardadas en {0}.': 'Enregistrées dans {0}.',
+    'Hay {0} ejecutables candidatos': 'Il y a {0} exécutables candidats',
+    'Icono': 'Icône',
+    'La Deck no tiene juegos instalados.': 'La Deck n’a aucun jeu installé.',
+    'La clave SSH ha cambiado': 'La clé SSH a changé',
+    'La que deckman recordaba': 'Celle dont deckman se souvenait',
+    'La que presenta ahora': 'Celle qu’elle présente maintenant',
+    'Las casillas Steam / No-Steam esconden los juegos. Marca alguna para verlos.':
+      'Les cases Steam / Non-Steam masquent les jeux. Cochez-en une pour les voir.',
+    'Logo': 'Logo',
+    'Los cambios se aplican al instante, sin reiniciar Steam.':
+      'Les changements s’appliquent immédiatement, sans redémarrer Steam.',
+    'Nada coincide con el filtro.': 'Rien ne correspond au filtre.',
+    'Ninguno (ejecutable nativo de Linux)': 'Aucun (exécutable Linux natif)',
+    'Ningún juego coincide con «{0}». Borra el filtro para verlos todos.':
+      'Aucun jeu ne correspond à « {0} ». Effacez le filtre pour les voir tous.',
+    'No hay imágenes de este tipo para este juego.': 'Il n’y a pas d’images de ce type pour ce jeu.',
+    'No hay ninguna ROM en {0}.': 'Il n’y a aucune ROM dans {0}.',
+    'No se toca ningún juego.': 'Aucun jeu n’est touché.',
+    'Olvidar esta Deck': 'Oublier cette Deck',
+    'Para elegir carátulas hace falta una clave gratuita de SteamGridDB.':
+      'Pour choisir des jaquettes, il faut une clé SteamGridDB gratuite.',
+    'Poner la clave': 'Saisir la clé',
+    'Portada horizontal': 'Jaquette horizontale',
+    'Portada vertical': 'Jaquette verticale',
+    'Proton actualizado. Steam ya lo ha aplicado, sin reiniciar.':
+      'Proton mis à jour. Steam l’a déjà appliqué, sans redémarrage.',
+    'Proton sugerido: {0}': 'Proton suggéré : {0}',
+    'Quitada. Reinicia Steam para verlo.': 'Retirée. Redémarrez Steam pour le voir.',
+    'Quitada. Steam ha vuelto a su imagen original.': 'Retirée. Steam est revenu à son image d’origine.',
+    'Rellenar los datos de esta Deck': 'Remplir les données de cette Deck',
+    'Renombrar ROM': 'Renommer la ROM',
+    'Se cerrará cualquier juego que tengas abierto.': 'Tout jeu ouvert sera fermé.',
+    'Se retirará de esa Deck la clave SSH que instaló deckman, así que dejará de tener acceso desde este PC. La próxima vez habrá que volver a conectar con la contraseña.':
+      'La clé SSH installée par deckman sera retirée de cette Deck, qui ne sera donc plus accessible depuis ce PC. La prochaine fois, il faudra se reconnecter avec le mot de passe.',
+    'Sin carátula en libretro ({0}). Suele ser que el nombre del fichero no coincide con el del volcado original:':
+      'Sans jaquette dans libretro ({0}). En général, le nom du fichier ne correspond pas à celui du dump d’origine :',
+    'Sin identificar en Steam': 'Non identifié sur Steam',
+    'Sin resultados con archivo descargable.': 'Aucun résultat avec un fichier téléchargeable.',
+    'Solo hace falta si un cambio no aparece en Steam.':
+      'Nécessaire seulement si un changement n’apparaît pas dans Steam.',
+    'Steam abierto: los cambios se aplican al instante':
+      'Steam est ouvert : les changements s’appliquent immédiatement',
+    'Steam cerrado: los cambios se verán al abrirlo':
+      'Steam est fermé : les changements apparaîtront à son ouverture',
+    'Steam reiniciado.': 'Steam redémarré.',
+    'SteamGridDB no encuentra "{0}".': 'SteamGridDB ne trouve pas "{0}".',
+    'Sustituye solo esta imagen; el resto de carátulas no se toca.':
+      'Seule cette image est remplacée ; les autres jaquettes ne sont pas touchées.',
+    'Ya puedes cerrar esta pestaña.': 'Vous pouvez fermer cet onglet.',
+    'animada': 'animée',
+    'deckman se ha cerrado.': 'deckman s’est fermé.',
+    'descartados: {0}': 'écartés : {0}',
+    'encontrado en {0}': 'trouvé dans {0}',
+    'instalada': 'installée',
+    'la Deck': 'la Deck',
+    'nombre limpiado de la carpeta': 'nom nettoyé à partir du dossier',
+    'nunca': 'jamais',
+    'por {0}': 'par {0}',
+    'puedes cambiarlo abajo': 'vous pouvez le changer ci-dessous',
+    'puerto {0}': 'port {0}',
+    'si no arranca, cámbialo abajo: {0}': 's’il ne démarre pas, changez-le ci-dessous : {0}',
+    'tendrás que indicarlo a mano': 'il faudra l’indiquer à la main',
+    '{0} (no instalado)': '{0} (non installé)',
+    '{0} de {1}': '{0} sur {1}',
+    '{0} de {1} juegos con carátula': '{0} jeux sur {1} avec jaquette',
+    '{0} imágenes nuevas': '{0} nouvelles images',
+    '{0} ya estaban': '{0} y étaient déjà',
+    '{0}/{1} ficheros': '{0}/{1} fichiers',
+    '¿Olvidar {0}?': 'Oublier {0} ?',
+    '¿Reiniciar Steam en la Deck?': 'Redémarrer Steam sur la Deck ?',
+    'Ajustes': 'Réglages',
+    'Clave de SteamGridDB para las carátulas': 'Clé SteamGridDB pour les jaquettes',
+    'Falta la clave de SteamGridDB: ponerla': 'Il manque la clé SteamGridDB : la saisir',
   },
 };

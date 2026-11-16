@@ -48,7 +48,11 @@ const I18N = {
       if (padre === 'SCRIPT' || padre === 'STYLE') continue;
 
       if (n.__es === undefined) {
-        const limpio = n.nodeValue.trim();
+        // Los espacios de dentro se juntan: una frase del HTML partida en dos
+        // renglones lleva un salto de línea y la sangría en medio, y así no
+        // casaba con su clave del catálogo, que va en una sola línea. Media
+        // docena de párrafos largos se quedaban en castellano por eso.
+        const limpio = n.nodeValue.trim().replace(/\s+/g, ' ');
         if (!limpio) continue;
         n.__es = limpio;
       }
@@ -72,5 +76,5 @@ const I18N = {
   },
 };
 
-// t() suelta, que es como se usa desde app.js.
+// t() suelta, que es como se usa desde el resto de ficheros.
 function t(texto, ...args) { return I18N.t(texto, ...args); }

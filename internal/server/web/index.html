@@ -39,6 +39,10 @@
     <!-- El idioma se guarda en la configuración de deckman, no en el
          navegador: también decide en qué idioma habla el servidor al dar un
          error. Ver internal/i18n. -->
+    <!-- Los ajustes van aquí arriba y no dentro de «Enviar juego»: la clave de
+         SteamGridDB la usa también la galería de la Biblioteca, y escondida al
+         pie de otra pestaña no la encontraba quien venía de allí. -->
+    <button id="btnSettings" class="ghost" title="Clave de SteamGridDB para las carátulas">Ajustes</button>
     <select id="idioma" class="idioma" title="Idioma / Language / Langue">
       <option value="">Auto</option>
       <option value="es">Español</option>
@@ -129,8 +133,10 @@
       <label class="check"><input type="checkbox" id="showSteam" checked> Steam</label>
       <label class="check"><input type="checkbox" id="showNonSteam" checked> No-Steam</label>
       <span class="spacer"></span>
-      <span id="steamWarn" class="warn hidden">Steam está abierto en la Deck</span>
-      <button id="btnRestartSteam" title="Necesario para que Steam vea los cambios">Reiniciar Steam</button>
+      <!-- Informa, no avisa: con Steam abierto los cambios entran al instante,
+           que es el caso bueno. En color de aviso parecía que algo iba mal. -->
+      <span id="steamState" class="hint"></span>
+      <button id="btnRestartSteam" class="ghost" title="Solo hace falta si un cambio no aparece en Steam.">Reiniciar Steam</button>
       <button id="btnRefresh">Actualizar</button>
     </div>
 
@@ -144,7 +150,6 @@
             <th class="sortable num" data-sort="size">Tamaño</th>
             <th class="loch">Ubicación</th>
             <th class="protonh">Proton</th>
-            <th class="num extrash">Extras</th>
             <th></th>
           </tr>
         </thead>
@@ -212,63 +217,31 @@
 
         <label class="check big"><input type="checkbox" id="sendArtwork" checked>
           Descargar carátulas de SteamGridDB
-          <em class="opt" id="artworkHint"></em>
         </label>
+        <button id="artworkHint" class="linkish hidden">Falta la clave de SteamGridDB: ponerla</button>
       </div>
 
       <button id="btnSend" class="primary big">Enviar a la Deck</button>
     </div>
-
-    <details class="card settings">
-      <summary>Ajustes de carátulas</summary>
-      <p class="hint">
-        Las carátulas las sirve <strong>SteamGridDB</strong>, que pide una clave gratuita.
-        Sácala en <code>steamgriddb.com</code> → tu perfil → <em>Preferences</em> → <em>API</em>,
-        y pégala aquí. Se guarda solo en este PC. Sin ella todo lo demás funciona igual,
-        pero el juego saldrá con un recuadro gris en la biblioteca.
-      </p>
-      <div class="row">
-        <input id="gridKey" type="password" placeholder="Clave de la API de SteamGridDB" autocomplete="off">
-        <button id="btnSaveKey">Guardar</button>
-      </div>
-      <p id="gridKeyState" class="hint"></p>
-    </details>
   </section>
 
   <!-- ---------- EMULACIÓN ---------- -->
-  <section id="tab-rom" class="panel emulation-panel">
+  <section id="tab-rom" class="panel">
     <div class="emu-dashboard">
-      <header class="emu-header">
-        <h2>Emulación</h2>
-        <p class="subtitle">Envía, organiza y descarga ROMs</p>
-      </header>
-
-      <!-- Scrapear ya no es una tarjeta aparte: buscar las carátulas de un
-           sistema es algo que se hace mirando ese sistema, y para eso ya hay
-           que estar en Gestionar. Tenerlo suelto obligaba a elegir el sistema
-           dos veces, en dos sitios distintos. -->
-      <div class="emu-cards">
-        <button class="emu-card active-card" data-subtab="emu-send">
-          <div class="emu-icon">📥</div>
-          <h3>Enviar ROM</h3>
-          <p>Copia roms a la Deck</p>
-        </button>
-        <button class="emu-card" data-subtab="emu-manage">
-          <div class="emu-icon">📁</div>
-          <h3>Gestionar</h3>
-          <p>Organiza y busca carátulas</p>
-        </button>
-        <button class="emu-card" data-subtab="emu-download">
-          <div class="emu-icon">⚡</div>
-          <h3>Descargar</h3>
-          <p>Obtén nuevas roms</p>
-        </button>
-      </div>
+      <!-- Subpestañas y no tarjetas: las tres tarjetas grandes con su cabecera
+           ocupaban media pantalla y dejaban el formulario fuera de la vista.
+           Scrapear tampoco tiene pestaña propia: las carátulas de un sistema
+           se buscan mirando ese sistema, en Gestionar. -->
+      <nav class="subtabs">
+        <button class="subtab active" data-subtab="emu-send">Enviar ROM</button>
+        <button class="subtab" data-subtab="emu-manage">Gestionar</button>
+        <button class="subtab" data-subtab="emu-download">Descargar</button>
+      </nav>
 
       <div class="emu-content">
         <!-- Subpestaña: Enviar ROM -->
         <div id="emu-send" class="emu-subpanel active">
-          <div class="card premium-card">
+          <div class="card">
             <h2>Enviar una ROM</h2>
             <p class="hint">Copia a la carpeta de EmuDeck <code id="romsDirLabel">—</code>.</p>
 
@@ -292,19 +265,14 @@
 
         <!-- Subpestaña: Gestionar -->
         <div id="emu-manage" class="emu-subpanel hidden">
-          <div class="card premium-card">
+          <div class="card">
             <h2>Gestor de colección</h2>
             <!-- Solo salen los sistemas que tienen ROMs. EmuDeck crea 181
                  carpetas al instalarse y elegir entre todas para llegar a las
                  cuatro que usas no es una lista, es un obstáculo. -->
-            <p class="hint">Solo se listan los sistemas que tienen ROMs, no las 181 carpetas que crea EmuDeck.</p>
-
             <div class="field">
-              <label>Sistema</label>
-              <div class="row">
-                <select id="manageRomSystem"></select>
-                <button id="btnLoadRoms" class="primary">Cargar</button>
-              </div>
+              <label for="manageRomSystem">Sistema</label>
+              <select id="manageRomSystem"></select>
               <p id="manageSystemsHint" class="hint"></p>
             </div>
 
@@ -343,7 +311,7 @@
 
         <!-- Subpestaña: Descargar -->
         <div id="emu-download" class="emu-subpanel hidden">
-          <div class="card premium-card">
+          <div class="card">
             <h2>Descargas directas</h2>
             <p class="hint">La descarga la hace la Deck, no este PC: el fichero no cruza dos veces la red.</p>
 
@@ -479,6 +447,9 @@
       <button id="prevClose">✕</button>
     </div>
     <div class="prevbody" id="prevBody"></div>
+    <!-- Lo que antes contaba una segunda confirmación: dónde se aplica y
+         cuándo se verá. -->
+    <p id="prevNote" class="hint prevnote"></p>
     <div class="mfoot">
       <span id="prevMeta" class="hint"></span>
       <span class="spacer"></span>
@@ -491,14 +462,19 @@
 <!-- ---------- CONFIRMACIÓN DE BORRADO ---------- -->
 <div id="delModal" class="modal hidden">
   <div class="mbox narrow">
-    <div class="mhead"><span id="delTitle">Eliminar</span><button id="delClose">✕</button></div>
+    <div class="mhead"><span id="delTitle">Eliminar</span><span class="spacer"></span><button id="delClose">✕</button></div>
     <div class="mbody">
       <p class="hint">Elige qué quieres borrar de la Deck. Es irreversible.</p>
       <label class="check big"><input type="checkbox" id="delGame" checked> <span id="delGameLabel">Ficheros del juego</span></label>
+      <!-- Las rutas van a la vista, como en el resto de acciones: es el único
+           diálogo que borra de verdad y era el único que no decía qué. -->
+      <p id="delGamePath" class="delpath"></p>
       <label class="check big"><input type="checkbox" id="delCompat"> <span id="delCompatLabel">Prefijo de Proton</span>
         <em class="opt">incluye partidas guardadas de juegos de Windows</em></label>
+      <p id="delCompatPath" class="delpath"></p>
       <label class="check big"><input type="checkbox" id="delShader"> <span id="delShaderLabel">Caché de shaders</span>
         <em class="opt">se regenera sola</em></label>
+      <p id="delShaderPath" class="delpath"></p>
       <label class="check big hidden" id="delShortcutRow"><input type="checkbox" id="delShortcut" checked> Acceso directo de Steam</label>
     </div>
     <div class="mfoot">
@@ -509,13 +485,42 @@
   </div>
 </div>
 
-<!-- ---------- VISTA PREVIA DE CAMBIOS ---------- -->
+<!-- ---------- AJUSTES ---------- -->
+<div id="settingsModal" class="modal hidden">
+  <div class="mbox narrow">
+    <div class="mhead"><span>Ajustes de carátulas</span><span class="spacer"></span><button id="setClose">✕</button></div>
+    <div class="mbody">
+      <p class="hint">
+        Las carátulas las sirve <strong>SteamGridDB</strong>, que pide una clave gratuita.
+        Sácala en <code>steamgriddb.com</code> → tu perfil → <em>Preferences</em> → <em>API</em>,
+        y pégala aquí. Se guarda solo en este PC. Sin ella todo lo demás funciona igual,
+        pero el juego saldrá con un recuadro gris en la biblioteca.
+      </p>
+      <div class="row">
+        <input id="gridKey" type="password" placeholder="Clave de la API de SteamGridDB" autocomplete="off">
+        <button id="btnSaveKey" class="primary">Guardar</button>
+      </div>
+      <p id="gridKeyState" class="hint"></p>
+    </div>
+  </div>
+</div>
+
+<!-- ---------- VISTA PREVIA DE CAMBIOS ----------
+     También hace de confirmación para todo lo demás (salir, olvidar una Deck,
+     reiniciar Steam, la clave de host cambiada): va el último para quedar por
+     encima de cualquier otro diálogo que estuviera abierto. -->
 <div id="previewModal" class="modal hidden">
   <div class="mbox">
     <div class="mhead"><span id="chgTitle">Cambios que se van a aplicar</span><span class="spacer"></span><button id="chgClose">✕</button></div>
     <div class="mbody">
       <p id="chgSummary" class="chg-summary"></p>
       <ul id="chgList" class="chg-list"></ul>
+      <!-- Solo cuando el diálogo pide un dato (renombrar una ROM): así la
+           pregunta y la confirmación son un único paso. -->
+      <div id="chgInputRow" class="field hidden">
+        <label for="chgInput" id="chgInputLabel"></label>
+        <input id="chgInput" class="mono" autocomplete="off" spellcheck="false">
+      </div>
       <p id="chgNote" class="hint chg-note hidden"></p>
     </div>
     <div class="mfoot">
@@ -526,10 +531,20 @@
   </div>
 </div>
 
-<!-- El catálogo antes que la máquina, y las dos antes que app.js: i18n.js usa
-     CATALOGO al arrancar y app.js llama a t() desde el primer momento. -->
+<!-- El catálogo antes que la máquina, y las dos antes que el resto: i18n.js
+     usa CATALOGO al arrancar y los demás llaman a t() desde el primer momento.
+     nucleo.js va primero entre los de la aplicación y app.js el último; el
+     orden de los de en medio da igual, porque nada se ejecuta hasta init(). -->
 <script src="i18n-catalogo.js"></script>
 <script src="i18n.js"></script>
+<script src="nucleo.js"></script>
+<script src="conexion.js"></script>
+<script src="biblioteca.js"></script>
+<script src="explorador.js"></script>
+<script src="caratulas.js"></script>
+<script src="enviar.js"></script>
+<script src="trabajos.js"></script>
+<script src="emulacion.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

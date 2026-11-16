@@ -29,6 +29,17 @@ make flatpak          # empaqueta e instala el Flatpak (usuario)
 make release V=0.2.0  # publica de principio a fin
 ```
 
+### En el UM780
+
+Desde el portátil no se compila ni se prueba: todo va al UM780 con
+`scripts/dev/um780.sh`, que sincroniza el árbol de trabajo y ejecuta el comando
+en un contenedor. Uso, comandos y trampas en **`scripts/dev/README.md`**.
+
+```sh
+scripts/dev/um780.sh scripts/dev/comprobar.sh    # gofmt + sintaxis JS + vet + pruebas
+scripts/dev/um780.sh --traer dist/deckman scripts/compilar.sh linux dist/deckman dev
+```
+
 `make audit` va **aparte** de `check` y **no** es puerta para publicar: mira
 contra una base de datos que cambia sola, así que puede ponerse en rojo sin que
 nadie haya tocado nada. El CI lo pasa igual en cada push

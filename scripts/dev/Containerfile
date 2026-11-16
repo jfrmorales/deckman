@@ -1,0 +1,14 @@
+# Entorno de desarrollo de deckman: Go y Node (solo para comprobar la sintaxis
+# del JavaScript de la interfaz; la aplicación no lo usa).
+# Se construye y se usa en el UM780 a través de scripts/dev/um780.sh (ver scripts/dev/README.md).
+# La etiqueta de la imagen es el hash de este fichero más la imagen base: si
+# cambia cualquiera de los dos, se reconstruye sola.
+#
+# La base no se escribe aquí: la pasa um780.sh desde scripts/contenedor.sh,
+# para que la versión de Go siga estando en un único sitio.
+ARG GO_IMAGE
+FROM ${GO_IMAGE}
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends nodejs \
+ && rm -rf /var/lib/apt/lists/*

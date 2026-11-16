@@ -13,6 +13,35 @@ bloque `<releases>` del metainfo. Los tres los sincroniza `scripts/release.sh`.
      versión nueva al publicar. Secciones: Añadido, Cambiado, Corregido,
      Eliminado. -->
 
+### Cambiado
+
+- **Una sola confirmación para aplicar una carátula.** La vista previa ya enseña la imagen y tiene su «Aplicar esta imagen»; el diálogo de «Cambios que se van a aplicar» que saltaba después sobraba. Lo que contaba (si se aplica en caliente o al reiniciar Steam) se dice ahora en la propia vista previa.
+- **Gestionar ROMs carga la lista al elegir el sistema.** Desaparece el botón «Cargar».
+- **Renombrar una ROM es un único diálogo propio**, con el nombre nuevo y la ruta a la vista, en vez del `prompt()` del navegador seguido de otra confirmación.
+- **Todas las confirmaciones usan el diálogo de la aplicación**: olvidar una Deck, reiniciar Steam, salir y el aviso de clave SSH cambiada dejan el `confirm()` del navegador. En el de la clave, las dos huellas salen una debajo de otra y en ancho fijo, para poder compararlas.
+- **El estado de Steam informa en vez de avisar**: «Steam abierto: los cambios se aplican al instante» (o «cerrado: se verán al abrirlo») en texto normal, no en color de aviso. «Reiniciar Steam» pasa a segundo plano.
+- **Ajustes en la barra superior.** La clave de SteamGridDB estaba en un desplegable al pie de «Enviar juego», aunque también hace falta para la galería de la Biblioteca. El aviso de que falta la clave es ahora un botón que abre los Ajustes, y la galería sin clave lo dice y ofrece ponerla.
+- **Emulación más compacta**: subpestañas en lugar de la cabecera y las tres tarjetas grandes, que dejaban el formulario fuera de la vista.
+- **Tabla de la biblioteca**: el selector de Proton enseña el nombre entero y se quita la columna «Extras» (prefijo y shaders), que ya se ve en el diálogo de eliminar.
+- **El diálogo de eliminar enseña las rutas** de lo que se va a borrar, como el resto de acciones.
+- Interno: `app.js` y `server.go` se parten en ficheros por áreas (conexión, biblioteca, explorador, carátulas, enviar, trabajos, emulación), sin cambiar comportamiento. El resumen de carátulas de ROMs llega por el canal de eventos en vez de sondear cada 700 ms.
+
+### Añadido
+
+- **Pruebas del catálogo de la interfaz** (`internal/server/web_i18n_test.go`): todo lo que se pasa a `t()` y todo texto de `index.html` tiene que estar traducido, inglés y francés cubren lo mismo, los huecos `{0}` cuadran y no quedan claves huérfanas.
+- **`scripts/dev/`**: ejecutar pruebas y compilaciones en el UM780 dentro de un contenedor (`scripts/dev/um780.sh`), sin usar el portátil.
+
+### Corregido
+
+- **Unas 80 frases salían en castellano con la interfaz en inglés o francés**: el panel de detección al enviar un juego, las pestañas de la galería de carátulas, los mensajes de biblioteca vacía, «jugado: nunca» y la fecha, el resumen de carátulas de ROMs, la despedida al salir y varios avisos.
+- **Párrafos del HTML a medio traducir.** Una frase partida en dos renglones no casaba con su clave del catálogo, y se quedaban en castellano, entre otros, la explicación de «Enviar juego» y la de la clave de SteamGridDB.
+- **El aviso de quitar una carátula decía «(grid)»** en vez de «Portada vertical».
+- Al cambiar de idioma, el estado de la conexión y otros textos sueltos se quedaban en el idioma anterior hasta recargar.
+
+### Eliminado
+
+- `/api/disconnect`: la interfaz no lo llamaba.
+
 ## [0.6.6] — 2026-11-16
 
 ### Añadido

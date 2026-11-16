@@ -204,7 +204,8 @@ tbody tr:last-child td { border-bottom: none; }
 .acts { display: flex; gap: 8px; justify-content: flex-end; }
 .acts button { padding: 6px 12px; font-size: 13px; }
 .empty { padding: 40px 20px; text-align: center; color: var(--dim); font-size: 15px; }
-select.compat { padding: 5px 8px; font-size: 13px; max-width: 140px; }
+/* Ancho para «Proton Experimental» entero: a 140px se quedaba en «Proton Experime». */
+select.compat { padding: 5px 8px; font-size: 13px; max-width: 210px; }
 
 /* ---- portada de cada juego ---- */
 .covh, td.covercell { width: 56px; padding-right: 0; }
@@ -291,7 +292,14 @@ select.compat { padding: 5px 8px; font-size: 13px; max-width: 140px; }
 .mfoot { display: flex; align-items: center; gap: 10px; padding: 13px 16px; border-top: 1px solid var(--line); }
 
 /* ---- vista previa de cambios ---- */
-.chg-summary { margin: 0 0 12px; font-size: 14px; font-weight: 500; color: var(--fg); }
+/* pre-line: los resúmenes largos (olvidar una Deck, la clave de host) vienen
+   en párrafos separados por saltos de línea. */
+.chg-summary { margin: 0 0 12px; font-size: 14px; font-weight: 500; color: var(--fg); white-space: pre-line; line-height: 1.5; }
+.chg-list:empty { display: none; }
+#chgInputRow { margin: 14px 0 0; }
+/* Ruta de lo que se va a borrar, debajo de su casilla. */
+.delpath { margin: -4px 0 8px 26px; font-family: var(--mono); font-size: 12px; color: var(--dim); word-break: break-all; }
+.delpath:empty { display: none; }
 .chg-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .chg-list li {
   background: var(--bg); border: 1px solid var(--line); border-radius: 7px;
@@ -299,7 +307,8 @@ select.compat { padding: 5px 8px; font-size: 13px; max-width: 140px; }
 }
 .chg-path { font-family: var(--mono); font-size: 12px; color: var(--accent); word-break: break-all; }
 .chg-desc { font-size: 13px; color: var(--dim); line-height: 1.4; }
-.chg-note { margin: 12px 0 0; }
+.chg-note { margin: 12px 0 0; white-space: pre-line; }
+.prevnote { margin: 0; padding: 10px 16px 0; }
 
 @media (max-width: 720px) {
   .topbar { gap: 10px; }
@@ -310,7 +319,7 @@ select.compat { padding: 5px 8px; font-size: 13px; max-width: 140px; }
   /* La ruta va con el selector completo: `.locpath` a secas pierde contra el
      `td.locc .loc { display: block }` de arriba, que tiene más especificidad y
      gana esté donde esté la media query. */
-  .protonh, td.protonc, .extrash, td.extrasc, td.locc .locpath { display: none; }
+  .protonh, td.protonc, td.locc .locpath { display: none; }
 }
 
 /* ---- panel de autodetección ---- */
@@ -339,9 +348,6 @@ button.mini { padding: 3px 9px; font-size: 12px; }
 .dalt label { display: block; font-size: 12.5px; color: var(--dim); margin-bottom: 5px; }
 .dalt select { width: 100%; }
 
-.card.settings { margin-top: 16px; }
-.card.settings summary { cursor: pointer; font-weight: 600; }
-.card.settings > *:not(summary) { margin-top: 12px; }
 
 /* ---- galería de carátulas ---- */
 .mbox.wide { width: min(1000px, 96vw); }
@@ -672,195 +678,20 @@ thead th {
 }
 .empty { padding: 34px 26px; line-height: 1.7; }
 
-/* ---- Emulación (Premium Web App Design) ---- */
-.emulation-panel {
-  animation: fade-in 0.3s ease-out;
+/* ---- Emulación ----
+   Subpestañas compactas: un control segmentado encima del formulario, que es
+   lo que se viene a usar. */
+.subtabs {
+  display: inline-flex; gap: 4px; padding: 4px; margin-bottom: 16px;
+  background: var(--bg2); border: 1px solid var(--line); border-radius: 10px;
 }
-@keyframes fade-in {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+.subtab {
+  background: none; border: none; border-radius: 7px;
+  padding: 7px 16px; color: var(--dim); font-weight: 600; font-size: 13.5px;
 }
-
-.emu-dashboard {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.emu-header h2 {
-  font-size: 28px;
-  margin: 0 0 8px;
-  background: linear-gradient(135deg, #e4e8f0, #8b95a8);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  letter-spacing: -0.5px;
-}
-.emu-header .subtitle {
-  margin: 0;
-  color: var(--dim);
-  font-size: 15px;
-}
-
-.emu-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-}
-
-.emu-card {
-  background: rgba(22, 28, 42, 0.45);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--glass-border);
-  border-radius: 16px;
-  padding: 24px;
-  text-align: left;
-  transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  cursor: pointer;
-  position: relative;
-  overflow: hidden;
-  color: inherit;
-  font-family: inherit;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-}
-
-.emu-card:hover {
-  transform: translateY(-4px);
-  border-color: rgba(26, 159, 255, 0.4);
-  background: rgba(30, 38, 55, 0.7);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3), 0 0 15px rgba(26, 159, 255, 0.1);
-}
-
-.emu-card.active-card {
-  border-color: var(--accent);
-  background: linear-gradient(145deg, rgba(30, 38, 55, 0.8), rgba(22, 28, 42, 0.8));
-  box-shadow: 0 0 0 1px var(--accent) inset, 0 12px 30px rgba(0, 0, 0, 0.3), 0 0 25px rgba(26, 159, 255, 0.2);
-}
-
-.emu-card::after {
-  content: "";
-  position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: radial-gradient(circle at 100% 0%, rgba(26, 159, 255, 0.25) 0%, transparent 60%);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-  pointer-events: none;
-}
-.emu-card:hover::after, .emu-card.active-card::after {
-  opacity: 1;
-}
-
-.emu-icon {
-  font-size: 28px;
-  margin-bottom: 4px;
-  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
-}
-
-.emu-card h3 {
-  margin: 0;
-  font-size: 17px;
-  font-weight: 700;
-  letter-spacing: -0.3px;
-  color: var(--fg);
-}
-
-.emu-card p {
-  margin: 0;
-  font-size: 13.5px;
-  line-height: 1.5;
-  color: var(--dim);
-}
-
-.emu-content {
-  margin-top: 12px;
-}
-
-.premium-card {
-  background: rgba(22, 28, 42, 0.45);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--glass-border);
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-}
-.premium-card h2 { margin: 0 0 16px; font-size: 18px; font-weight: 700; letter-spacing: -0.5px; border-bottom: 1px solid var(--glass-border); padding-bottom: 12px; }
-
-.emu-subpanel {
-  animation: slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.emu-subpanel.hidden {
-  display: none !important;
-}
-@keyframes slide-up {
-  from { opacity: 0; transform: translateY(15px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.premium-card {
-  background: rgba(26, 31, 41, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(46, 55, 70, 0.6);
-  border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
-  padding: 32px;
-}
-
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  min-height: 280px;
-  gap: 16px;
-}
-
-.huge-icon {
-  font-size: 64px;
-  filter: drop-shadow(0 8px 16px rgba(0,0,0,0.4));
-  margin-bottom: 8px;
-}
-
-.empty-state h3 {
-  font-size: 22px;
-  margin: 0;
-  color: var(--fg);
-}
-
-.empty-state p {
-  color: var(--dim);
-  max-width: 400px;
-  margin: 0 0 16px;
-  line-height: 1.6;
-}
-
-.animate-float {
-  animation: float 4s ease-in-out infinite;
-}
-@keyframes float {
-  0% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
-  100% { transform: translateY(0); }
-}
-
-.animate-pulse {
-  animation: glow-pulse 3s infinite alternate;
-}
-@keyframes glow-pulse {
-  from { filter: drop-shadow(0 0 5px rgba(224, 163, 77, 0.3)) drop-shadow(0 8px 16px rgba(0,0,0,0.4)); }
-  to { filter: drop-shadow(0 0 20px rgba(224, 163, 77, 0.7)) drop-shadow(0 8px 16px rgba(0,0,0,0.4)); }
-}
-
-.animate-spin-slow {
-  animation: spin-slow 12s linear infinite;
-}
-@keyframes spin-slow {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
+.subtab:hover:not(:disabled) { background: var(--bg3); color: var(--fg); }
+.subtab.active, .subtab.active:hover:not(:disabled) { background: var(--accent); color: #fff; }
+.emu-subpanel.hidden { display: none !important; }
 
 /* ---- historial y cola de operaciones ---- */
 .ops-panel {

@@ -13,6 +13,8 @@ bloque `<releases>` del metainfo. Los tres los sincroniza `scripts/release.sh`.
      versión nueva al publicar. Secciones: Añadido, Cambiado, Corregido,
      Eliminado. -->
 
+## [0.8.0] — 2026-11-16
+
 ### Añadido
 
 - **Enviar juegos nativos de Linux.** «Enviar juego» ya no es solo para Windows: reconoce los ejecutables nativos por su contenido (binarios ELF de x86 y x86-64, AppImage y scripts de arranque), aunque no lleven extensión, y propone «Ninguno (ejecutable nativo de Linux)» como versión de Proton. Antes, una carpeta así contestaba «No se encontró ningún .exe».
@@ -603,7 +605,8 @@ interno y microSD, desinstalar, la ventana WebView2 en un Windows real,
 `RemoveShortcutLive`, `SetCompatToolLive` y `RelocateShortcut`. Están recogidas
 en `CLAUDE.md`. Por eso 0.1.0 y no 1.0.0.
 
-[No publicado]: https://github.com/jfrmorales/deckman/compare/v0.7.0...HEAD
+[No publicado]: https://github.com/jfrmorales/deckman/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/jfrmorales/deckman/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/jfrmorales/deckman/compare/v0.6.6...v0.7.0
 [0.6.6]: https://github.com/jfrmorales/deckman/compare/v0.6.5...v0.6.6
 [0.6.5]: https://github.com/jfrmorales/deckman/compare/v0.6.4...v0.6.5

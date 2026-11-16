@@ -61,7 +61,8 @@
     {
       // Anula el automerge del preset. Va en un packageRule y no en el nivel raiz
       // porque las reglas del preset ganan al `automerge: false` de arriba.
-      matchUpdateTypes: ['minor', 'patch', 'digest', 'pin', 'pinDigest'],
+      // 'replacement' tambien: el preset lo automergea desde el 2026-11-16.
+      matchUpdateTypes: ['minor', 'patch', 'digest', 'pin', 'pinDigest', 'replacement'],
       automerge: false,
     },
     {
@@ -83,6 +84,12 @@
       // golang-version) y la imagen se llama como en los workflows.
       matchPackageNames: ['go', 'docker.io/library/golang'],
       groupName: 'toolchain de Go',
+      // Sin `bump`, Renovate deja la directiva `go` de go.mod como esta
+      // mientras la version nueva la siga cumpliendo, y solo sube las
+      // imagenes: el paso «version de go» del CI falla siempre (PR de Go
+      // 1.27.4, 2026-11-11). Solo afecta a `go`; en una imagen de docker con
+      // la version clavada no cambia nada.
+      rangeStrategy: 'bump',
       // Lo que NO se mueve solo: la version de golangci-lint en
       // scripts/contenedor.sh. Si el PR de Go falla en la auditoria, falta
       // subirla a mano a una que soporte esa version de Go.

@@ -13,6 +13,8 @@ bloque `<releases>` del metainfo. Los tres los sincroniza `scripts/release.sh`.
      versión nueva al publicar. Secciones: Añadido, Cambiado, Corregido,
      Eliminado. -->
 
+## [0.7.0] — 2026-11-16
+
 ### Cambiado
 
 - **Una sola confirmación para aplicar una carátula.** La vista previa ya enseña la imagen y tiene su «Aplicar esta imagen»; el diálogo de «Cambios que se van a aplicar» que saltaba después sobraba. Lo que contaba (si se aplica en caliente o al reiniciar Steam) se dice ahora en la propia vista previa.
@@ -590,7 +592,8 @@ interno y microSD, desinstalar, la ventana WebView2 en un Windows real,
 `RemoveShortcutLive`, `SetCompatToolLive` y `RelocateShortcut`. Están recogidas
 en `CLAUDE.md`. Por eso 0.1.0 y no 1.0.0.
 
-[No publicado]: https://github.com/jfrmorales/deckman/compare/v0.6.6...HEAD
+[No publicado]: https://github.com/jfrmorales/deckman/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/jfrmorales/deckman/compare/v0.6.6...v0.7.0
 [0.6.6]: https://github.com/jfrmorales/deckman/compare/v0.6.5...v0.6.6
 [0.6.5]: https://github.com/jfrmorales/deckman/compare/v0.6.4...v0.6.5
 [0.6.4]: https://github.com/jfrmorales/deckman/compare/v0.6.3...v0.6.4

@@ -289,3 +289,28 @@ func TestOperacionesPersistenYRecuperanInterrumpidas(t *testing.T) {
 		t.Error("RemoveOperation deberia devolver false para ID inexistente")
 	}
 }
+
+func TestPreferredExe(t *testing.T) {
+	c := &Config{Active: -1}
+	dir := filepath.Join(t.TempDir(), "MiJuego")
+
+	if got := c.PreferredExe(dir); got != "" {
+		t.Fatalf("esperaba vacio sin preferencia previa, obtuve %q", got)
+	}
+
+	c.SetPreferredExe(dir+string(filepath.Separator), "juego.x86_64")
+	if got := c.PreferredExe(dir); got != "juego.x86_64" {
+		t.Fatalf("PreferredExe = %q, esperaba juego.x86_64", got)
+	}
+
+	snap := c.Snapshot()
+	c.SetPreferredExe(dir, "otro.exe")
+	if got := snap.PreferredExe(dir); got != "juego.x86_64" {
+		t.Fatalf("Snapshot compartio mapa con Config: %q", got)
+	}
+
+	c.SetPreferredExe(dir, "")
+	if got := c.PreferredExe(dir); got != "" {
+		t.Fatalf("esperaba preferencia borrada, obtuve %q", got)
+	}
+}

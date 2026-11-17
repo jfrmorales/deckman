@@ -116,6 +116,9 @@ function renderDetection() {
     const best = exes[0];
     $('sendExe').value = best.rel;
     let detail = `${fmtBytes(best.size)}${best.why ? ' · ' + escapeHtml(best.why) : ''}`;
+    if (detection.rememberedExe && detection.rememberedExe === best.rel) {
+      detail += ' · ' + t('recordado de un envío anterior');
+    }
     if ((local.skipped || []).length) {
       detail += ' · ' + t('descartados: {0}', escapeHtml(local.skipped.slice(0, 4).join(', ')));
     }

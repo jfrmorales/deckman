@@ -56,11 +56,18 @@ func (s *Server) handleDetect(w http.ResponseWriter, r *http.Request) {
 
 	local := detect.Detect(req.LocalPath)
 
+	s.mu.Lock()
+	remembered := s.cfg.PreferredExe(req.LocalPath)
+	s.mu.Unlock()
+
 	online := true
 	if req.Online != nil {
 		online = *req.Online
 	}
 	resp := map[string]any{"local": local}
+	if rec := applyPreferredExe(local, req.LocalPath, remembered); rec != "" {
+		resp["rememberedExe"] = rec
+	}
 
 	if online {
 		ctx, cancel := context.WithTimeout(r.Context(), 25*time.Second)
@@ -73,6 +80,39 @@ func (s *Server) handleDetect(w http.ResponseWriter, r *http.Request) {
 		resp["online"] = s.metaClient().Lookup(ctx, appID, local.CleanName)
 	}
 	writeJSON(w, resp)
+}
+
+// applyPreferredExe promociona al primer puesto el ejecutable que el usuario
+// eligio en un envio anterior de esta carpeta si sigue existiendo en disco.
+func applyPreferredExe(local *detect.Result, dir, preferred string) string {
+	if local == nil || preferred == "" {
+		return ""
+	}
+	rel, err := safeRelExe(preferred)
+	if err != nil {
+		return ""
+	}
+	full := filepath.Join(dir, filepath.FromSlash(rel))
+	fi, err := os.Stat(full)
+	if err != nil || fi.IsDir() {
+		return ""
+	}
+	for i, c := range local.Executables {
+		if filepath.ToSlash(c.Rel) == rel {
+			if i > 0 {
+				copy(local.Executables[1:i+1], local.Executables[:i])
+				local.Executables[0] = c
+			}
+			return c.Rel
+		}
+	}
+	cand := detect.Candidate{
+		Rel:    rel,
+		Size:   fi.Size(),
+		Native: detect.LanzableEn(full),
+	}
+	local.Executables = append([]detect.Candidate{cand}, local.Executables...)
+	return rel
 }
 
 // registerShortcut anade un juego no-Steam por la via que toque.
@@ -179,6 +219,9 @@ func (s *Server) handleSendGame(w http.ResponseWriter, r *http.Request) {
 
 	s.mu.Lock()
 	s.cfg.LastLocal = filepath.Dir(req.LocalPath)
+	if info.IsDir() && req.AddShortcut && exeRel != "" {
+		s.cfg.SetPreferredExe(req.LocalPath, exeRel)
+	}
 	cfg := s.cfg.Snapshot()
 	s.mu.Unlock()
 	s.guardar(cfg)

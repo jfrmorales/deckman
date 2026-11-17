@@ -86,6 +86,11 @@ type Config struct {
 	// Historial persistente de operaciones (movimientos, envios, descargas).
 	Operations []Operation `json:"operations,omitempty"`
 
+	// Ejecutable elegido por el usuario para cada carpeta de juego local
+	// (ruta limpia de la carpeta -> ruta relativa del ejecutable). Evita
+	// tener que volver a elegir la version nativa al actualizar el juego.
+	PreferredExes map[string]string `json:"preferredExes,omitempty"`
+
 	// Idioma de la interfaz: "es", "en", "fr" o "" para seguir al navegador.
 	// Vive aqui y no en el navegador porque tambien decide en que idioma
 	// traduce el servidor sus mensajes de error: si lo guardara solo el
@@ -109,7 +114,39 @@ func (c *Config) Snapshot() Config {
 	cp := *c
 	cp.Decks = append([]Deck(nil), c.Decks...)
 	cp.Operations = append([]Operation(nil), c.Operations...)
+	if c.PreferredExes != nil {
+		cp.PreferredExes = make(map[string]string, len(c.PreferredExes))
+		for k, v := range c.PreferredExes {
+			cp.PreferredExes[k] = v
+		}
+	}
 	return cp
+}
+
+// PreferredExe devuelve el ejecutable recordado para la carpeta local, o "" si
+// no hay ninguno guardado.
+func (c *Config) PreferredExe(localPath string) string {
+	if localPath == "" || c.PreferredExes == nil {
+		return ""
+	}
+	return c.PreferredExes[filepath.Clean(localPath)]
+}
+
+// SetPreferredExe guarda (o borra si exeRel esta vacio) el ejecutable
+// recordado para una carpeta local.
+func (c *Config) SetPreferredExe(localPath, exeRel string) {
+	if localPath == "" {
+		return
+	}
+	key := filepath.Clean(localPath)
+	if exeRel == "" {
+		delete(c.PreferredExes, key)
+		return
+	}
+	if c.PreferredExes == nil {
+		c.PreferredExes = make(map[string]string)
+	}
+	c.PreferredExes[key] = exeRel
 }
 
 // RecoverInterrupted marca como "interrumpido" cualquier trabajo que quedase en

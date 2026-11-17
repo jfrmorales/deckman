@@ -13,6 +13,12 @@ bloque `<releases>` del metainfo. Los tres los sincroniza `scripts/release.sh`.
      versión nueva al publicar. Secciones: Añadido, Cambiado, Corregido,
      Eliminado. -->
 
+## [0.8.1] — 2026-11-17
+
+### Añadido
+
+- **Recordar el ejecutable elegido por carpeta de juego.** Si en una carpeta con versión de Windows y nativa de Linux (o con varios ejecutables) eliges uno a mano al enviar el juego, `deckman` lo recuerda y lo propone directamente en los envíos siguientes (con Proton en «Ninguno» si es nativo de Linux). Así no hay que volver a cambiarlo cada vez que se actualiza el juego.
+
 ## [0.8.0] — 2026-11-16
 
 ### Añadido

@@ -26,6 +26,8 @@ Cómo se mantiene este fichero:
 
 - **deckman recuerda el ejecutable que elegiste a mano para cada juego**: si en una carpeta que trae versión de Windows y nativa de Linux (o varios ejecutables) cambias al binario de Linux al enviarlo, en los envíos siguientes para actualizar ese juego volverá a proponerlo directamente (con Proton en «Ninguno» si es nativo).
 
+[IMG]https://raw.githubusercontent.com/jfrmorales/deckman/main/docs/capturas/enviar-ejecutable-recordado.webp[/IMG]
+
 ## 16/11/2026 · Enviar juegos nativos de Linux
 
 ### Novedades

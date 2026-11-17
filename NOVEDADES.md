@@ -20,6 +20,12 @@ Cómo se mantiene este fichero:
   «Arreglos». Sin emoji: el foro no los aguanta.
 -->
 
+## 17/11/2026 · Recordar el ejecutable elegido por carpeta (v0.8.1)
+
+### Mejoras
+
+- **deckman recuerda el ejecutable que elegiste a mano para cada juego**: si en una carpeta que trae versión de Windows y nativa de Linux (o varios ejecutables) cambias al binario de Linux al enviarlo, en los envíos siguientes para actualizar ese juego volverá a proponerlo directamente (con Proton en «Ninguno» si es nativo).
+
 ## 16/11/2026 · Enviar juegos nativos de Linux
 
 ### Novedades

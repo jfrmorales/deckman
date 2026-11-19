@@ -242,8 +242,22 @@ Sandbox details:
 - **Window**: opened by the host's Chromium browser through `flatpak-spawn`
   (the manifest's `--talk-name=org.freedesktop.Flatpak` permission). With no
   compatible browser, it falls back to a tab through the portal.
+- **Updates**: user installations (`--user`) on `linux/amd64` can update from
+  within the interface whenever the release ships a `.flatpak` bundle (verified
+  with `SHA256SUMS` and `cosign` signature when present). System-wide installs
+  or sandboxes without host access show a link to the release.
 - If launched twice, the second instance finds the first and points the browser
   at it instead of starting another server.
+
+### Auto-update
+
+On startup, deckman quietly checks *GitHub Releases* for a newer version (this
+can be turned off in **Settings**, where there is also a **Check for updates**
+button). If a newer release is found, a subtle badge appears next to the
+version in the top bar; it never installs anything without confirmation. Before
+replacing the binary (or installing the `.flatpak`), it verifies `SHA256SUMS`
+and, when `SHA256SUMS.bundle` is present, checks the cryptographic signature
+against the pinned public key, then restarts deckman automatically.
 
 ---
 
@@ -376,8 +390,10 @@ for confirmation.
 original, with the `.deckman.bak` extension.
 
 **Internet lookups**: detection uses the Steam store, ProtonDB and SteamGridDB,
-sending only the game's name or app id. Nothing else leaves the PC. **SteamDB
-is not used**: it has no public API and its terms do not allow scraping.
+sending only the game's name or app id. When update checking is enabled (or when
+**Check for updates** is clicked in Settings), it queries the latest public
+release on GitHub. Nothing else leaves the PC. **SteamDB is not used**: it has
+no public API and its terms do not allow scraping.
 
 ---
 

@@ -289,6 +289,11 @@ func TestSinConexionLasRutasContestanErrorYNoPanican(t *testing.T) {
 		switch ruta {
 		case "/api/events", "/api/quit": // uno se queda abierto, el otro apaga
 			continue
+		case "/api/update/check":
+			// Consulta la red (GitHub API); se prueba en actualizacion_test.go
+			// contra un servidor local para no depender de internet en las
+			// pruebas unitarias.
+			continue
 		}
 		req := httptest.NewRequest(http.MethodPost, ruta, strings.NewReader("{}"))
 		req.Host = "127.0.0.1:8777"

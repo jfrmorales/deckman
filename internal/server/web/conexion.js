@@ -137,6 +137,10 @@ async function refreshState() {
       ? t('clave SSH instalada — no hace falta')
       : t('contraseña del usuario deck');
     updateJobButtons(); // puede haber un trabajo en curso de antes de recargar
+    renderUpdateUI();
+    if (state.update && state.update.status === 'applying') {
+      handleUpdateEvent(state.update);
+    }
     if (state.connected && !inventory) loadInventory();
   } catch (e) { /* el servidor aún arrancando */ }
 }
@@ -157,6 +161,7 @@ function aplicarIdioma(efectivo, elegido) {
   // que al cambiar de idioma se quedaría en el anterior.
   applyConnState();
   updateArtworkHint();
+  renderUpdateUI();
   if (!inventory) $('emptyLib').textContent = emptyLibText();
 }
 

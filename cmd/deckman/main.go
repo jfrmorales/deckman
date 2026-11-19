@@ -18,10 +18,12 @@ import (
 	"os/exec"
 	"os/signal"
 	"runtime"
+	"strconv"
 	"syscall"
 	"time"
 
 	"github.com/jfrmorales/deckman/internal/server"
+	"github.com/jfrmorales/deckman/internal/update"
 )
 
 var version = "dev"
@@ -37,6 +39,8 @@ func main() {
 		fmt.Println("deckman", version)
 		return
 	}
+
+	update.CleanupOld()
 
 	srv := server.New()
 	srv.Version = version
@@ -104,6 +108,8 @@ func main() {
 		}
 	}()
 
+	srv.StartAutoUpdateCheck()
+
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 
@@ -117,6 +123,25 @@ func main() {
 	// Se esta saliendo: si alguna peticion no termina en 5 segundos, el
 	// proceso muere igual y no hay nada que informar.
 	_ = httpSrv.Shutdown(ctx)
+	srv.Close()
+
+	if srv.RestartRequested() {
+		fmt.Println("reiniciando con la nueva version...")
+		var relaunchArgs []string
+		if portGiven {
+			relaunchArgs = append(relaunchArgs, "-port", strconv.Itoa(*port))
+		}
+		if *noBrowser {
+			relaunchArgs = append(relaunchArgs, "-no-browser")
+		}
+		if *browserMode {
+			relaunchArgs = append(relaunchArgs, "-browser")
+		}
+		if err := update.Relaunch(relaunchArgs); err != nil {
+			fmt.Fprintln(os.Stderr, "error al reiniciar:", err)
+			os.Exit(1)
+		}
+	}
 }
 
 // isDeckman comprueba si lo que escucha en esa direccion es otro deckman,

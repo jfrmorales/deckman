@@ -35,6 +35,9 @@ func (s *Server) broadcastOperations(ops []config.Operation) {
 
 // startJobOp arranca una operacion larga registrandola en el historial persistente.
 func (s *Server) startJobOp(op config.Operation, fn func(ctx context.Context, report deck.ProgressFunc) error) (*job, error) {
+	if s.updateBusy() {
+		return nil, i18n.Errorf("hay una actualizacion en curso")
+	}
 	if op.DeckHost == "" {
 		op.DeckHost = s.deckHost()
 	}
@@ -221,5 +224,12 @@ func (s *Server) handleCancel(w http.ResponseWriter, r *http.Request) {
 		s.job.cancel()
 	}
 	s.jobMu.Unlock()
+
+	s.updMu.Lock()
+	if s.updCancel != nil {
+		s.updCancel()
+	}
+	s.updMu.Unlock()
+
 	writeJSON(w, map[string]any{"ok": true})
 }

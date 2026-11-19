@@ -45,6 +45,10 @@ func runUI(url string, srv *server.Server, stop <-chan os.Signal, headless, plai
 				// su perfil propio no es la del usuario y nadie mas la usa.
 				defer cerrarNavegador(proc)
 				esperarAbandono(srv.Clientes, srv.Busy, srv.QuitRequested(), stop, graciaAbandono, time.Second)
+				if srv.RestartRequested() {
+					cerrarNavegador(proc)
+					time.Sleep(500 * time.Millisecond)
+				}
 				return
 			}
 			windowClosed := make(chan struct{})
@@ -56,6 +60,15 @@ func runUI(url string, srv *server.Server, stop <-chan os.Signal, headless, plai
 			case <-stop:
 				return
 			case <-srv.QuitRequested():
+				if srv.RestartRequested() {
+					// Al reiniciar tras actualizar cerramos la ventana modo app
+					// para que libere el perfil propio antes de relanzar.
+					cerrarNavegador(proc)
+					select {
+					case <-windowClosed:
+					case <-time.After(3 * time.Second):
+					}
+				}
 				return
 			case <-windowClosed:
 			}

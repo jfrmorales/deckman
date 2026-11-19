@@ -56,6 +56,13 @@ usuario tiene tu clave; eso no es un fallo de deckman, es el modelo.
   (`SHA256SUMS.bundle`); como comprobarlos esta en el README. La clave publica
   va en la propia release y es siempre la misma: si algun dia cambia sin que lo
   diga el changelog, desconfia.
+- La **autoactualizacion** integrada (`internal/update`) consulta solo la API
+  oficial de GitHub Releases por HTTPS, restringe todas las descargas y
+  redirecciones a dominios de GitHub (`api.github.com`, `github.com`,
+  `*.githubusercontent.com`), exige confirmacion explicita del usuario antes de
+  instalar y verifica siempre el fichero descargado con `SHA256SUMS` (mas la
+  firma `cosign` contra la clave publica fijada en el binario si la release
+  incluye `SHA256SUMS.bundle`) antes de tocar el ejecutable o el Flatpak.
 
 ## Versiones
 

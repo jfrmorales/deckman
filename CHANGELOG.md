@@ -13,6 +13,13 @@ bloque `<releases>` del metainfo. Los tres los sincroniza `scripts/release.sh`.
      versión nueva al publicar. Secciones: Añadido, Cambiado, Corregido,
      Eliminado. -->
 
+### Añadido
+
+- **Autoactualización integrada** para los binarios sueltos (Linux, Windows y macOS en `amd64` y `arm64`) y el Flatpak de usuario (`linux/amd64`):
+  - Comprobación discreta al arrancar frente a GitHub Releases (activada por defecto y desactivable en **Ajustes**) y búsqueda manual desde **Ajustes → Buscar actualizaciones**.
+  - Aviso discreto junto a la versión en la barra superior (`↑ vX.Y.Z`); la descarga e instalación solo arrancan tras confirmar en el diálogo con el paquete afectado, el método de verificación y las novedades de la release.
+  - Verificación obligatoria con `SHA256SUMS` y, cuando la release incluye `SHA256SUMS.bundle`, validación criptográfica `cosign` contra la clave pública fijada en el binario antes de tocar la instalación. Sustitución atómica en sitio (con limpieza de `.old` en Windows o actualización vía `flatpak-spawn --host` en Flatpak `--user`) y reinicio automático.
+
 ## [0.8.1] — 2026-11-17
 
 ### Añadido

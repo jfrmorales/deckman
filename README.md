@@ -244,8 +244,24 @@ Detalles del sandbox:
 - **Ventana**: la abre el navegador Chromium del host vía `flatpak-spawn`
   (permiso `--talk-name=org.freedesktop.Flatpak` del manifiesto). Sin ninguno
   compatible, cae a pestaña por el portal.
+- **Actualizaciones**: las instalaciones de usuario (`--user`) en `linux/amd64`
+  pueden actualizarse desde la propia interfaz cuando la release incluye el
+  `.flatpak` (comprobado con `SHA256SUMS` y firma `cosign` si está presente).
+  Las instalaciones a nivel de sistema o sin permiso de host muestran un enlace
+  a la release.
 - Si se lanza dos veces, la segunda instancia detecta la primera y abre el
   navegador contra ella en vez de arrancar otro servidor.
+
+### Autoactualización
+
+Al arrancar, deckman comprueba discretamente si hay una versión nueva en
+*GitHub Releases* (se puede desactivar en **Ajustes**, donde también hay un
+botón **Buscar actualizaciones**). Si encuentra una, muestra un aviso discreto
+junto a la versión en la barra superior; nunca instala nada sin tu confirmación.
+Antes de sustituir el ejecutable (o instalar el `.flatpak`) comprueba el
+`SHA256SUMS` de la release y, si la release trae `SHA256SUMS.bundle`, verifica
+la firma criptográfica con la clave pública fijada en la aplicación, y después
+reinicia deckman solo.
 
 ---
 
@@ -378,7 +394,9 @@ pide confirmación.
 junto al original, con la extensión `.deckman.bak`.
 
 **Consultas a internet**: la detección usa la tienda de Steam, ProtonDB y
-SteamGridDB, enviando solo el nombre o el appid del juego. Nada más sale del PC.
+SteamGridDB, enviando solo el nombre o el appid del juego. Si la comprobación
+de actualizaciones está activada (o se pulsa **Buscar actualizaciones** en
+Ajustes), consulta la última release pública en GitHub. Nada más sale del PC.
 **No se usa SteamDB**: no tiene API pública y sus términos no permiten rascar
 la web.
 

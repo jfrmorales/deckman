@@ -97,6 +97,11 @@ type Config struct {
 	// navegador, la interfaz saldria en frances y los errores en castellano.
 	Idioma string `json:"idioma,omitempty"`
 
+	// Desactiva la comprobacion automatica de actualizaciones al arrancar.
+	// Se guarda como negacion para que los config.json existentes mantengan la
+	// comprobacion activada por defecto.
+	DisableUpdateCheck bool `json:"disableUpdateCheck,omitempty"`
+
 	// De cuando solo se podia guardar una Deck. Solo se leen, para migrar la
 	// configuracion existente a Decks; al primer Save desaparecen del fichero.
 	// No los uses en codigo nuevo: la Deck en uso es ActiveDeck().

@@ -253,8 +253,24 @@ Détails du bac à sable :
   `flatpak-spawn` (permission `--talk-name=org.freedesktop.Flatpak` du
   manifeste). Sans navigateur compatible, il retombe sur un onglet via le
   portail.
+- **Mises à jour** : les installations utilisateur (`--user`) sur `linux/amd64`
+  peuvent se mettre à jour depuis l'interface lorsque la release inclut le
+  paquet `.flatpak` (vérifié avec `SHA256SUMS` et la signature `cosign` si
+  présente). Les installations système ou sans accès à l'hôte affichent un lien
+  vers la release.
 - S'il est lancé deux fois, la seconde instance détecte la première et pointe
   le navigateur vers elle au lieu de démarrer un autre serveur.
+
+### Mise à jour automatique
+
+Au démarrage, deckman vérifie discrètement s'il existe une version plus récente
+sur *GitHub Releases* (désactivable dans **Réglages**, où se trouve aussi le
+bouton **Rechercher des mises à jour**). Si une mise à jour est disponible, un
+badge discret apparaît à côté de la version dans la barre supérieure ; rien
+n'est installé sans votre confirmation. Avant de remplacer le binaire (ou
+d'installer le `.flatpak`), il vérifie `SHA256SUMS` et, lorsque
+`SHA256SUMS.bundle` est présent, la signature cryptographique avec la clé
+publique intégrée, puis redémarre deckman automatiquement.
 
 ---
 
@@ -395,9 +411,11 @@ fermé, d'où la demande de confirmation.
 laissée** à côté de l'original, avec l'extension `.deckman.bak`.
 
 **Requêtes vers internet** : la détection utilise la boutique Steam, ProtonDB
-et SteamGridDB, en n'envoyant que le nom ou l'app id du jeu. Rien d'autre ne
-sort du PC. **SteamDB n'est pas utilisé** : il n'a pas d'API publique et ses
-conditions n'autorisent pas le grattage.
+et SteamGridDB, en n'envoyant que le nom ou l'app id du jeu. Si la
+vérification des mises à jour est activée (ou en cliquant sur **Rechercher des
+mises à jour** dans Réglages), il interroge la dernière release publique sur
+GitHub. Rien d'autre ne sort du PC. **SteamDB n'est pas utilisé** : il n'a pas
+d'API publique et ses conditions n'autorisent pas le grattage.
 
 ---
 

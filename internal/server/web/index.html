@@ -29,6 +29,7 @@
     <img class="logo" src="icon.svg" alt="">
     <span>deckman</span>
     <span id="appVersion" class="version"></span>
+    <button id="btnUpdateBadge" class="update-badge hidden" title="Hay una nueva versión disponible"></button>
   </div>
   <div class="conn" id="connBar">
     <span class="chip" id="connChip">
@@ -42,7 +43,7 @@
     <!-- Los ajustes van aquí arriba y no dentro de «Enviar juego»: la clave de
          SteamGridDB la usa también la galería de la Biblioteca, y escondida al
          pie de otra pestaña no la encontraba quien venía de allí. -->
-    <button id="btnSettings" class="ghost" title="Clave de SteamGridDB para las carátulas">Ajustes</button>
+    <button id="btnSettings" class="ghost" title="Ajustes de carátulas y actualizaciones">Ajustes</button>
     <select id="idioma" class="idioma" title="Idioma / Language / Langue">
       <option value="">Auto</option>
       <option value="es">Español</option>
@@ -489,19 +490,33 @@
 <!-- ---------- AJUSTES ---------- -->
 <div id="settingsModal" class="modal hidden">
   <div class="mbox narrow">
-    <div class="mhead"><span>Ajustes de carátulas</span><span class="spacer"></span><button id="setClose">✕</button></div>
+    <div class="mhead"><span>Ajustes</span><span class="spacer"></span><button id="setClose">✕</button></div>
     <div class="mbody">
-      <p class="hint">
-        Las carátulas las sirve <strong>SteamGridDB</strong>, que pide una clave gratuita.
-        Sácala en <code>steamgriddb.com</code> → tu perfil → <em>Preferences</em> → <em>API</em>,
-        y pégala aquí. Se guarda solo en este PC. Sin ella todo lo demás funciona igual,
-        pero el juego saldrá con un recuadro gris en la biblioteca.
-      </p>
-      <div class="row">
-        <input id="gridKey" type="password" placeholder="Clave de la API de SteamGridDB" autocomplete="off">
-        <button id="btnSaveKey" class="primary">Guardar</button>
-      </div>
-      <p id="gridKeyState" class="hint"></p>
+      <section class="settings-section">
+        <h3>Carátulas</h3>
+        <p class="hint">
+          Las carátulas las sirve <strong>SteamGridDB</strong>, que pide una clave gratuita.
+          Sácala en <code>steamgriddb.com</code> → tu perfil → <em>Preferences</em> → <em>API</em>,
+          y pégala aquí. Se guarda solo en este PC. Sin ella todo lo demás funciona igual,
+          pero el juego saldrá con un recuadro gris en la biblioteca.
+        </p>
+        <div class="row">
+          <input id="gridKey" type="password" placeholder="Clave de la API de SteamGridDB" autocomplete="off">
+          <button id="btnSaveKey" class="primary">Guardar</button>
+        </div>
+        <p id="gridKeyState" class="hint"></p>
+      </section>
+      <hr class="modal-sep">
+      <section class="settings-section">
+        <h3>Actualizaciones</h3>
+        <label class="check"><input type="checkbox" id="autoCheckUpdates" checked> Comprobar actualizaciones al arrancar</label>
+        <div class="row settings-upd-row">
+          <button id="btnCheckUpdate">Buscar actualizaciones</button>
+          <button id="btnApplyUpdate" class="primary hidden">Instalar actualización</button>
+          <a id="updateReleaseLink" class="linkish hidden" target="_blank" rel="noopener">Ver en GitHub</a>
+        </div>
+        <p id="updateState" class="hint"></p>
+      </section>
     </div>
   </div>
 </div>
@@ -546,6 +561,7 @@
 <script src="enviar.js"></script>
 <script src="trabajos.js"></script>
 <script src="emulacion.js"></script>
+<script src="actualizacion.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

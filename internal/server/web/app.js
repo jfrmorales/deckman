@@ -93,6 +93,10 @@ function init() {
   $('btnSettings').onclick = openSettings;
   $('artworkHint').onclick = openSettings;
   $('setClose').onclick = () => $('settingsModal').classList.add('hidden');
+  $('btnUpdateBadge').onclick = promptUpdate;
+  $('btnCheckUpdate').onclick = checkForUpdates;
+  $('btnApplyUpdate').onclick = promptUpdate;
+  $('autoCheckUpdates').onchange = toggleAutoCheckUpdates;
   $('gridKey').addEventListener('keydown', (e) => { if (e.key === 'Enter') saveGridKey(); });
   $('btnSend').onclick = sendGame;
   $('btnSendRom').onclick = sendRom;

@@ -22,11 +22,12 @@ internal/config/      ajustes persistentes y clave SSH propia
 internal/deck/        TODO lo que sabe de la Steam Deck y de Steam
 internal/detect/      deducir qué juego hay en una carpeta (local, sin red)
 internal/meta/        servicios externos (tienda, ProtonDB, SteamGridDB)
+internal/update/      autoactualización verificada (GitHub Releases, SHA-256 y cosign)
 internal/server/      API HTTP + interfaz web embebida
 ```
 
 Las dependencias van en un solo sentido: `server` → {`deck`, `detect`, `meta`,
-`config`}. Los de abajo no se conocen entre sí. En particular **`deck` no
+`update`, `config`}. Los de abajo no se conocen entre sí. En particular **`deck` no
 importa `meta`**: quien los junta es el servidor.
 
 ### `internal/deck` — el grueso
@@ -113,6 +114,7 @@ concedemos.
 | `/api/send-game`, `/api/send-rom` | Enviar a la Deck |
 | `/api/move`, `/api/delete`, `/api/compat` | Gestionar lo instalado |
 | `/api/restart-steam`, `/api/cancel` | Acciones sueltas |
+| `/api/update/{check,apply}` | Comprobar e instalar actualizaciones |
 | `/api/events` | Progreso en vivo (SSE) |
 
 Las descargas de imágenes solo se aceptan desde dominios de SteamGridDB: sin

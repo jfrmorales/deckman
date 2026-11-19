@@ -70,6 +70,10 @@ function connectEvents() {
       pintarOperaciones();
       return;
     }
+    if (msg && msg.type === 'update') {
+      handleUpdateEvent(msg.update);
+      return;
+    }
     if (msg && msg.type === 'progress') {
       // El estado del trabajo se sigue por aquí: es lo que decide si los
       // botones de enviar y mover están disponibles.

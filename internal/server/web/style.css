@@ -847,3 +847,44 @@ thead th {
   color: #fcd34d;
   font-size: 12.5px;
 }
+
+/* ---- autoactualización ---- */
+.update-badge {
+  padding: 2px 9px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+  background: rgba(26, 159, 255, 0.16);
+  border: 1px solid rgba(26, 159, 255, 0.42);
+  color: #7dd3fc;
+}
+.update-badge:hover:not(:disabled) {
+  background: rgba(26, 159, 255, 0.28);
+  border-color: var(--accent);
+  color: #fff;
+}
+.modal-sep {
+  border: none;
+  border-top: 1px solid var(--line);
+  margin: 18px 0;
+}
+.settings-section h3 {
+  margin: 0 0 8px;
+  font-size: 14.5px;
+  font-weight: 600;
+}
+.settings-section .hint:first-of-type {
+  margin-top: 0;
+}
+.settings-upd-row {
+  align-items: center;
+  margin-top: 12px;
+}
+.settings-upd-row .linkish {
+  padding: 6px 4px;
+  text-decoration: none;
+}
+.settings-upd-row .linkish:hover {
+  text-decoration: underline;
+}

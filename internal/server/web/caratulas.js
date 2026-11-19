@@ -274,6 +274,7 @@ function updateArtworkHint() {
 }
 
 function openSettings() {
+  renderUpdateUI();
   $('settingsModal').classList.remove('hidden');
   $('gridKey').focus();
 }

@@ -18,6 +18,7 @@ import (
 	"github.com/jfrmorales/deckman/internal/config"
 	"github.com/jfrmorales/deckman/internal/deck"
 	"github.com/jfrmorales/deckman/internal/i18n"
+	"github.com/jfrmorales/deckman/internal/update"
 )
 
 //go:embed web
@@ -38,8 +39,16 @@ type Server struct {
 	// de progreso y se consulta cuando el trabajo ya ha terminado.
 	ultimoScrape *deck.ResultadoScrape
 
-	quitOnce sync.Once
-	quit     chan struct{}
+	quitOnce         sync.Once
+	quit             chan struct{}
+	restartRequested atomic.Bool
+
+	updMu           sync.Mutex
+	updater         *update.Updater
+	updState        UpdateState
+	updInfo         *update.Info
+	updCancel       context.CancelFunc
+	updRestartDelay time.Duration
 
 	// Trabajo largo en curso (copia, movimiento...). Solo uno a la vez: dos
 	// transferencias simultaneas por SSH se estorban mas que se ayudan.
@@ -77,10 +86,11 @@ type job struct {
 // New crea el servidor.
 func New() *Server {
 	s := &Server{
-		cfg:       config.Load(),
-		listeners: map[chan []byte]bool{},
-		quit:      make(chan struct{}),
-		covers:    newCoverStore(),
+		cfg:             config.Load(),
+		listeners:       map[chan []byte]bool{},
+		quit:            make(chan struct{}),
+		covers:          newCoverStore(),
+		updRestartDelay: 400 * time.Millisecond,
 	}
 	if s.cfg.RecoverInterrupted(time.Now().Unix()) {
 		s.guardar(s.cfg.Snapshot())
@@ -91,6 +101,16 @@ func New() *Server {
 // QuitRequested se cierra cuando el usuario pide salir desde la interfaz.
 func (s *Server) QuitRequested() <-chan struct{} {
 	return s.quit
+}
+
+// RestartRequested indica si el cierre se pidio para relanzar una version nueva.
+func (s *Server) RestartRequested() bool {
+	return s.restartRequested.Load()
+}
+
+func (s *Server) requestRestart() {
+	s.restartRequested.Store(true)
+	s.quitOnce.Do(func() { close(s.quit) })
 }
 
 // Clientes cuenta las interfaces abiertas ahora mismo: cada pestana o ventana
@@ -104,12 +124,17 @@ func (s *Server) Clientes() int {
 	return len(s.listeners)
 }
 
-// Busy dice si hay una operacion larga en marcha. Un trabajo terminado se
-// queda en s.job para conservar su resumen, asi que "hay job" no es "ocupado".
-func (s *Server) Busy() bool {
+func (s *Server) jobBusy() bool {
 	s.jobMu.Lock()
 	defer s.jobMu.Unlock()
 	return s.job != nil && !s.job.Prog.Done && s.job.Prog.Error == ""
+}
+
+// Busy dice si hay una operacion larga o una autoactualizacion en marcha. Un
+// trabajo terminado se queda en s.job para conservar su resumen, asi que "hay
+// job" no es "ocupado".
+func (s *Server) Busy() bool {
+	return s.jobBusy() || s.updateBusy()
 }
 
 // Handler monta las rutas.
@@ -146,6 +171,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/restart-steam", s.guard(s.handleRestartSteam))
 	mux.HandleFunc("/api/cancel", s.guard(s.handleCancel))
 	mux.HandleFunc("/api/quit", s.guard(s.handleQuit))
+	mux.HandleFunc("/api/update/check", s.guard(s.handleUpdateCheck))
+	mux.HandleFunc("/api/update/apply", s.guard(s.handleUpdateApply))
 	mux.HandleFunc("/api/roms/systems", s.guard(s.handleRomsSystems))
 	mux.HandleFunc("/api/roms/list", s.guard(s.handleRomsList))
 	mux.HandleFunc("/api/roms/scrape", s.guard(s.handleRomsScrape))
@@ -303,20 +330,22 @@ func (s *Server) handleState(w http.ResponseWriter, r *http.Request) {
 	// completa para poder elegir entre varias.
 	activa := cfg.ActiveDeck()
 	writeJSON(w, map[string]any{
-		"app":        "deckman",
-		"version":    s.Version,
-		"connected":  connected,
-		"host":       activa.Host,
-		"port":       activa.Port,
-		"user":       activa.User,
-		"decks":      cfg.Decks,
-		"active":     cfg.Active,
-		"hasKey":     cfg.KeyPath != "",
-		"lastLocal":  cfg.LastLocal,
-		"job":        cur,
-		"operations": cfg.Operations,
-		"os":         runtime.GOOS,
-		"hasGridKey": cfg.GridKey != "",
+		"app":              "deckman",
+		"version":          s.Version,
+		"connected":        connected,
+		"host":             activa.Host,
+		"port":             activa.Port,
+		"user":             activa.User,
+		"decks":            cfg.Decks,
+		"active":           cfg.Active,
+		"hasKey":           cfg.KeyPath != "",
+		"lastLocal":        cfg.LastLocal,
+		"job":              cur,
+		"operations":       cfg.Operations,
+		"os":               runtime.GOOS,
+		"hasGridKey":       cfg.GridKey != "",
+		"autoCheckUpdates": !cfg.DisableUpdateCheck,
+		"update":           s.updateSnapshot(),
 		// "idioma" es lo elegido a mano ("" = automatico) y "idiomaEfectivo" el
 		// que se va a usar de verdad. La interfaz necesita los dos: uno para
 		// marcar el desplegable y otro para pintarse.
@@ -366,8 +395,9 @@ func (s *Server) idiomaEfectivo(r *http.Request) string {
 
 func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		GridKey *string `json:"gridKey"`
-		Idioma  *string `json:"idioma"`
+		GridKey          *string `json:"gridKey"`
+		Idioma           *string `json:"idioma"`
+		AutoCheckUpdates *bool   `json:"autoCheckUpdates"`
 	}
 	if err := decode(r, &req); err != nil {
 		writeErr(w, err, http.StatusBadRequest)
@@ -376,6 +406,9 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	if req.GridKey != nil {
 		s.cfg.GridKey = strings.TrimSpace(*req.GridKey)
+	}
+	if req.AutoCheckUpdates != nil {
+		s.cfg.DisableUpdateCheck = !*req.AutoCheckUpdates
 	}
 	if req.Idioma != nil {
 		// "" es valido y significa «el que diga el navegador»: es la unica
@@ -398,7 +431,8 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	ponerIdioma(s.idiomaEfectivo(r))
 	writeJSON(w, map[string]any{
 		"ok": true, "hasGridKey": cfg.GridKey != "",
-		"idioma": cfg.Idioma, "idiomaEfectivo": idioma(),
+		"autoCheckUpdates": !cfg.DisableUpdateCheck,
+		"idioma":           cfg.Idioma, "idiomaEfectivo": idioma(),
 	})
 }
 

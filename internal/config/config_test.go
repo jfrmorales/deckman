@@ -314,3 +314,22 @@ func TestPreferredExe(t *testing.T) {
 		t.Fatalf("esperaba preferencia borrada, obtuve %q", got)
 	}
 }
+
+func TestDisableUpdateCheckDefaultAndSave(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+
+	c := Load()
+	if c.DisableUpdateCheck {
+		t.Fatal("por defecto DisableUpdateCheck debe ser false")
+	}
+
+	c.DisableUpdateCheck = true
+	if err := c.Save(); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	cargada := Load()
+	if !cargada.DisableUpdateCheck {
+		t.Fatal("DisableUpdateCheck no persistio tras Save/Load")
+	}
+}

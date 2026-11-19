@@ -20,6 +20,14 @@ Cómo se mantiene este fichero:
   «Arreglos». Sin emoji: el foro no los aguanta.
 -->
 
+## 19/11/2026 · Autoactualización integrada (v0.9.0)
+
+### Novedades
+
+- **Autoactualización integrada en la aplicación**: al arrancar, deckman comprueba discretamente si hay una versión nueva publicada en GitHub (se puede desactivar en **Ajustes**, donde también tienes el botón **Buscar actualizaciones**).
+- **Aviso discreto y confirmación previa**: si hay una versión más reciente, aparece un indicador junto al número de versión en la barra superior; nunca descarga ni sustituye nada sin que lo confirmes primero en el resumen de cambios y novedades.
+- **Verificación criptográfica y reinicio automático**: antes de tocar tu instalación comprueba `SHA256SUMS` y la firma `cosign` cuando la release la incluye. Funciona en los binarios sueltos de Linux, Windows y macOS (`amd64` y `arm64`) y en las instalaciones de usuario de Flatpak (`--user`), reiniciando deckman automáticamente al terminar.
+
 ## 17/11/2026 · Recordar el ejecutable elegido por carpeta (v0.8.1)
 
 ### Mejoras

@@ -20,6 +20,15 @@ Cómo se mantiene este fichero:
   «Arreglos». Sin emoji: el foro no los aguanta.
 -->
 
+## 20/11/2026 · Actualizar sin cortar envíos ni la cola (v0.9.1)
+
+### Mejoras
+
+- **Actualizar ya no corta lo que tengas en marcha**: si aceptas una actualización con un envío en curso o juegos esperando en la cola de movimientos, deckman descarga e instala la versión nueva en ese momento, pero **espera a que termine todo** antes de reiniciarse.
+- **Ves por qué está esperando**: antes de aceptar, el aviso enumera los trabajos pendientes; y mientras espera, una barra bajo la cabecera dice qué versión está lista y cuántos trabajos quedan, con acceso directo al historial y la cola. Si prefieres no esperar, el botón **Reiniciar ahora** te avisa antes de qué se va a cortar.
+- **La cola sigue moviéndose mientras se descarga la actualización**, y cancelar un envío ya no cancela de paso la descarga (cada uno tiene su botón).
+- Si cierras deckman mientras espera, se cierra al acabar los trabajos y la próxima vez arranca ya con la versión nueva.
+
 ## 19/11/2026 · Autoactualización integrada (v0.9.0)
 
 ### Novedades

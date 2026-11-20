@@ -13,6 +13,24 @@ bloque `<releases>` del metainfo. Los tres los sincroniza `scripts/release.sh`.
      versión nueva al publicar. Secciones: Añadido, Cambiado, Corregido,
      Eliminado. -->
 
+### Cambiado
+
+- **La autoactualización ya no se niega ni corta la cola por haber trabajos.**
+  Se descarga e instala la versión nueva aunque haya un trabajo en curso o
+  movimientos en cola, y el **reinicio se aplaza** hasta que terminen todos
+  (nuevo estado `pending_restart`). Antes se rechazaba con un trabajo activo,
+  pero ignoraba los movimientos en cola, que al reiniciar quedaban interrumpidos
+  sin avisar; y mientras duraba la descarga la cola se paraba.
+- La confirmación de actualizar lista los trabajos pendientes, y una barra
+  persistente bajo la cabecera enseña la lista mientras se espera, con acceso al
+  historial y la cola y un botón **Reiniciar ahora** (corta el trabajo en curso y
+  deja la cola como interrumpida; la confirmación lo dice).
+- La descarga de la actualización no pisa el panel de progreso de un trabajo en
+  marcha: se cuenta en la barra de actualización y en Ajustes.
+- `/api/cancel` cancela solo el trabajo; la descarga de la actualización se
+  cancela con el nuevo `/api/update/cancel`. Nuevo `/api/update/restart` para el
+  reinicio forzado.
+
 ## [0.9.0] — 2026-11-19
 
 ### Añadido

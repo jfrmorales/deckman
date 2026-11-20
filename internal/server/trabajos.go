@@ -35,7 +35,9 @@ func (s *Server) broadcastOperations(ops []config.Operation) {
 
 // startJobOp arranca una operacion larga registrandola en el historial persistente.
 func (s *Server) startJobOp(op config.Operation, fn func(ctx context.Context, report deck.ProgressFunc) error) (*job, error) {
-	if s.updateBusy() {
+	// Solo se rechaza cuando el reinicio ya esta en marcha: mientras se
+	// descarga o se espera a que acabe la cola, los trabajos siguen.
+	if s.updateRestarting() {
 		return nil, i18n.Errorf("hay una actualizacion en curso")
 	}
 	if op.DeckHost == "" {
@@ -172,9 +174,15 @@ func (s *Server) startJobOp(op config.Operation, fn func(ctx context.Context, re
 		s.broadcastOperations(snap.Operations)
 		s.broadcast(map[string]any{"type": "progress", "job": j.ID, "title": j.Title, "kind": j.Kind, "progress": final})
 
-		if !canceled {
-			go s.advanceQueue()
-		}
+		// advanceQueue primero y el reinicio aplazado despues: si fuera al
+		// reves, entre el fin de este trabajo y el arranque del siguiente en
+		// cola la lista pendiente se veria vacia y se reiniciaria a medias.
+		go func() {
+			if !canceled {
+				s.advanceQueue()
+			}
+			s.maybeRestartAfterUpdate()
+		}()
 	}()
 
 	return j, nil
@@ -224,12 +232,6 @@ func (s *Server) handleCancel(w http.ResponseWriter, r *http.Request) {
 		s.job.cancel()
 	}
 	s.jobMu.Unlock()
-
-	s.updMu.Lock()
-	if s.updCancel != nil {
-		s.updCancel()
-	}
-	s.updMu.Unlock()
 
 	writeJSON(w, map[string]any{"ok": true})
 }

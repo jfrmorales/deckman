@@ -173,6 +173,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/quit", s.guard(s.handleQuit))
 	mux.HandleFunc("/api/update/check", s.guard(s.handleUpdateCheck))
 	mux.HandleFunc("/api/update/apply", s.guard(s.handleUpdateApply))
+	mux.HandleFunc("/api/update/restart", s.guard(s.handleUpdateRestart))
+	mux.HandleFunc("/api/update/cancel", s.guard(s.handleUpdateCancel))
 	mux.HandleFunc("/api/roms/systems", s.guard(s.handleRomsSystems))
 	mux.HandleFunc("/api/roms/list", s.guard(s.handleRomsList))
 	mux.HandleFunc("/api/roms/scrape", s.guard(s.handleRomsScrape))

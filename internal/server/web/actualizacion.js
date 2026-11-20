@@ -41,15 +41,127 @@ function manualUpdateReason(code) {
   }
 }
 
+// updateBytesSuffix añade " · X de Y" al texto de la fase mientras se descarga.
+function updateBytesSuffix(u) {
+  return (u.bytesTotal && u.bytesDone)
+    ? ' · ' + t('{0} de {1}', fmtBytes(u.bytesDone), fmtBytes(u.bytesTotal))
+    : '';
+}
+
+// pendingStatusLabel traduce el estado de un trabajo pendiente.
+function pendingStatusLabel(status) {
+  return status === 'en_curso' ? t('En curso') : t('En cola');
+}
+
+// updOwnsProgress dice si el panel de progreso compartido (#progress) está
+// enseñando ahora la descarga de la actualización. Con un trabajo en marcha el
+// panel es del trabajo y la descarga se pinta en la barra de actualización.
+let updOwnsProgress = false;
+
+// renderUpdateBar pinta el aviso persistente de la actualización: el reinicio
+// aplazado hasta que terminen los trabajos y, si el panel de progreso está
+// ocupado por un trabajo, la descarga. Se repinta entero desde aquí (y desde
+// aplicarIdioma, vía renderUpdateUI) porque lo generado por JavaScript no lo
+// alcanza el traductor del DOM.
+function renderUpdateBar() {
+  const bar = $('updBar');
+  if (!bar) return;
+  const u = state.update || {};
+  const pend = u.pending || [];
+  const showDownload = u.status === 'applying' && !updOwnsProgress;
+  const showPending = u.status === 'pending_restart';
+  bar.classList.toggle('hidden', !(showDownload || showPending));
+  bar.textContent = '';
+  if (!(showDownload || showPending)) return;
+
+  const row = document.createElement('div');
+  row.className = 'upd-bar-row';
+  const msg = document.createElement('span');
+  msg.className = 'upd-bar-msg';
+  const actions = document.createElement('span');
+  actions.className = 'upd-bar-actions';
+
+  if (showDownload) {
+    msg.textContent = t('Actualizando a {0}', u.latest || '') + ': ' + updatePhaseLabel(u.phase) + updateBytesSuffix(u);
+    if (u.phase !== 'instalando' && u.phase !== 'reiniciando') {
+      const b = document.createElement('button');
+      b.className = 'mini';
+      b.textContent = t('Cancelar actualización');
+      b.onclick = () => api('/api/update/cancel', {}).catch(() => {});
+      actions.appendChild(b);
+    }
+  } else {
+    if (pend.length === 0) msg.textContent = t('Versión {0} instalada: deckman se reiniciará en un momento.', u.latest || '');
+    else if (pend.length === 1) msg.textContent = t('Versión {0} instalada: deckman se reiniciará al terminar 1 trabajo.', u.latest || '');
+    else msg.textContent = t('Versión {0} instalada: deckman se reiniciará al terminar {1} trabajos.', u.latest || '', pend.length);
+
+    const bOps = document.createElement('button');
+    bOps.className = 'mini';
+    bOps.textContent = t('Ver historial y cola');
+    bOps.onclick = showOperationsPanel;
+    actions.appendChild(bOps);
+    const bNow = document.createElement('button');
+    bNow.className = 'mini danger';
+    bNow.textContent = t('Reiniciar ahora');
+    bNow.onclick = restartNow;
+    actions.appendChild(bNow);
+  }
+  row.appendChild(msg);
+  row.appendChild(actions);
+  bar.appendChild(row);
+
+  if (showPending && pend.length) {
+    const ul = document.createElement('ul');
+    ul.className = 'upd-bar-list';
+    for (const w of pend) {
+      const li = document.createElement('li');
+      li.textContent = `${w.title} · ${pendingStatusLabel(w.status)}`;
+      ul.appendChild(li);
+    }
+    bar.appendChild(ul);
+  }
+}
+
+// showOperationsPanel lleva al historial y cola de operaciones, que vive en la
+// pestaña Biblioteca.
+function showOperationsPanel() {
+  const tab = document.querySelector('.tab[data-tab="library"]');
+  if (tab) tab.click();
+  const panel = $('opsPanel');
+  if (panel && !panel.classList.contains('hidden')) {
+    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+// restartNow fuerza el reinicio aplazado, cortando lo que esté en marcha. Lo
+// que se pierde se dice antes de aceptar.
+async function restartNow() {
+  const pend = (state.update && state.update.pending) || [];
+  const ok = await confirmChanges({
+    title: t('Reiniciar deckman ahora'),
+    summary: t('Se cortará el trabajo en curso y los movimientos en cola quedarán como interrumpidos; podrás reanudarlos desde el historial.'),
+    items: pend.map((w) => ({ path: w.title, desc: pendingStatusLabel(w.status) })),
+    confirmLabel: t('Reiniciar ahora'),
+    danger: true,
+  });
+  if (!ok) return;
+  try {
+    await api('/api/update/restart', {});
+  } catch (e) {
+    banner(t('No se pudo reiniciar: {0}', e.message), 'err');
+  }
+}
+
 function renderUpdateUI() {
   const u = state.update || {};
+  renderUpdateBar();
 
   const autoChk = $('autoCheckUpdates');
   if (autoChk) autoChk.checked = state.autoCheckUpdates !== false;
 
   const badge = $('btnUpdateBadge');
   if (badge) {
-    const showBadge = !!(u.available && u.latest && u.status !== 'restarting');
+    const showBadge = !!(u.available && u.latest && u.status !== 'restarting' && u.status !== 'pending_restart');
     badge.classList.toggle('hidden', !showBadge);
     if (showBadge) {
       badge.textContent = `↑ ${u.latest}`;
@@ -59,14 +171,14 @@ function renderUpdateUI() {
 
   const btnChk = $('btnCheckUpdate');
   if (btnChk) {
-    const busy = u.status === 'checking' || u.status === 'applying' || u.status === 'restarting';
+    const busy = u.status === 'checking' || u.status === 'applying' || u.status === 'restarting' || u.status === 'pending_restart';
     btnChk.disabled = busy;
     btnChk.textContent = u.status === 'checking' ? t('Buscando…') : t('Buscar actualizaciones');
   }
 
   const btnApply = $('btnApplyUpdate');
   if (btnApply) {
-    const showApply = !!(u.available && u.canApply && u.status !== 'applying' && u.status !== 'restarting');
+    const showApply = !!(u.available && u.canApply && u.status !== 'applying' && u.status !== 'restarting' && u.status !== 'pending_restart');
     btnApply.classList.toggle('hidden', !showApply);
     btnApply.textContent = u.latest ? t('Instalar {0}', u.latest) : t('Instalar actualización');
   }
@@ -83,7 +195,11 @@ function renderUpdateUI() {
   if (u.status === 'checking') {
     stEl.textContent = t('Buscando nuevas versiones en GitHub…');
   } else if (u.status === 'applying') {
-    stEl.textContent = updatePhaseLabel(u.phase);
+    // Si hay un trabajo en marcha, el panel de progreso es suyo y la
+    // descarga se cuenta aquí.
+    stEl.textContent = updatePhaseLabel(u.phase) + updateBytesSuffix(u);
+  } else if (u.status === 'pending_restart') {
+    stEl.textContent = t('Actualización instalada. deckman se reiniciará al terminar los trabajos pendientes.');
   } else if (u.status === 'restarting') {
     stEl.textContent = t('Actualización instalada. Reiniciando…');
   } else if (u.status === 'error') {
@@ -137,13 +253,24 @@ async function toggleAutoCheckUpdates() {
 }
 
 async function promptUpdate() {
+  // Los trabajos pendientes cambian sin que el estado de la actualización se
+  // retransmita, y el diálogo los lista: se pide la foto al abrirlo.
+  try {
+    const st = await api('/api/state');
+    if (st && st.update) state.update = st.update;
+  } catch { /* se usa lo que haya */ }
   const u = state.update || {};
   if (!u.available) {
     openSettings();
     return;
   }
+  if (u.status === 'pending_restart') {
+    showOperationsPanel();
+    return;
+  }
   if (u.status === 'applying') {
-    $('progress').classList.remove('hidden');
+    if (updOwnsProgress) $('progress').classList.remove('hidden');
+    else $('updBar').scrollIntoView({ block: 'nearest' });
     return;
   }
   if (!u.canApply) {
@@ -165,10 +292,16 @@ async function promptUpdate() {
     : t('Verificación SHA-256 antes de instalar.');
   const sizePrefix = u.assetSize ? `${fmtBytes(u.assetSize)} · ` : '';
 
+  const pend = u.pending || [];
+  let summary = t('Actualizar deckman de {0} a {1}.', u.current || state.version || '', u.latest || '');
+  if (pend.length) {
+    summary += ' ' + t('Hay trabajos en marcha o en cola: se descargará e instalará ahora y deckman se reiniciará cuando terminen.');
+  }
   const ok = await confirmChanges({
     title: t('Actualizar deckman'),
-    summary: t('Actualizar deckman de {0} a {1}.', u.current || state.version || '', u.latest || ''),
+    summary,
     items: [
+      ...pend.map((w) => ({ path: w.title, desc: pendingStatusLabel(w.status) })),
       {
         path: u.assetName || '',
         desc: sizePrefix + verifyDesc,
@@ -181,7 +314,7 @@ async function promptUpdate() {
       },
     ],
     note: u.notes ? t('Novedades:') + '\n' + u.notes : '',
-    confirmLabel: t('Actualizar y reiniciar'),
+    confirmLabel: pend.length ? t('Actualizar y reiniciar al terminar') : t('Actualizar y reiniciar'),
   });
   if (!ok) return;
 
@@ -190,15 +323,17 @@ async function promptUpdate() {
 }
 
 async function applyUpdate() {
-  if (jobBusy()) {
-    banner(t('Ya hay una operación en curso: espera a que termine o cancélala.'), 'err');
-    return;
-  }
   const u = state.update || {};
   try {
     await api('/api/update/apply', {});
-    showProgress(t('Actualizando a {0}', u.latest || ''));
-    $('pPhase').textContent = updatePhaseLabel('verificando');
+    // Con un trabajo en marcha su panel no se pisa: la descarga se cuenta en
+    // la barra de actualización (handleUpdateEvent).
+    if (!jobBusy()) {
+      updOwnsProgress = true;
+      showProgress(t('Actualizando a {0}', u.latest || ''));
+      $('pPhase').textContent = updatePhaseLabel('verificando');
+    }
+    renderUpdateUI();
   } catch (e) {
     banner(t('No se pudo actualizar: {0}', e.message), 'err');
   }
@@ -211,7 +346,14 @@ function handleUpdateEvent(u) {
   renderUpdateUI();
 
   if (u.status === 'applying') {
-    if ($('progress').classList.contains('hidden')) {
+    // El panel compartido solo se usa si no lo ocupa un trabajo; si lo ocupa,
+    // la descarga se ve en la barra (renderUpdateBar, ya llamada arriba).
+    if (jobBusy() && !updOwnsProgress) return;
+    if (!updOwnsProgress) {
+      updOwnsProgress = true;
+      showProgress(t('Actualizando a {0}', u.latest || ''));
+      renderUpdateBar();
+    } else if ($('progress').classList.contains('hidden') && !jobBusy()) {
       showProgress(t('Actualizando a {0}', u.latest || ''));
     }
     $('pTitle').textContent = t('Actualizando a {0}', u.latest || '');
@@ -234,17 +376,29 @@ function handleUpdateEvent(u) {
     return;
   }
 
-  if (u.status === 'error' && prevStatus === 'applying' && !$('progress').classList.contains('hidden')) {
+  const hadPanel = updOwnsProgress;
+  if (u.status !== 'applying') updOwnsProgress = false;
+  if (u.status === 'error' && prevStatus === 'applying' && hadPanel && !$('progress').classList.contains('hidden')) {
     $('pPhase').textContent = u.error || t('error desconocido');
     $('pFill').className = 'pfill err';
     $('btnCancel').classList.add('hidden');
     $('btnCloseProgress').classList.remove('hidden');
     return;
   }
+  if (u.status === 'error' && prevStatus === 'applying' && !hadPanel) {
+    // La descarga se contaba en la barra, no en el panel: el fallo va al banner.
+    banner(t('No se pudo actualizar: {0}', u.error || t('error desconocido')), 'err');
+    return;
+  }
 
-  if (u.status === 'available' && prevStatus === 'applying' && !$('progress').classList.contains('hidden')) {
-    $('progress').classList.add('hidden');
+  if (u.status === 'available' && prevStatus === 'applying') {
+    if (hadPanel && !$('progress').classList.contains('hidden')) $('progress').classList.add('hidden');
     banner(t('Actualización cancelada.'), '');
+    return;
+  }
+
+  if (u.status === 'pending_restart') {
+    if (hadPanel) $('progress').classList.add('hidden');
     return;
   }
 

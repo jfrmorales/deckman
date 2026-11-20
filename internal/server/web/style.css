@@ -849,6 +849,18 @@ thead th {
 }
 
 /* ---- autoactualización ---- */
+.upd-bar {
+  padding: 10px 24px;
+  background: rgba(26, 159, 255, 0.12);
+  border-bottom: 1px solid rgba(26, 159, 255, 0.3);
+  color: #bae6fd;
+  font-size: 13.5px;
+}
+.upd-bar-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.upd-bar-msg { font-weight: 500; }
+.upd-bar-actions { display: flex; gap: 8px; }
+.upd-bar-list { margin: 6px 0 0; padding-left: 20px; font-size: 12.5px; color: var(--dim); }
+
 .update-badge {
   padding: 2px 9px;
   border-radius: 10px;

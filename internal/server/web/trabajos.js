@@ -79,6 +79,9 @@ function connectEvents() {
       // botones de enviar y mover están disponibles.
       state.job = { id: msg.job, kind: msg.kind, title: msg.title, progress: msg.progress || {} };
       updateJobButtons();
+      // Un trabajo se queda con el panel; la descarga de la actualización, si
+      // sigue, pasa a contarse en la barra de actualización.
+      if (updOwnsProgress) { updOwnsProgress = false; renderUpdateBar(); }
       if ($('progress').classList.contains('hidden')) showProgress(msg.title);
       updateProgress(msg);
       avisarFinDeTrabajo(msg);

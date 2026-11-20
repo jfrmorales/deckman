@@ -205,14 +205,16 @@ func (s *Server) handleMove(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]any{"ok": true, "job": op.ID, "queued": true, "operations": snap.Operations})
 	}
 
-	if s.Busy() {
+	// Con una actualizacion descargandose o esperando el reinicio, el movimiento
+	// arranca igual: solo se encola si hay un trabajo o el reinicio ya va.
+	if s.jobBusy() || s.updateRestarting() {
 		enqueue()
 		return
 	}
 
 	j, err := s.startMoveOperation(op)
 	if err != nil {
-		if s.Busy() {
+		if s.jobBusy() || s.updateRestarting() {
 			enqueue()
 			return
 		}
@@ -264,7 +266,8 @@ func (s *Server) advanceQueue() {
 	if _, err := s.conn(); err != nil {
 		return
 	}
-	if s.Busy() {
+	// No Busy(): descargar una actualizacion no debe parar la cola.
+	if s.jobBusy() || s.updateRestarting() {
 		return
 	}
 	host := s.deckHost()
@@ -372,6 +375,9 @@ func (s *Server) handleClearOperations(w http.ResponseWriter, r *http.Request) {
 	s.mu.Unlock()
 	s.guardar(snap)
 	s.broadcastOperations(snap.Operations)
+	// Quitar un movimiento de la cola puede dejar vacio lo que retenia el
+	// reinicio de la actualizacion.
+	s.maybeRestartAfterUpdate()
 	writeJSON(w, map[string]any{"ok": true, "operations": snap.Operations})
 }
 

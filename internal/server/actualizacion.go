@@ -13,7 +13,9 @@ import (
 // UpdateState resume para la interfaz el estado de comprobacion e instalacion
 // de actualizaciones. Las URLs directas de descarga no se exponen al navegador.
 type UpdateState struct {
-	Status       string `json:"status"` // "idle", "checking", "available", "up_to_date", "applying", "restarting", "error"
+	// "pending_restart": la version nueva ya esta en disco pero el reinicio se
+	// aplaza hasta que acaben el trabajo en curso y la cola.
+	Status       string `json:"status"` // "idle", "checking", "available", "up_to_date", "applying", "pending_restart", "restarting", "error"
 	Current      string `json:"current,omitempty"`
 	Latest       string `json:"latest,omitempty"`
 	Available    bool   `json:"available"`
@@ -30,6 +32,44 @@ type UpdateState struct {
 	BytesDone    int64  `json:"bytesDone,omitempty"`
 	BytesTotal   int64  `json:"bytesTotal,omitempty"`
 	Error        string `json:"error,omitempty"`
+	// Pending es el trabajo que un reinicio cortaria o que lo retrasa. Se
+	// rellena en cualquier estado para que la confirmacion de actualizar pueda
+	// listarlo antes de aceptar.
+	Pending []PendingWork `json:"pending,omitempty"`
+}
+
+// PendingWork es un trabajo que impide reiniciar ya: el activo o uno de la cola.
+type PendingWork struct {
+	ID     string `json:"id"`
+	Kind   string `json:"kind"`
+	Title  string `json:"title"`
+	Status string `json:"status"` // "en_curso" | "en_cola"
+}
+
+// pendingWork lista el trabajo activo y los movimientos en cola que
+// advanceQueue ejecutaria (los de la Deck conectada), en el orden en que
+// correran. Se mira lo mismo que mira advanceQueue: si contase otra cosa, el
+// reinicio esperaria por operaciones que nadie va a arrancar.
+func (s *Server) pendingWork() []PendingWork {
+	var out []PendingWork
+	s.jobMu.Lock()
+	if s.job != nil && !s.job.Prog.Done && s.job.Prog.Error == "" {
+		out = append(out, PendingWork{ID: s.job.ID, Kind: s.job.Kind, Title: s.job.Title, Status: "en_curso"})
+	}
+	s.jobMu.Unlock()
+
+	host := s.deckHost()
+	s.mu.RLock()
+	ops := s.cfg.Snapshot().Operations
+	s.mu.RUnlock()
+	// La lista guarda lo mas nuevo primero; la cola es FIFO.
+	for i := len(ops) - 1; i >= 0; i-- {
+		op := ops[i]
+		if op.Status == "en_cola" && op.Kind == "move" && (op.DeckHost == "" || op.DeckHost == host) {
+			out = append(out, PendingWork{ID: op.ID, Kind: op.Kind, Title: op.Title, Status: "en_cola"})
+		}
+	}
+	return out
 }
 
 func (s *Server) getUpdater() *update.Updater {
@@ -53,13 +93,30 @@ func (s *Server) updateSnapshot() UpdateState {
 	if st.Current == "" {
 		st.Current = s.Version
 	}
+	// Fuera de updMu: pendingWork toma otros cerrojos y aqui no hace falta
+	// que la foto sea atomica con el estado.
+	st.Pending = s.pendingWork()
 	return st
 }
 
+// updateBusy dice si la actualizacion esta ocupando el proceso (descargando o
+// reiniciando). Cuenta para Busy(): con la interfaz cerrada, el proceso no se
+// apaga a mitad de instalar. En "pending_restart" NO cuenta: la version nueva
+// ya esta en disco, y si el usuario cierra la ventana mientras se espera, el
+// proceso se apaga normal al acabar el trabajo y la proxima vez arranca ya con
+// ella.
 func (s *Server) updateBusy() bool {
 	s.updMu.Lock()
 	defer s.updMu.Unlock()
 	return s.updState.Status == "applying" || s.updState.Status == "restarting"
+}
+
+// updateRestarting dice si el reinicio ya esta en marcha. Es lo unico que
+// impide arrancar trabajos: mientras se descarga o se espera, la cola sigue.
+func (s *Server) updateRestarting() bool {
+	s.updMu.Lock()
+	defer s.updMu.Unlock()
+	return s.updState.Status == "restarting"
 }
 
 func stateFromUpdateInfo(info *update.Info) UpdateState {
@@ -85,6 +142,7 @@ func stateFromUpdateInfo(info *update.Info) UpdateState {
 }
 
 func (s *Server) broadcastUpdate(st UpdateState) {
+	st.Pending = s.pendingWork()
 	s.broadcast(map[string]any{"type": "update", "update": st})
 }
 
@@ -140,6 +198,12 @@ func (s *Server) handleUpdateCheck(w http.ResponseWriter, r *http.Request) {
 		s.updMu.Unlock()
 		writeErr(w, i18n.Errorf("hay una actualizacion en curso"), http.StatusConflict)
 		return
+	case "pending_restart":
+		// Ya esta instalada: buscar de nuevo pisaria el estado y la interfaz
+		// perderia que hay un reinicio esperando.
+		s.updMu.Unlock()
+		writeErr(w, i18n.Errorf("la actualizacion ya esta instalada; deckman se reiniciara al terminar los trabajos pendientes"), http.StatusConflict)
+		return
 	case "checking":
 		s.updMu.Unlock()
 		writeErr(w, i18n.Errorf("ya se estan buscando actualizaciones"), http.StatusConflict)
@@ -189,13 +253,10 @@ func (s *Server) handleUpdateApply(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "solo POST", http.StatusMethodNotAllowed)
 		return
 	}
-	if s.jobBusy() {
-		writeErr(w, i18n.Errorf("hay una operacion en curso; cancelala o espera a que termine"), http.StatusConflict)
-		return
-	}
-
+	// Ya no se niega por haber trabajos: se descarga e instala ahora y el
+	// reinicio espera a que terminen (ver decideRestart).
 	s.updMu.Lock()
-	if s.updState.Status == "applying" || s.updState.Status == "restarting" {
+	if s.updState.Status == "applying" || s.updState.Status == "restarting" || s.updState.Status == "pending_restart" {
 		s.updMu.Unlock()
 		writeErr(w, i18n.Errorf("hay una actualizacion en curso"), http.StatusConflict)
 		return
@@ -262,9 +323,36 @@ func (s *Server) runUpdateApply(ctx context.Context, u *update.Updater, info upd
 
 	s.updMu.Lock()
 	s.updCancel = nil
+	s.updMu.Unlock()
+	s.decideRestart("applying")
+}
+
+// decideRestart reinicia si ya no queda trabajo, o deja el estado en
+// "pending_restart" si queda. Parte de `from` y no hace nada si el estado ya es
+// otro: asi dos disparos a la vez (fin de trabajo y fin de instalacion) no
+// reinician dos veces.
+//
+// La decision y el cambio de estado van bajo updMu. Sin eso, un trabajo que
+// acabase justo entre mirar la lista y pasar a "pending_restart" vendria a
+// comprobar un estado que aun no era el suyo, y el reinicio se quedaria
+// esperando para siempre.
+func (s *Server) decideRestart(from string) {
+	s.updMu.Lock()
+	if s.updState.Status != from {
+		s.updMu.Unlock()
+		return
+	}
+	s.updState.Error = ""
+	if len(s.pendingWork()) > 0 {
+		s.updState.Status = "pending_restart"
+		s.updState.Phase = ""
+		snap := s.updState
+		s.updMu.Unlock()
+		s.broadcastUpdate(snap)
+		return
+	}
 	s.updState.Status = "restarting"
 	s.updState.Phase = "reiniciando"
-	s.updState.Error = ""
 	snap := s.updState
 	delay := s.updRestartDelay
 	s.updMu.Unlock()
@@ -274,4 +362,69 @@ func (s *Server) runUpdateApply(ctx context.Context, u *update.Updater, info upd
 		time.Sleep(delay)
 	}
 	s.requestRestart()
+}
+
+// maybeRestartAfterUpdate se llama cada vez que puede haber bajado el trabajo
+// pendiente (fin de un trabajo, cola modificada). Si el reinicio estaba
+// aplazado y ya no queda nada, reinicia; si queda algo, reenvia el estado para
+// que la interfaz vea bajar la lista.
+func (s *Server) maybeRestartAfterUpdate() {
+	s.decideRestart("pending_restart")
+}
+
+// handleUpdateRestart fuerza el reinicio aplazado: corta el trabajo en curso.
+// Los movimientos en cola quedan como interrumpidos al arrancar
+// (RecoverInterrupted); la interfaz lo avisa antes de pedir esto.
+func (s *Server) handleUpdateRestart(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "solo POST", http.StatusMethodNotAllowed)
+		return
+	}
+	s.updMu.Lock()
+	if s.updState.Status != "pending_restart" {
+		s.updMu.Unlock()
+		writeErr(w, i18n.Errorf("no hay ningun reinicio pendiente"), http.StatusConflict)
+		return
+	}
+	s.updState.Status = "restarting"
+	s.updState.Phase = "reiniciando"
+	snap := s.updState
+	delay := s.updRestartDelay
+	s.updMu.Unlock()
+
+	s.broadcastUpdate(snap)
+	writeJSON(w, map[string]any{"ok": true})
+
+	s.jobMu.Lock()
+	if s.job != nil && s.job.cancel != nil {
+		s.job.cancel()
+	}
+	s.jobMu.Unlock()
+
+	go func() {
+		// Dejar que el trabajo cancelado anote su estado "interrumpido" en el
+		// historial antes de morir; si no responde, no se espera mas.
+		for i := 0; i < 50 && s.jobBusy(); i++ {
+			time.Sleep(100 * time.Millisecond)
+		}
+		if delay > 0 {
+			time.Sleep(delay)
+		}
+		s.requestRestart()
+	}()
+}
+
+// handleUpdateCancel cancela solo la descarga de la actualizacion; el trabajo
+// en curso no se toca (eso es /api/cancel).
+func (s *Server) handleUpdateCancel(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "solo POST", http.StatusMethodNotAllowed)
+		return
+	}
+	s.updMu.Lock()
+	if s.updCancel != nil {
+		s.updCancel()
+	}
+	s.updMu.Unlock()
+	writeJSON(w, map[string]any{"ok": true})
 }

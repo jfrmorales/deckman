@@ -101,7 +101,9 @@ function init() {
   $('btnSend').onclick = sendGame;
   $('btnSendRom').onclick = sendRom;
 
-  $('btnCancel').onclick = () => api('/api/cancel', {}).catch(() => {});
+  // Trabajo y actualización se cancelan por separado: el panel de progreso es
+  // de la actualización solo mientras updOwnsProgress.
+  $('btnCancel').onclick = () => api(updOwnsProgress ? '/api/update/cancel' : '/api/cancel', {}).catch(() => {});
   $('btnCloseProgress').onclick = () => $('progress').classList.add('hidden');
 
   $('artClose').onclick = $('artDone').onclick = () => {
